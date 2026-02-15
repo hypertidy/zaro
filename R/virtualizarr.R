@@ -38,9 +38,10 @@ open_virtualizarr <- function(base_url, verbose = TRUE) {
        verbose = verbose)
 
   cache <- new.env(parent = emptyenv())
-  cache$manifests <- list()     # var_name -> data.frame of chunk refs
   cache$meta <- list()          # key -> raw bytes
   cache$chunk_grids <- list()   # var_name -> integer vector of grid dims
+  cache$shard_sizes <- list()   # var_name -> integer (rows per shard)
+  cache$shards <- list()        # "var_name:N" -> data.frame
 
   VirtualiZarrStore(
     root = base_url,
@@ -52,11 +53,13 @@ open_virtualizarr <- function(base_url, verbose = TRUE) {
 # -- S7 class ---------------------------------------------------------------
 
 VirtualiZarrStore <- new_class("VirtualiZarrStore", parent = ZaroStore,
-  properties = list(
-    cache = class_any   # environment: manifests + meta (shared by reference)
-  )
+                               properties = list(
+                                 cache = class_any   # environment: shared by reference across copies
+                               )
 )
 
+
+# -- store methods -----------------------------------------------------------
 
 method(store_get, VirtualiZarrStore) <- function(store, key) {
   # metadata files — fetch directly and cache
@@ -71,40 +74,69 @@ method(store_get, VirtualiZarrStore) <- function(store, key) {
     return(raw)
   }
 
-  # chunk reads — resolve through manifest
+  # chunk reads — resolve through manifest shards
   parts <- parse_chunk_key(key)
   if (is.null(parts)) return(NULL)
 
   var_name <- parts$variable
   chunk_key <- parts$chunk_key
 
-  # ensure manifest is loaded for this variable
-  if (is.null(store@cache$manifests[[var_name]])) {
-    manifest <- vz_load_manifest(store@root, var_name)
-    if (is.null(manifest)) return(NULL)
-    store@cache$manifests[[var_name]] <- manifest
-  }
-
-  manifest <- store@cache$manifests[[var_name]]
-
   # compute chunk grid dimensions from metadata (needed for C-order lookup)
   chunk_grid <- store@cache$chunk_grids[[var_name]]
   if (is.null(chunk_grid)) {
     chunk_grid <- vz_compute_chunk_grid(store, var_name)
+    if (is.null(chunk_grid)) return(NULL)
     store@cache$chunk_grids[[var_name]] <- chunk_grid
   }
 
-  # look up the chunk in the manifest
-  ref <- vz_resolve_chunk(manifest, chunk_key, chunk_grid)
-  if (is.null(ref)) return(NULL)
-
-  # inline data (coordinate variables stored directly in Parquet)
-  if (!is.null(ref$inline)) {
-    return(ref$inline)
+  # compute C-order linear index from chunk key
+  indices <- as.integer(strsplit(chunk_key, ".", fixed = TRUE)[[1]])
+  linear_idx <- 0L
+  stride <- 1L
+  for (d in rev(seq_along(indices))) {
+    linear_idx <- linear_idx + indices[d] * stride
+    stride <- stride * chunk_grid[d]
   }
 
+  # determine shard size (rows per shard file)
+  shard_size <- store@cache$shard_sizes[[var_name]]
+  if (is.null(shard_size)) {
+    # fetch first shard to learn the row count
+    shard_0 <- vz_fetch_shard(store, var_name, 0L)
+    if (is.null(shard_0)) return(NULL)
+    shard_size <- nrow(shard_0)
+    store@cache$shard_sizes[[var_name]] <- shard_size
+    store@cache$shards[[paste0(var_name, ":0")]] <- shard_0
+  }
+
+  # which shard and which row within it?
+  shard_idx <- linear_idx %/% shard_size
+  row_idx <- (linear_idx %% shard_size) + 1L  # 1-based
+
+  # fetch shard (cached after first load)
+  shard_cache_key <- paste0(var_name, ":", shard_idx)
+  shard <- store@cache$shards[[shard_cache_key]]
+  if (is.null(shard)) {
+    shard <- vz_fetch_shard(store, var_name, shard_idx)
+    if (is.null(shard)) return(NULL)
+    store@cache$shards[[shard_cache_key]] <- shard
+  }
+
+  if (row_idx > nrow(shard)) return(NULL)
+
+  # check for inline data (coordinate variables)
+  if ("raw" %in% names(shard)) {
+    inline <- shard$raw[[row_idx]]
+    if (!is.null(inline) && length(inline) > 0) {
+      return(inline)
+    }
+  }
+
+  path <- shard$path[row_idx]
+  if (is.na(path) || path == "") return(NULL)
+
   # byte-range read from the source file
-  byte_range_read(ref$path, ref$offset, ref$size)
+  byte_range_read(path, shard$offset[row_idx], shard$size[row_idx])
 }
 
 
@@ -112,7 +144,8 @@ method(store_list, VirtualiZarrStore) <- function(store, prefix = "") {
   # list metadata keys from .zmetadata if available
   raw <- store_get(store, ".zmetadata")
   if (!is.null(raw)) {
-    doc <- jsonlite::fromJSON(sanitize_json(rawToChar(raw)), simplifyVector = FALSE)
+    doc <- jsonlite::fromJSON(sanitize_json(rawToChar(raw)),
+                              simplifyVector = FALSE)
     entries <- names(doc[["metadata"]])
     if (nzchar(prefix)) {
       entries <- entries[startsWith(entries, prefix)]
@@ -127,8 +160,7 @@ method(store_exists, VirtualiZarrStore) <- function(store, key) {
   if (is_metadata_key(key)) {
     return(!is.null(store_get(store, key)))
   }
-  # for chunk keys, we could check the manifest but that's expensive;
-  # just try the get
+  # for chunk keys, try the full resolution
   !is.null(store_get(store, key))
 }
 
@@ -148,7 +180,6 @@ is_metadata_key <- function(key) {
 #' e.g. "Time/0" -> list(variable = "Time", chunk_key = "0")
 #' @noRd
 parse_chunk_key <- function(key) {
-  # split on first /
   slash_pos <- regexpr("/", key, fixed = TRUE)
   if (slash_pos < 1) return(NULL)
 
@@ -167,11 +198,11 @@ parse_chunk_key <- function(key) {
 #' @returns integer vector of chunk grid dimensions, or NULL
 #' @noRd
 vz_compute_chunk_grid <- function(store, var_name) {
-  # read .zmetadata to get shape and chunk info
   zmeta_raw <- store_get(store, ".zmetadata")
   if (is.null(zmeta_raw)) return(NULL)
 
-  doc <- jsonlite::fromJSON(sanitize_json(rawToChar(zmeta_raw)), simplifyVector = FALSE)
+  doc <- jsonlite::fromJSON(sanitize_json(rawToChar(zmeta_raw)),
+                            simplifyVector = FALSE)
   entries <- doc[["metadata"]]
 
   zarray_key <- paste0(var_name, "/.zarray")
@@ -185,6 +216,37 @@ vz_compute_chunk_grid <- function(store, var_name) {
   ceiling(shape / chunks)
 }
 
+
+#' Fetch a single manifest shard for a variable
+#'
+#' @param store VirtualiZarrStore
+#' @param var_name character. Variable name (e.g. "temp").
+#' @param shard_idx integer. 0-based shard index.
+#' @returns data.frame with columns: path, offset, size, raw (optional).
+#'   NULL if the shard doesn't exist.
+#' @noRd
+vz_fetch_shard <- function(store, var_name, shard_idx) {
+  shard_path <- paste0(var_name, "/refs.", shard_idx, ".parq")
+  full_path <- paste0(store@root, "/", shard_path)
+  pq_file <- vz_fetch_parquet_raw(full_path)
+  if (is.null(pq_file)) return(NULL)
+  on.exit(if (grepl("^(/tmp|.*/Rtmp)", pq_file)) unlink(pq_file))
+  tryCatch({
+    tbl <- arrow::read_parquet(pq_file)
+    shard <- data.frame(
+      path = as.character(tbl$path),
+      offset = as.numeric(tbl$offset),
+      size = as.integer(tbl$size),
+      stringsAsFactors = FALSE
+    )
+    if ("raw" %in% names(tbl)) {
+      tryCatch({
+        shard$raw <- as.list(tbl[["raw"]])
+      }, error = function(e) NULL)
+    }
+    shard
+  }, error = function(e) NULL)
+}
 
 #' Fetch a file from the VirtualiZarr store via HTTP or local filesystem
 #'
@@ -230,7 +292,7 @@ vz_http_get <- function(url) {
 
 #' Fetch a Parquet file to a local path for arrow::read_parquet()
 #'
-#' Downloads HTTP resources to a tempfile. Returns path or NULL.
+#' Downloads HTTP resources to a tempfile. Returns file path or NULL.
 #' @noRd
 vz_fetch_parquet_raw <- function(full_path) {
   if (grepl("^https?://", full_path)) {
@@ -245,149 +307,4 @@ vz_fetch_parquet_raw <- function(full_path) {
   if (file.exists(full_path)) return(full_path)
 
   NULL
-}
-
-
-#' Load all manifest shards for a variable
-#'
-#' VirtualiZarr stores chunk references in refs.N.parq files within
-#' each variable's directory. Row ordering corresponds to C-order
-#' linearization of the chunk grid — no explicit chunk key column.
-#'
-#' @returns data.frame with columns: path, offset, size, raw (optional),
-#'   plus row_start attribute indicating global row offset per shard.
-#' @noRd
-vz_load_manifest <- function(base_url, var_name) {
-  all_shards <- list()
-  tempfiles <- character(0)
-
-  i <- 0
-  max_shards <- 1000  # safety limit
-  while (i < max_shards) {
-    shard_path <- paste0(var_name, "/refs.", i, ".parq")
-    full_path <- paste0(base_url, "/", shard_path)
-
-    pq_file <- vz_fetch_parquet_raw(full_path)
-    if (is.null(pq_file)) break
-
-    # track tempfiles for cleanup
-    if (grepl("^(/tmp|.*/Rtmp)", pq_file)) {
-      tempfiles <- c(tempfiles, pq_file)
-    }
-
-    tryCatch({
-      tbl <- arrow::read_parquet(pq_file)
-      print(pryr::object_size(tbl))
-      shard <- data.frame(
-        path = as.character(tbl$path),
-        offset = as.numeric(tbl$offset),
-        size = as.integer(tbl$size),
-        stringsAsFactors = FALSE
-      )
-      # inline data column — convert Arrow binary to list of raw vectors
-      if ("raw" %in% names(tbl)) {
-        shard$raw <- lapply(seq_len(nrow(tbl)), function(j) {
-          v <- tbl$raw[j]
-          if (is.null(v) || length(v) == 0) NULL else as.raw(v)
-        })
-      }
-      all_shards[[length(all_shards) + 1]] <- shard
-    }, error = function(e) {
-      # corrupted shard, skip
-    })
-
-    i <- i + 1
-  }
-
-  # clean up tempfiles
-  if (length(tempfiles) > 0) unlink(tempfiles)
-
-  if (length(all_shards) == 0) return(NULL)
-
-  # rbind all shards — row order across shards IS the chunk order
-  combined <- do.call(rbind, all_shards)
-
-  # normalise column names
-  nms <- tolower(names(combined))
-  names(combined) <- nms
-
-  # find columns
-  path_col <- intersect(c("path", "url", "uri", "file"), nms)[1]
-  offset_col <- intersect(c("offset", "start", "byte_offset"), nms)[1]
-  size_col <- intersect(c("size", "length", "byte_length"), nms)[1]
-  raw_col <- intersect(c("raw", "data", "inline"), nms)[1]
-
-  if (is.na(path_col) || is.na(offset_col) || is.na(size_col)) {
-    return(NULL)
-  }
-
-  result <- data.frame(
-    path = as.character(combined[[path_col]]),
-    offset = as.numeric(combined[[offset_col]]),
-    size = as.numeric(combined[[size_col]]),
-    stringsAsFactors = FALSE
-  )
-
-  # attach inline data column if present (for coordinate variables)
-  if (!is.na(raw_col)) {
-    result$raw <- combined[[raw_col]]
-  }
-
-  result
-}
-
-
-#' Resolve a chunk key to row index and fetch the reference
-#'
-#' The chunk key (e.g. "0.0.0.0") is converted to a C-order linear index
-#' which is the row number in the concatenated manifest.
-#'
-#' @param manifest data.frame from vz_load_manifest()
-#' @param chunk_key character, dot-separated chunk indices (V2 convention)
-#' @param chunk_grid integer vector, number of chunks along each dimension
-#' @returns list(path, offset, size) or NULL. If inline data exists, returns
-#'   the raw bytes directly.
-#' @noRd
-vz_resolve_chunk <- function(manifest, chunk_key, chunk_grid = NULL) {
-  # convert dot-separated key to linear index
-  indices <- as.integer(strsplit(chunk_key, ".", fixed = TRUE)[[1]])
-print(indices)
-  if (!is.null(chunk_grid)) {
-    # C-order linearization
-    linear_idx <- 0L
-    stride <- 1L
-    for (d in rev(seq_along(indices))) {
-      linear_idx <- linear_idx + indices[d] * stride
-      stride <- stride * chunk_grid[d]
-    }
-    row_idx <- linear_idx + 1L  # 1-based
-  } else {
-    # if no grid info, try treating the key as a simple scalar index
-    if (length(indices) == 1L) {
-      row_idx <- indices[1] + 1L
-    } else {
-      # can't resolve without chunk grid
-      return(NULL)
-    }
-  }
-
-  if (row_idx < 1 || row_idx > nrow(manifest)) return(NULL)
-
-  # check for inline data first
-  if ("raw" %in% names(manifest)) {
-    raw_val <- manifest$raw[[row_idx]]
-    if (!is.null(raw_val) && length(raw_val) > 0) {
-      return(list(inline = raw_val))
-    }
-  }
-
-  path <- manifest$path[row_idx]
-  if (is.na(path) || path == "") return(NULL)
-
-
-  list(
-    path = path,
-    offset = manifest$offset[row_idx],
-    size = manifest$size[row_idx]
-  )
 }

@@ -180,10 +180,11 @@ byte_range_read <- function(url, offset, length) {
     } else {
       url
     }
-    con <- gdalraster::vsi_open(vsi_url, "rb")
-    on.exit(gdalraster::vsi_close(con))
-    gdalraster::vsi_seek(con, offset, "SEEK_SET")
-    return(gdalraster::vsi_read(con, length))
+    #con <- gdalraster::vsi_open(vsi_url, "rb")
+    vsi <- methods::new(gdalraster::VSIFile, vsi_url, "rb")
+    on.exit(vsi$close(), add = TRUE)
+    vsi$seek(offset, "SEEK_SET")
+    return(vsi$read(length))
   }
 
   stop("No backend available for byte-range read of: ", url, call. = FALSE)
