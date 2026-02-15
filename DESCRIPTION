@@ -1,0 +1,32 @@
+Package: zaro
+Title: Zarr via Arrow
+Version: 0.0.0.9001
+Authors@R: person("Michael", "Sumner", email = "mdsumner@gmail.com",
+                  role = c("aut", "cre"))
+Description: Low-level Zarr V3 interface built on Arrow filesystem and codec
+    infrastructure. Provides direct access to Zarr stores on local filesystems,
+    S3, and GCS via Arrow, with fallback to GDAL virtual filesystems for HTTP
+    and other protocols via gdalraster. Supports Kerchunk JSON and Parquet
+    reference stores for virtual Zarr access to existing archives.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
+Imports:
+    arrow,
+    jsonlite,
+    S7
+Suggests:
+    gdalraster,
+    blosc,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+Collate:
+    'utils.R'
+    'zaro-package.R'
+    'store.R'
+    'meta.R'
+    'codec.R'
+    'reference.R'
+    'print.R'
+    'api.R'
