@@ -1,4 +1,4 @@
-# zaro 0.0.5
+# zaro (development version)
 
 ## Core architecture
 
@@ -10,9 +10,10 @@
   representation across Zarr V2 and V3.
 
 * Store abstraction layer with `ArrowStore` (local, S3, GCS via Arrow
- `FileSystem`) and `VSIStore` (HTTP and fallback S3 via gdalraster). Designed
-  for future backends (Icechunk, Kerchunk references) without changing the
-  read pipeline.
+  `FileSystem`), `VSIStore` (HTTP and fallback S3 via gdalraster),
+  `ReferenceStore` (Kerchunk JSON references), and `VirtualiZarrStore`
+  (Parquet manifest reference stores). Designed for future backends
+  (Icechunk) without changing the read pipeline.
 
 * Codec pipeline normalised across V2 and V3. V2's single compressor plus
   filters list is mapped to V3-style codec chains so the decode path is
@@ -36,12 +37,44 @@
 * `fill_value` coercion from JSON strings (`"NaN"`, `"Infinity"`) to R
   numeric values.
 
+* `sanitize_json()` handles Python-flavoured JSON with bare `NaN`,
+  `Infinity`, and `-Infinity` values that are invalid in strict JSON.
+
 ## Zarr V3 support
 
 * Parse `zarr.json` metadata including codecs, dimension names, fill values,
   and chunk grid configuration.
 
 * Consolidated V3 metadata (single `zarr.json` with embedded node metadata).
+
+## VirtualiZarr Parquet reference stores
+
+* New `VirtualiZarrStore` backend for directory-layout Parquet reference
+  stores as produced by VirtualiZarr. These provide Zarr-style access to
+  existing archival files (NetCDF, HDF5, GRIB) without reformatting.
+
+* Metadata layer (`.zmetadata`) fetched via curl — GDAL-free.
+
+* Chunk manifests (`refs.N.parq` shards) loaded via `arrow::read_parquet()`
+  with lazy per-variable loading and environment-based caching.
+
+* C-order linearization maps chunk grid indices to manifest row positions
+  for stores without explicit chunk key columns.
+
+* Inline data support via the `raw` column in manifests (used by coordinate
+  variables whose data is stored directly in the Parquet rather than as
+  byte-range references).
+
+* Byte-range reads into source files via `byte_range_read()` supporting
+  Arrow S3/GCS, gdalraster VSI, and curl for HTTP — the full chain is
+  GDAL-free when using curl.
+
+* URI scheme: `virtualizarr://https://example.com/dataset.parq` or
+  `virtualizarr:///local/path/dataset.parq`.
+
+* Tested against BRAN2023 ocean temperature (5479 time steps, 51 depth
+  levels, 1500x3600 spatial grid, 104 manifest shards, NCI THREDDS
+  byte-range serving).
 
 ## Cloud access
 
@@ -65,6 +98,9 @@
 * Blosc (lz4, zstd, zlib, snappy), gzip, and zstd decompression via Arrow
   codecs.
 
+* Safety coercion of output array type when fill value would otherwise
+  produce a character array.
+
 ## Diagnostics
 
 * Verbose messaging throughout (`[zaro] ...`), on by default for
@@ -77,3 +113,7 @@
 
 * AODN cloud-optimised Zarr stores (S3, ap-southeast-2, Zarr V2,
   blosc/lz4 compression, consolidated `.zmetadata`).
+
+* BRAN2023 ocean temperature via VirtualiZarr Parquet references
+  (NCI THREDDS byte-range reads, shuffle+zlib compression, int16 with
+  scale/offset packing).

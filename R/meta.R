@@ -28,6 +28,7 @@ ZaroMeta <- new_class("ZaroMeta", properties = list(
 #' @noRd
 parse_zarr_json <- function(raw_bytes) {
   txt <- rawToChar(raw_bytes)
+  txt <- sanitize_json(txt)
   meta <- jsonlite::fromJSON(txt, simplifyVector = FALSE)
 
   node_type <- meta[["node_type"]] %||% "array"
@@ -138,6 +139,7 @@ n_chunks <- function(meta) {
 #' @noRd
 parse_consolidated <- function(raw_bytes) {
   txt <- rawToChar(raw_bytes)
+  txt <- sanitize_json(txt)
   meta <- jsonlite::fromJSON(txt, simplifyVector = FALSE)
 
   cm <- meta[["consolidated_metadata"]]
@@ -230,7 +232,9 @@ coerce_fill_value <- function(fv, data_type) {
 #' @returns ZaroMeta object
 #' @noRd
 parse_zarray <- function(zarray_bytes, zattrs_bytes = NULL) {
-  meta <- jsonlite::fromJSON(rawToChar(zarray_bytes), simplifyVector = FALSE)
+  txt <- rawToChar(zarray_bytes)
+  txt <- sanitize_json(txt)
+  meta <- jsonlite::fromJSON(txt, simplifyVector = FALSE)
 
   shape <- as.integer(unlist(meta[["shape"]]))
   chunk_shape <- as.integer(unlist(meta[["chunks"]]))
@@ -247,7 +251,7 @@ parse_zarray <- function(zarray_bytes, zattrs_bytes = NULL) {
   attrs <- list()
   dim_names <- NULL
   if (!is.null(zattrs_bytes)) {
-    attrs <- jsonlite::fromJSON(rawToChar(zattrs_bytes), simplifyVector = FALSE)
+    attrs <- jsonlite::fromJSON(sanitize_json(rawToChar(zattrs_bytes)), simplifyVector = FALSE)
     # xarray stores dimension names in _ARRAY_DIMENSIONS
     ad <- attrs[["_ARRAY_DIMENSIONS"]]
     if (!is.null(ad)) {
@@ -281,11 +285,11 @@ parse_zarray <- function(zarray_bytes, zattrs_bytes = NULL) {
 #' @returns ZaroMeta object
 #' @noRd
 parse_zgroup <- function(zgroup_bytes, zattrs_bytes = NULL) {
-  meta <- jsonlite::fromJSON(rawToChar(zgroup_bytes), simplifyVector = FALSE)
+  meta <- jsonlite::fromJSON(sanitize_json(rawToChar(zgroup_bytes)), simplifyVector = FALSE)
 
   attrs <- list()
   if (!is.null(zattrs_bytes)) {
-    attrs <- jsonlite::fromJSON(rawToChar(zattrs_bytes), simplifyVector = FALSE)
+    attrs <- jsonlite::fromJSON(sanitize_json(rawToChar(zattrs_bytes)), simplifyVector = FALSE)
   }
 
   ZaroMeta(
@@ -407,6 +411,12 @@ v2_codecs <- function(compressor, filters, endian = "little") {
 parse_zmetadata <- function(raw_bytes) {
 
   txt <- rawToChar(raw_bytes)
+  # Python writes bare NaN/Infinity which are not valid JSON
+  txt <- sanitize_json(txt)
+
+
+  doc <- jsonlite::fromJSON(txt, simplifyVector = FALSE)
+
   doc <- jsonlite::fromJSON(txt, simplifyVector = FALSE)
 
   entries <- doc[["metadata"]]
@@ -434,3 +444,5 @@ parse_zmetadata <- function(raw_bytes) {
 
   result
 }
+
+

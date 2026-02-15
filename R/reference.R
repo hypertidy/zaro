@@ -25,6 +25,7 @@ parse_kerchunk_json <- function(source) {
     stop("source must be a file path, URL, or raw vector", call. = FALSE)
   }
 
+  txt <- sanitize_json(txt)
   doc <- jsonlite::fromJSON(txt, simplifyVector = FALSE)
 
   version <- doc[["version"]] %||% 0L

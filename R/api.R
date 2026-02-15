@@ -56,11 +56,17 @@ zaro <- function(source, verbose = TRUE, ...) {
     return(parse_kerchunk_json(path))
   }
 
-  # Kerchunk Parquet reference store
+  # Kerchunk Parquet reference store (single file)
   if (grepl("^reference\\+parquet://", source)) {
     path <- sub("^reference\\+parquet://", "", source)
     vmsg("opening Kerchunk Parquet reference store: ", path, verbose = verbose)
     return(parse_kerchunk_parquet(path))
+  }
+
+  # VirtualiZarr Parquet reference store (directory with manifests)
+  if (grepl("^virtualizarr://", source)) {
+    base_url <- sub("^virtualizarr://", "", source)
+    return(open_virtualizarr(base_url, verbose = verbose))
   }
 
   # S3 — try Arrow first, fall back to gdalraster /vsis3/ on 301
@@ -181,7 +187,8 @@ zaro_meta <- function(store, path = "", consolidated = TRUE, verbose = TRUE) {
         vmsg("  ", length(cm), " arrays: ",
              paste(names(cm), collapse = ", "), verbose = verbose)
         # build root group meta from .zgroup/.zattrs in the same document
-        doc <- jsonlite::fromJSON(rawToChar(raw), simplifyVector = FALSE)
+        jstxt <- sanitize_json(rawToChar(raw))
+        doc <- jsonlite::fromJSON(jstxt, simplifyVector = FALSE)
         entries <- doc[["metadata"]]
         zgroup_raw <- if (".zgroup" %in% names(entries)) {
           charToRaw(jsonlite::toJSON(entries[[".zgroup"]], auto_unbox = TRUE))
