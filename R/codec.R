@@ -1,6 +1,8 @@
-# codec.R — V3 codec pipeline
+# codec.R — codec pipeline (V2 and V3)
 #
 # V3 codecs are a chain: array-to-array, array-to-bytes, bytes-to-bytes.
+# V2 has a single compressor + optional filters, normalised to V3-style
+# codec lists by v2_codecs() in meta.R.
 # We walk the chain in reverse to decode a stored chunk.
 #
 # Arrow provides: zstd, gzip, lz4, brotli, snappy, bz2

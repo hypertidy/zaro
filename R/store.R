@@ -31,7 +31,8 @@ method(store_get, ArrowStore) <- function(store, key) {
   tryCatch({
     f <- store@fs$OpenInputFile(path)
     on.exit(f$close())
-    f$Read()  # raw vector
+    as.raw(f$Read())  # raw vector
+
   }, error = function(e) NULL)
 }
 
