@@ -1,6 +1,6 @@
 # zaro
 
-Zarr via Arrow. A low-level Zarr reader for R built on Arrow's filesystem
+Arrow Zarr in R. A low-level Zarr reader for R built on Arrow's filesystem
 and codec infrastructure. Supports V2 and V3 stores with automatic version
 detection and consolidated metadata.
 
