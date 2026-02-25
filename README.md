@@ -38,8 +38,9 @@ gsla@dimension_names # "TIME" "LATITUDE" "LONGITUDE"
 
 # read a slab (0-based indexing)
 data <- zaro_read(store, "GSLA",
-                  start = c(0, 0, 0), count = c(5, 351, 641),
+                  start = c(0, 0, 0), count = c(1, 351, 641),
                   meta = gsla)
+                  
 #> [zaro] reading 1 chunk(s) for path 'GSLA' (V2)
 dim(data)  # [1]   5 351 641
 range(data, na.rm = TRUE)

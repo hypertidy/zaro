@@ -373,7 +373,13 @@ zaro_read <- function(store, path, start = NULL, count = NULL, meta = NULL,
 
     # reshape decoded values to actual chunk extent (edge chunks may be short)
     actual_chunk_shape <- pmin(meta@chunk_shape, meta@shape - chunk_start)
-    dim(values) <- actual_chunk_shape
+
+    if (meta@raw_meta$order == "C") {
+      dim(values) <- rev(actual_chunk_shape)
+      values <- aperm(values)
+    } else {
+      dim(values) <- actual_chunk_shape
+    }
 
     # build index lists for source and destination
     src_idx <- lapply(seq_len(ndim), function(d) {

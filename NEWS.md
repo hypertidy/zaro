@@ -1,5 +1,7 @@
 # zaro (development version)
 
+* Add C style orientation (still upside down for ximage). 
+
 ## Core architecture
 
 * Arrow-backed Zarr reader for R. Implements the Zarr specification directly
