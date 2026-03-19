@@ -4,7 +4,7 @@
 \alias{zaro_meta}
 \title{Get metadata for a Zarr node}
 \usage{
-zaro_meta(store, path = "", consolidated = TRUE)
+zaro_meta(store, path = "", consolidated = TRUE, verbose = TRUE)
 }
 \arguments{
 \item{store}{a store object from \code{\link[=zaro]{zaro()}}}
@@ -13,12 +13,19 @@ zaro_meta(store, path = "", consolidated = TRUE)
 Use \code{""} or \code{"/"} for the root group.}
 
 \item{consolidated}{logical. If \code{TRUE}, attempt to read consolidated
-metadata from the root \code{zarr.json} first.}
+metadata first (default).}
+
+\item{verbose}{logical. Emit diagnostic messages (default TRUE).}
 }
 \value{
-A ZaroMeta object.
+A ZaroMeta object. For root group requests with consolidated
+metadata, the individual array metadata are attached as
+\code{attr(, "consolidated")}.
 }
 \description{
-Reads and parses the \code{zarr.json} metadata document for an array
-or group at the given path within the store.
+Reads and parses the metadata for an array or group at the given path.
+Automatically detects Zarr V2 (\code{.zarray}/\code{.zattrs}/\code{.zmetadata})
+vs V3 (\code{zarr.json}) format. For cloud stores, consolidated metadata
+(\code{.zmetadata} for V2, consolidated \code{zarr.json} for V3) is preferred
+to minimise the number of requests.
 }

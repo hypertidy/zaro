@@ -16,7 +16,13 @@ method(print, ZaroMeta) <- function(x, ...) {
 
     n_codecs <- length(x@codecs)
     if (n_codecs > 0) {
-      codec_names <- vapply(x@codecs, function(c) c$name, character(1))
+      #codec_names <- vapply(x@codecs, function(c) c$name, character(1))
+      codec_names <- try(vapply(x@codecs, function(c) {
+        c$name %||% c$id %||% "unknown"
+      }, character(1)), silent = TRUE)
+      if (inherits(codec_names, "try-error")) {
+        codec_names <- names(x@codecs)
+      }
       cat(sprintf("  codecs: %s\n", paste(codec_names, collapse = " -> ")))
     }
 

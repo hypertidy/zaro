@@ -5,7 +5,7 @@
 \alias{zaro-package}
 \title{zaro: Zarr via Arrow}
 \description{
-Low-level Zarr V3 interface built on Arrow filesystem and codec infrastructure. Provides direct access to Zarr stores on local filesystems, S3, and GCS via Arrow, with fallback to GDAL virtual filesystems for HTTP and other protocols via gdalraster. Supports Kerchunk JSON and Parquet reference stores for virtual Zarr access to existing archives.
+Low-level Zarr interface (V2 and V3) built on Arrow filesystem and codec infrastructure. Provides direct access to Zarr stores on local filesystems, S3, and GCS via Arrow, with fallback to GDAL virtual filesystems for HTTP and other protocols via gdalraster. Supports Kerchunk JSON and Parquet reference stores for virtual Zarr access to existing archives. Automatically detects Zarr version and handles S3 region redirects.
 }
 \author{
 \strong{Maintainer}: Michael Sumner \email{mdsumner@gmail.com}

@@ -165,6 +165,9 @@ parse_consolidated <- function(raw_bytes) {
 #' @returns list with what (for readBin), size, signed
 #' @noRd
 dtype_info <- function(dtype) {
+  if (dtype == "<i2") {
+    dtype <- "int16"
+  }
   switch(dtype,
     "bool"    = list(what = "logical", size = 1L, signed = FALSE),
     "int8"    = list(what = "integer", size = 1L, signed = TRUE),

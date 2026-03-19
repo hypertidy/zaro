@@ -4,10 +4,13 @@
 \alias{zaro}
 \title{Open a Zarr store}
 \usage{
-zaro(source, ...)
+zaro(source, verbose = TRUE, ...)
 }
 \arguments{
 \item{source}{character. Path, URI, or reference store locator.}
+
+\item{verbose}{logical. Emit progress and diagnostic messages (default TRUE).
+Suppress with \code{suppressMessages()}.}
 
 \item{...}{additional arguments passed to Arrow filesystem constructors
 (e.g. \code{anonymous = TRUE}, \code{endpoint_override}, \code{region}).}
@@ -20,12 +23,17 @@ Connects to a Zarr store at the given path or URI. Dispatches to the
 appropriate backend based on the URI scheme:
 \itemize{
 \item Local paths: Arrow LocalFileSystem
-\item \code{s3://}: Arrow S3FileSystem
+\item \code{s3://}: Arrow S3FileSystem (with automatic region detection)
 \item \code{gs://}: Arrow GcsFileSystem
 \item \code{http://}, \code{https://}: gdalraster VSI (\code{/vsicurl/})
 \item \code{reference+json://}: Kerchunk JSON reference store
 \item \code{reference+parquet://}: Kerchunk Parquet reference store
 }
+}
+\details{
+For S3 stores, if Arrow returns a 301 redirect (wrong region), zaro will
+fall through to gdalraster's \code{/vsis3/} which handles region detection
+automatically.
 }
 \examples{
 \dontrun{

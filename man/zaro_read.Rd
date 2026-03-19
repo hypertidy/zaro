@@ -4,7 +4,7 @@
 \alias{zaro_read}
 \title{Read data from a Zarr array}
 \usage{
-zaro_read(store, path, start = NULL, count = NULL, meta = NULL)
+zaro_read(store, path, start = NULL, count = NULL, meta = NULL, verbose = TRUE)
 }
 \arguments{
 \item{store}{a store object from \code{\link[=zaro]{zaro()}}}
@@ -19,11 +19,13 @@ dimension. Defaults to the full extent.}
 
 \item{meta}{optional pre-fetched ZaroMeta object. If NULL (default),
 metadata is read from the store.}
+
+\item{verbose}{logical. Emit diagnostic messages (default TRUE).}
 }
 \value{
 An R array with dimensions matching \code{count}.
 }
 \description{
 Reads a hyperslab from a Zarr array, fetching and decoding the necessary
-chunks and assembling them into an R array.
+chunks and assembling them into an R array. Supports both Zarr V2 and V3.
 }
