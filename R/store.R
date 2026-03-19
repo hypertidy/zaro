@@ -187,5 +187,10 @@ byte_range_read <- function(url, offset, length) {
     return(vsi$read(length))
   }
 
+  if (grepl("^https?://", url) && requireNamespace("curl", quietly = TRUE)) {
+    resp <- curl::curl_fetch_memory(url,
+                                    handle = curl::new_handle(range = paste0(offset, "-", offset + length - 1L)))
+    if (resp$status_code == 206L) return(resp$content)
+  }
   stop("No backend available for byte-range read of: ", url, call. = FALSE)
 }

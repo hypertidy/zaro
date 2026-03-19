@@ -320,6 +320,16 @@ zaro_read <- function(store, path, start = NULL, count = NULL, meta = NULL,
   if (is.null(meta)) {
     meta <- zaro_meta(store, path, consolidated = TRUE, verbose = verbose)
   }
+  # if meta is a group with consolidated entries, look up the array by path
+  if (meta@node_type == "group") {
+    cm <- attr(meta, "consolidated")
+    if (!is.null(cm) && path %in% names(cm)) {
+      meta <- cm[[path]]
+    } else {
+      # fetch fresh
+      meta <- zaro_meta(store, path, consolidated = TRUE, verbose = verbose)
+    }
+  }
   if (meta@node_type != "array") {
     stop("path '", path, "' is a group, not an array", call. = FALSE)
   }
@@ -329,6 +339,10 @@ zaro_read <- function(store, path, start = NULL, count = NULL, meta = NULL,
   # default to full extent
   if (is.null(start)) start <- rep(0L, ndim)
   if (is.null(count)) count <- meta@shape - start
+
+  # NA in count means "rest of axis from start"
+  na_idx <- is.na(count)
+  count[na_idx] <- meta@shape[na_idx] - start[na_idx]
 
   start <- as.integer(start)
   count <- as.integer(count)

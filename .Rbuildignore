@@ -1,2 +1,4 @@
 ^zaro\.Rproj$
 ^\.Rproj\.user$
+^ghrsst-refs.parquet$
+^README\.Rmd$

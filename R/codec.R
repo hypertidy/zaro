@@ -43,29 +43,35 @@ decode_one <- function(buf, codec, meta) {
   config <- codec$configuration
 
   switch(name,
-    # -- bytes-to-bytes codecs (compression) --
-    "zstd"   = arrow_decompress(buf, "zstd", config),
-    "gzip"   = arrow_decompress(buf, "gzip", config),
-    "lz4"    = arrow_decompress(buf, "lz4", config),
-    "brotli" = arrow_decompress(buf, "brotli", config),
-    "snappy" = arrow_decompress(buf, "snappy", config),
-    "bz2"    = arrow_decompress(buf, "bz2", config),
+         # -- bytes-to-bytes codecs (compression) --
+         "zstd"   = arrow_decompress(buf, "zstd", config),
+         "gzip"   = arrow_decompress(buf, "gzip", config),
+         "lz4"    = arrow_decompress(buf, "lz4", config),
+         "brotli" = arrow_decompress(buf, "brotli", config),
+         "snappy" = arrow_decompress(buf, "snappy", config),
+         "bz2"    = arrow_decompress(buf, "bz2", config),
 
-    "blosc"  = blosc_decompress(buf),
+         # V2 zlib -- R's memDecompress handles raw zlib/deflate
+         "zlib"   = memDecompress(buf, type = "gzip"),
 
-    # -- array-to-bytes codecs --
-    "bytes"  = buf,  # endian handling done at readBin stage
-    "endian" = buf,  # alias
+         "blosc"  = blosc_decompress(buf),
 
-    # -- array-to-array codecs --
-    "transpose" = buf,  # handled post-readBin via dim permutation
+         # V2 shuffle filter -- unshuffle bytes by element size
+         "shuffle" = unshuffle(buf, config$elementsize %||% 1L),
 
-    # -- passthrough for unknown --
-    {
-      warning("unknown codec '", name, "', passing through unchanged",
-              call. = FALSE)
-      buf
-    }
+         # -- array-to-bytes codecs --
+         "bytes"  = buf,  # endian handling done at readBin stage
+         "endian" = buf,  # alias
+
+         # -- array-to-array codecs --
+         "transpose" = buf,  # handled post-readBin via dim permutation
+
+         # -- passthrough for unknown --
+         {
+           warning("unknown codec '", name, "', passing through unchanged",
+                   call. = FALSE)
+           buf
+         }
   )
 }
 
@@ -101,6 +107,37 @@ blosc_decompress <- function(buf) {
          "install with: install.packages('blosc')", call. = FALSE)
   }
   blosc::blosc_decompress(buf)
+}
+
+
+#' Unshuffle bytes (reverse of the NumCodecs shuffle filter)
+#'
+#' The shuffle filter interleaves bytes by element stride for better
+#' compression. For elementsize=2 and N elements, the shuffled layout
+#' stores all high bytes first, then all low bytes. Unshuffle recombines
+#' them into the original byte order.
+#'
+#' @param buf raw vector of shuffled bytes
+#' @param elementsize integer, bytes per element (e.g. 2 for int16, 4 for float32)
+#' @returns raw vector of unshuffled bytes
+#' @noRd
+unshuffle <- function(buf, elementsize) {
+  n <- length(buf)
+  if (elementsize <= 1L || n == 0L) return(buf)
+
+  n_elements <- n %/% elementsize
+  out <- raw(n)
+
+  for (i in seq_len(elementsize)) {
+    # bytes for this position within each element
+    src_start <- (i - 1L) * n_elements + 1L
+    src_end <- i * n_elements
+    src_bytes <- buf[src_start:src_end]
+    # distribute to every elementsize-th position
+    out[seq.int(i, n, by = elementsize)] <- src_bytes
+  }
+
+  out
 }
 
 
