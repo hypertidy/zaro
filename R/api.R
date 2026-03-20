@@ -177,7 +177,7 @@ zaro_meta <- function(store, path = "", consolidated = TRUE, verbose = TRUE) {
       }
       return(parse_zarr_json(raw))
     }
-
+#browser()
     # try V2 consolidated .zmetadata
     raw <- store_get(store, ".zmetadata")
     if (!is.null(raw)) {
@@ -210,7 +210,7 @@ zaro_meta <- function(store, path = "", consolidated = TRUE, verbose = TRUE) {
       }
     }
   }
-
+#browser()
   # --- consolidated lookup for specific variable paths ---
   if (consolidated && nzchar(path) && path != "/") {
     # try V2 .zmetadata (one request for all variables)

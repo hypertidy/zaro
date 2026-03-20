@@ -62,12 +62,14 @@ method(store_get, VSIStore) <- function(store, key) {
   if (!requireNamespace("gdalraster", quietly = TRUE)) {
     stop("gdalraster required for VSI store access", call. = FALSE)
   }
+  #browser()
   path <- paste0(store@root, "/", key)
   tryCatch({
-    con <- gdalraster::vsi_open(path, "rb")
-    on.exit(gdalraster::vsi_close(con))
-    sz <- gdalraster::vsi_stat(path, "size")
-    gdalraster::vsi_read(con, sz)
+    con <- new(gdalraster::VSIFile, path, "rb")
+
+    on.exit(con$close())
+  #  sz <- gdalraster::vsi_stat(path, "size")
+    con$ingest(-1)
   }, error = function(e) NULL)
 }
 
@@ -172,7 +174,7 @@ byte_range_read <- function(url, offset, length) {
     f$Seek(offset)
     return(f$Read(length))
   }
-
+browser()
   # fallback to gdalraster VSI for http(s) and local
   if (requireNamespace("gdalraster", quietly = TRUE)) {
     vsi_url <- if (grepl("^https?://", url)) {
@@ -184,6 +186,7 @@ byte_range_read <- function(url, offset, length) {
     vsi <- methods::new(gdalraster::VSIFile, vsi_url, "rb")
     on.exit(vsi$close(), add = TRUE)
     vsi$seek(offset, "SEEK_SET")
+   # browser()
     return(vsi$read(length))
   }
 

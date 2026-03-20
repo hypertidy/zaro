@@ -1,5 +1,7 @@
 # zaro (development version)
 
+* Fixed *egregious* error on how to use VSIFile hidden within tryCatch(). 
+
 * Add C style orientation (still upside down for ximage). 
 
 ## Core architecture
