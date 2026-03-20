@@ -1,5 +1,9 @@
 # zaro (development version)
 
+* Add helpers for common cases. 
+
+* Improved print for meta group. 
+
 * Fixed *egregious* error on how to use VSIFile hidden within tryCatch(). 
 
 * Add C style orientation (still upside down for ximage). 

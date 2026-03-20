@@ -2,7 +2,17 @@
 
 method(print, ZaroMeta) <- function(x, ...) {
   cat(sprintf("<ZaroMeta> [%s]\n", x@node_type))
-
+  if (x@node_type == "group") {
+    shapes <- lapply(attr(x, "consolidated"), \(.x) sprintf("[%s]", paste0(.x@shape, collapse = ",")))
+    labels <- sprintf("    %s %s", names(shapes), shapes)
+    nc <- nchar(labels)
+    for (ii in seq_along(nc)) {
+      if ((max(nc) - nc[ii])>0) {
+        labels[ii] <- sprintf("    %s%s%s", names(shapes[ii]), paste0(rep(" ", max(nc) - nc[ii] + 1), collapse = ""), shapes[ii])
+      }
+    }
+    cat(sprintf(" variables: \n%s\n\n", paste0(labels, collapse = "\n")))
+  }
   if (x@node_type == "array") {
     shape_str <- paste(x@shape, collapse = " x ")
     chunk_str <- paste(x@chunk_shape, collapse = " x ")

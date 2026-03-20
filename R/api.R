@@ -17,11 +17,16 @@
 #'   \item \code{http://}, \code{https://}: gdalraster VSI (\code{/vsicurl/})
 #'   \item \code{reference+json://}: Kerchunk JSON reference store
 #'   \item \code{reference+parquet://}: Kerchunk Parquet reference store
+#'   \item \code{virtualizarr://}: VirtualiZarr Parquet manifest store
 #' }
 #'
 #' For S3 stores, if Arrow returns a 301 redirect (wrong region), zaro will
 #' fall through to gdalraster's \code{/vsis3/} which handles region detection
 #' automatically.
+#'
+#' Known public buckets (e.g. cmip6, aodn-cloud-optimised) are accessed
+#' anonymously by default. For other public stores, pass
+#' \code{anonymous = TRUE}.
 #'
 #' @param source character. Path, URI, or reference store locator.
 #' @param verbose logical. Emit progress and diagnostic messages (default TRUE).
@@ -39,8 +44,11 @@
 #' # S3 store (anonymous)
 #' store <- zaro("s3://mur-sst/zarr-v1", anonymous = TRUE)
 #'
-#' # Kerchunk JSON reference
-#' store <- zaro("reference+json:///path/to/refs.json")
+#' # GCS — known public bucket, anonymous auto-detected
+#' store <- zaro("gs://cmip6/CMIP6/ScenarioMIP/NOAA-GFDL/GFDL-ESM4/ssp585/r1i1p1f1/Omon/zos/gn/v20180701")
+#'
+#' # VirtualiZarr Parquet reference
+#' store <- zaro("virtualizarr://https://example.com/dataset.parq")
 #'
 #' # then explore
 #' zaro_list(store)
@@ -49,6 +57,11 @@
 #'                   start = c(0, 0, 0), count = c(1, 100, 100))
 #' }
 zaro <- function(source, verbose = TRUE, ...) {
+  dots <- list(...)
+
+  # strip trailing slashes — avoids double-slash in file.path() paths
+  source <- sub("/+$", "", source)
+
   # Kerchunk JSON reference store
   if (grepl("^reference\\+json://", source)) {
     path <- sub("^reference\\+json://", "", source)
@@ -69,18 +82,28 @@ zaro <- function(source, verbose = TRUE, ...) {
     return(open_virtualizarr(base_url, verbose = verbose))
   }
 
+  # for cloud URIs, auto-detect anonymous access for known public buckets
+  bucket <- extract_bucket(source)
+  if (!is.null(bucket) && is_known_public(bucket) &&
+      !("anonymous" %in% names(dots))) {
+    vmsg("known public bucket '", bucket, "', using anonymous access",
+         verbose = verbose)
+    dots$anonymous <- TRUE
+  }
+
   # S3 — try Arrow first, fall back to gdalraster /vsis3/ on 301
   if (grepl("^s3://", source)) {
     vmsg("opening S3 store via Arrow: ", source, verbose = verbose)
     store <- tryCatch({
-      fs <- arrow::S3FileSystem$create(...)
+      fs <- do.call(arrow::S3FileSystem$create, dots)
       root <- sub("^s3://", "", source)
       s <- ArrowStore(root = root, fs = fs)
       # probe: try listing to detect region redirect early
       store_list(s, prefix = "")
       s
     }, error = function(e) {
-      if (grepl("301|redirect|PermanentRedirect", conditionMessage(e), ignore.case = TRUE)) {
+      msg <- conditionMessage(e)
+      if (grepl("301|redirect|PermanentRedirect", msg, ignore.case = TRUE)) {
         vmsg("Arrow S3 returned 301 (region redirect), falling back to gdalraster /vsis3/",
              verbose = verbose)
         if (!requireNamespace("gdalraster", quietly = TRUE)) {
@@ -91,7 +114,6 @@ zaro <- function(source, verbose = TRUE, ...) {
                call. = FALSE)
         }
         # propagate anonymous flag to GDAL
-        dots <- list(...)
         if (isTRUE(dots[["anonymous"]])) {
           gdalraster::set_config_option("AWS_NO_SIGN_REQUEST", "YES")
           vmsg("set AWS_NO_SIGN_REQUEST=YES for anonymous access", verbose = verbose)
@@ -101,6 +123,11 @@ zaro <- function(source, verbose = TRUE, ...) {
         vmsg("using gdalraster VSI store: ", vsi_root, verbose = verbose)
         return(VSIStore(root = vsi_root))
       }
+      # auth error guidance
+      if (grepl("403|AccessDenied|Forbidden|credential", msg, ignore.case = TRUE)) {
+        vmsg("access denied — try: zaro(\"", source, "\", anonymous = TRUE)",
+             verbose = verbose)
+      }
       stop(e)
     })
     return(store)
@@ -109,9 +136,19 @@ zaro <- function(source, verbose = TRUE, ...) {
   # GCS
   if (grepl("^gs://", source)) {
     vmsg("opening GCS store via Arrow: ", source, verbose = verbose)
-    fs <- arrow::GcsFileSystem$create(...)
-    root <- sub("^gs://", "", source)
-    return(ArrowStore(root = root, fs = fs))
+    tryCatch({
+      fs <- do.call(arrow::GcsFileSystem$create, dots)
+      root <- sub("^gs://", "", source)
+      return(ArrowStore(root = root, fs = fs))
+    }, error = function(e) {
+      msg <- conditionMessage(e)
+      if (grepl("OAuth|credential|403|Forbidden|UNAVAILABLE", msg, ignore.case = TRUE) &&
+          !isTRUE(dots[["anonymous"]])) {
+        vmsg("authentication failed — try: zaro(\"", source,
+             "\", anonymous = TRUE)", verbose = verbose)
+      }
+      stop(e)
+    })
   }
 
   # HTTP/HTTPS — use gdalraster VSI
@@ -177,7 +214,7 @@ zaro_meta <- function(store, path = "", consolidated = TRUE, verbose = TRUE) {
       }
       return(parse_zarr_json(raw))
     }
-#browser()
+
     # try V2 consolidated .zmetadata
     raw <- store_get(store, ".zmetadata")
     if (!is.null(raw)) {
@@ -210,7 +247,7 @@ zaro_meta <- function(store, path = "", consolidated = TRUE, verbose = TRUE) {
       }
     }
   }
-#browser()
+
   # --- consolidated lookup for specific variable paths ---
   if (consolidated && nzchar(path) && path != "/") {
     # try V2 .zmetadata (one request for all variables)
@@ -308,9 +345,12 @@ zaro_meta <- function(store, path = "", consolidated = TRUE, verbose = TRUE) {
 #' @param start integer vector. 0-based start indices for each dimension.
 #'   Defaults to the origin.
 #' @param count integer vector. Number of elements to read along each
-#'   dimension. Defaults to the full extent.
+#'   dimension. Use \code{NA} for any axis to read the full extent from
+#'   \code{start}. Defaults to the full extent.
 #' @param meta optional pre-fetched ZaroMeta object. If NULL (default),
-#'   metadata is read from the store.
+#'   metadata is read from the store. Can also be the root group metadata
+#'   from \code{zaro_meta(store)} — the array will be looked up by path
+#'   in the consolidated entries.
 #' @param verbose logical. Emit diagnostic messages (default TRUE).
 #' @returns An R array with dimensions matching \code{count}.
 #'
@@ -338,14 +378,14 @@ zaro_read <- function(store, path, start = NULL, count = NULL, meta = NULL,
 
   # default to full extent
   if (is.null(start)) start <- rep(0L, ndim)
-  if (is.null(count)) count <- meta@shape - start
+  if (is.null(count)) count <- rep(NA_integer_, ndim)
+
+  start <- as.integer(start)
+  count <- as.integer(count)
 
   # NA in count means "rest of axis from start"
   na_idx <- is.na(count)
   count[na_idx] <- meta@shape[na_idx] - start[na_idx]
-
-  start <- as.integer(start)
-  count <- as.integer(count)
 
   if (length(start) != ndim || length(count) != ndim) {
     stop("start and count must have length ", ndim, call. = FALSE)
@@ -388,7 +428,9 @@ zaro_read <- function(store, path, start = NULL, count = NULL, meta = NULL,
     # reshape decoded values to actual chunk extent (edge chunks may be short)
     actual_chunk_shape <- pmin(meta@chunk_shape, meta@shape - chunk_start)
 
-    if (meta@raw_meta$order == "C") {
+    # C-order: last dimension varies fastest in memory; R is column-major
+    order <- meta@raw_meta[["order"]] %||% "C"
+    if (order == "C") {
       dim(values) <- rev(actual_chunk_shape)
       values <- aperm(values)
     } else {
