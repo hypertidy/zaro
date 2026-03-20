@@ -174,7 +174,7 @@ byte_range_read <- function(url, offset, length) {
     f$Seek(offset)
     return(f$Read(length))
   }
-browser()
+
   # fallback to gdalraster VSI for http(s) and local
   if (requireNamespace("gdalraster", quietly = TRUE)) {
     vsi_url <- if (grepl("^https?://", url)) {
