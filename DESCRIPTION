@@ -1,8 +1,10 @@
 Package: zaro
 Title: Zarr via Arrow
 Version: 0.0.1.9009
-Authors@R: person("Michael", "Sumner", email = "mdsumner@gmail.com",
-                  role = c("aut", "cre"))
+Authors@R: c(person("Michael", "Sumner", email = "mdsumner@gmail.com",
+                  role = c("aut", "cre"), comment = c(ORCID = "0000-0002-2471-7511")), 
+             person("Hugo", "Gruson", , , role = c("ctb"),
+           comment = c(ORCID = "0000-0002-4094-1476")))
 Description: Low-level Zarr interface (V2 and V3) built on Arrow filesystem and
     codec infrastructure. Provides direct access to Zarr stores on local
     filesystems, S3, and GCS via Arrow, with fallback to GDAL virtual
