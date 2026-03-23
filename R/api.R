@@ -352,12 +352,17 @@ zaro_meta <- function(store, path = "", consolidated = TRUE, verbose = TRUE) {
 #'   metadata is read from the store. Can also be the root group metadata
 #'   from \code{zaro_meta(store)} — the array will be looked up by path
 #'   in the consolidated entries.
+#' @param parallel logical. If \code{TRUE}, fetch and decode chunks in
+#'   parallel using \code{future.apply::future_lapply()}. Requires the
+#'   \code{future.apply} package and a \code{future::plan()} to be set.
+#'   Recommended backend: \code{future::plan(future.mirai::mirai_multisession)}.
+#'   Skipped automatically for reads of fewer than 4 chunks. Default FALSE.
 #' @param verbose logical. Emit diagnostic messages (default TRUE).
 #' @returns An R array with dimensions matching \code{count}.
 #'
 #' @export
 zaro_read <- function(store, path, start = NULL, count = NULL, meta = NULL,
-                      verbose = TRUE) {
+                      parallel = FALSE, verbose = TRUE) {
   if (is.null(meta)) {
     meta <- zaro_meta(store, path, consolidated = TRUE, verbose = verbose)
   }
@@ -403,15 +408,39 @@ zaro_read <- function(store, path, start = NULL, count = NULL, meta = NULL,
 
   # fetch and decode each chunk, copy the relevant portion into out
   slab_end <- start + count - 1L
+  chunk_indices <- chunk_index_iter(chunk_ranges)
 
-  for (cidx in chunk_index_iter(chunk_ranges)) {
+  # skip parallel for small reads
+  use_parallel <- isTRUE(parallel) && n_total >= 4L &&
+    requireNamespace("future.apply", quietly = TRUE)
+
+  if (use_parallel) {
+    vmsg("fetching chunks in parallel via future.apply", verbose = verbose)
+  }
+
+  # -- phase 1: fetch + decode (parallelizable) --
+  fetch_and_decode <- function(cidx) {
     chunk_raw <- fetch_chunk(store, path, cidx, meta)
+    if (is.null(chunk_raw)) return(NULL)
+    list(cidx = cidx, values = decode_chunk(chunk_raw, meta))
+  }
 
-    if (is.null(chunk_raw)) {
-      next  # missing chunk -> fill_value (already set)
-    }
+  if (use_parallel) {
+    print(system.time({
+    decoded <- future.apply::future_lapply(chunk_indices, fetch_and_decode)
+    }))
+  } else {
+    decoded <- lapply(chunk_indices, fetch_and_decode)
+  }
 
-    values <- decode_chunk(chunk_raw, meta)
+  # -- phase 2: assemble into output array (sequential) --
+  order <- meta@raw_meta[["order"]] %||% "C"
+
+  for (result in decoded) {
+    if (is.null(result)) next
+
+    cidx <- result$cidx
+    values <- result$values
 
     # this chunk covers [chunk_start, chunk_end] in array coordinates
     chunk_start <- cidx * meta@chunk_shape
@@ -435,8 +464,7 @@ zaro_read <- function(store, path, start = NULL, count = NULL, meta = NULL,
     } else {
       reshape_shape <- actual_chunk_shape
     }
-    # # C-order: last dimension varies fastest in memory; R is column-major
-    order <- meta@raw_meta[["order"]] %||% "C"
+    # C-order: last dimension varies fastest in memory; R is column-major
     if (order == "C") {
       dim(values) <- rev(reshape_shape)
       values <- aperm(values)

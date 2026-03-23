@@ -80,23 +80,20 @@ decode_one <- function(buf, codec, meta) {
 #' @noRd
 arrow_decompress <- function(buf, type, config) {
   codec <- arrow::Codec$create(type)
+  raw_buf <- arrow::buffer(buf)
+  reader <- arrow::BufferReader$create(raw_buf)
+  stream <- arrow::CompressedInputStream$create(reader, codec)
 
-  # arrow decompression needs to know output size for some codecs
-  # try uncompressed_size from config first, otherwise estimate
+  # overestimate is fine — Read() returns only what's available
   out_size <- config[["decompressed_size"]]
   if (is.null(out_size)) {
-    # conservative estimate; will be resized if needed
     out_size <- length(buf) * 20L
   }
 
-  tryCatch(
-    codec$Decompress(length(buf), buf, out_size),
-    error = function(e) {
-      # retry with larger buffer
-      codec$Decompress(length(buf), buf, out_size * 10L)
-    }
-  )
+  as.raw(stream$Read(out_size))
 }
+
+
 
 
 #' Decompress using the blosc R package
