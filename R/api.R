@@ -428,14 +428,28 @@ zaro_read <- function(store, path, start = NULL, count = NULL, meta = NULL,
     # reshape decoded values to actual chunk extent (edge chunks may be short)
     actual_chunk_shape <- pmin(meta@chunk_shape, meta@shape - chunk_start)
 
-    # C-order: last dimension varies fastest in memory; R is column-major
+    # edge chunks may be full-size (padded) or truncated
+    if (length(values) == prod(meta@chunk_shape)) {
+      reshape_shape <- meta@chunk_shape
+    } else {
+      reshape_shape <- actual_chunk_shape
+    }
     order <- meta@raw_meta[["order"]] %||% "C"
     if (order == "C") {
-      dim(values) <- rev(actual_chunk_shape)
+      dim(values) <- rev(reshape_shape)
       values <- aperm(values)
     } else {
-      dim(values) <- actual_chunk_shape
+      dim(values) <- reshape_shape
     }
+
+    # # C-order: last dimension varies fastest in memory; R is column-major
+    # order <- meta@raw_meta[["order"]] %||% "C"
+    # if (order == "C") {
+    #   dim(values) <- rev(actual_chunk_shape)
+    #   values <- aperm(values)
+    # } else {
+    #   dim(values) <- actual_chunk_shape
+    # }
 
     # build index lists for source and destination
     src_idx <- lapply(seq_len(ndim), function(d) {
