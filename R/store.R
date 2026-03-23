@@ -36,9 +36,9 @@ method(store_get, ArrowStore) <- function(store, key) {
   }, error = function(e) NULL)
 }
 
-method(store_list, ArrowStore) <- function(store, prefix = "") {
-  path <- file.path(store@root, prefix)
-  sel <- arrow::FileSelector$create(path, recursive = TRUE)
+method(store_list, ArrowStore) <- function(store, prefix = "", recursive = FALSE) {
+  path <- paste0(store@root, prefix, collapse = "/")
+  sel <- arrow::FileSelector$create(path, recursive = recursive)
   infos <- store@fs$GetFileInfo(sel)
   paths <- vapply(infos, function(i) i$path, character(1))
   # return paths relative to root
@@ -62,7 +62,7 @@ method(store_get, VSIStore) <- function(store, key) {
   if (!requireNamespace("gdalraster", quietly = TRUE)) {
     stop("gdalraster required for VSI store access", call. = FALSE)
   }
-  #browser()
+
   path <- paste0(store@root, "/", key)
   tryCatch({
     con <- new(gdalraster::VSIFile, path, "rb")
@@ -186,7 +186,7 @@ byte_range_read <- function(url, offset, length) {
     vsi <- methods::new(gdalraster::VSIFile, vsi_url, "rb")
     on.exit(vsi$close(), add = TRUE)
     vsi$seek(offset, "SEEK_SET")
-   # browser()
+
     return(vsi$read(length))
   }
 

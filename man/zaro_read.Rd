@@ -15,10 +15,13 @@ zaro_read(store, path, start = NULL, count = NULL, meta = NULL, verbose = TRUE)
 Defaults to the origin.}
 
 \item{count}{integer vector. Number of elements to read along each
-dimension. Defaults to the full extent.}
+dimension. Use \code{NA} for any axis to read the full extent from
+\code{start}. Defaults to the full extent.}
 
 \item{meta}{optional pre-fetched ZaroMeta object. If NULL (default),
-metadata is read from the store.}
+metadata is read from the store. Can also be the root group metadata
+from \code{zaro_meta(store)} — the array will be looked up by path
+in the consolidated entries.}
 
 \item{verbose}{logical. Emit diagnostic messages (default TRUE).}
 }

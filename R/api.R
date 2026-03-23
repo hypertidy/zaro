@@ -169,11 +169,12 @@ zaro <- function(source, verbose = TRUE, ...) {
 #'
 #' @param store a store object from [zaro()]
 #' @param path character. Path prefix within the store (default root).
+#' @param ... arguments for methods (specifically 'recursive = FALSE' is default for 'ArrowStore')
 #' @returns character vector of keys (relative paths).
 #'
 #' @export
-zaro_list <- function(store, path = "") {
-  store_list(store, prefix = path)
+zaro_list <- function(store, path = "", ...) {
+  store_list(store, prefix = path, ...)
 }
 
 
@@ -434,6 +435,7 @@ zaro_read <- function(store, path, start = NULL, count = NULL, meta = NULL,
     } else {
       reshape_shape <- actual_chunk_shape
     }
+    # # C-order: last dimension varies fastest in memory; R is column-major
     order <- meta@raw_meta[["order"]] %||% "C"
     if (order == "C") {
       dim(values) <- rev(reshape_shape)
@@ -441,15 +443,6 @@ zaro_read <- function(store, path, start = NULL, count = NULL, meta = NULL,
     } else {
       dim(values) <- reshape_shape
     }
-
-    # # C-order: last dimension varies fastest in memory; R is column-major
-    # order <- meta@raw_meta[["order"]] %||% "C"
-    # if (order == "C") {
-    #   dim(values) <- rev(actual_chunk_shape)
-    #   values <- aperm(values)
-    # } else {
-    #   dim(values) <- actual_chunk_shape
-    # }
 
     # build index lists for source and destination
     src_idx <- lapply(seq_len(ndim), function(d) {

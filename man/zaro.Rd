@@ -28,12 +28,17 @@ appropriate backend based on the URI scheme:
 \item \code{http://}, \code{https://}: gdalraster VSI (\code{/vsicurl/})
 \item \code{reference+json://}: Kerchunk JSON reference store
 \item \code{reference+parquet://}: Kerchunk Parquet reference store
+\item \code{virtualizarr://}: VirtualiZarr Parquet manifest store
 }
 }
 \details{
 For S3 stores, if Arrow returns a 301 redirect (wrong region), zaro will
 fall through to gdalraster's \code{/vsis3/} which handles region detection
 automatically.
+
+Known public buckets (e.g. cmip6, aodn-cloud-optimised) are accessed
+anonymously by default. For other public stores, pass
+\code{anonymous = TRUE}.
 }
 \examples{
 \dontrun{
@@ -43,8 +48,11 @@ store <- zaro("/data/my_dataset.zarr")
 # S3 store (anonymous)
 store <- zaro("s3://mur-sst/zarr-v1", anonymous = TRUE)
 
-# Kerchunk JSON reference
-store <- zaro("reference+json:///path/to/refs.json")
+# GCS — known public bucket, anonymous auto-detected
+store <- zaro("gs://cmip6/CMIP6/ScenarioMIP/NOAA-GFDL/GFDL-ESM4/ssp585/r1i1p1f1/Omon/zos/gn/v20180701")
+
+# VirtualiZarr Parquet reference
+store <- zaro("virtualizarr://https://example.com/dataset.parq")
 
 # then explore
 zaro_list(store)
