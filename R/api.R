@@ -28,11 +28,14 @@
 #' anonymously by default. For other public stores, pass
 #' \code{anonymous = TRUE}.
 #'
+#' Validation of the store may be done by setting `validate = TRUE`, but this is otherwise
+#' avoided at open time by default (`source` is checked for being character, non- empty string).
 #' @param source character. Path, URI, or reference store locator.
 #' @param verbose logical. Emit progress and diagnostic messages (default TRUE).
 #'   Suppress with \code{suppressMessages()}.
 #' @param ... additional arguments passed to Arrow filesystem constructors
 #'   (e.g. \code{anonymous = TRUE}, \code{endpoint_override}, \code{region}).
+#' @param validate should the store be checked for valid metadata, `FALSE` is default
 #' @returns A store object (internal class) for use with other zaro functions.
 #'
 #' @export
@@ -56,31 +59,14 @@
 #' data <- zaro_read(store, "analysed_sst",
 #'                   start = c(0, 0, 0), count = c(1, 100, 100))
 #' }
-zaro <- function(source, verbose = TRUE, ...) {
+zaro <- function(source, verbose = TRUE, ..., validate = FALSE) {
   dots <- list(...)
 
+  if (!is.character(source) || length(source) != 1L || is.na(source) || !nzchar(source)) {
+    stop("'source' must be a non-empty character string", call. = FALSE)
+  }
   # strip trailing slashes — avoids double-slash in file.path() paths
   source <- sub("/+$", "", source)
-
-  # Kerchunk JSON reference store
-  if (grepl("^reference\\+json://", source)) {
-    path <- sub("^reference\\+json://", "", source)
-    vmsg("opening Kerchunk JSON reference store: ", path, verbose = verbose)
-    return(parse_kerchunk_json(path))
-  }
-
-  # Kerchunk Parquet reference store (single file)
-  if (grepl("^reference\\+parquet://", source)) {
-    path <- sub("^reference\\+parquet://", "", source)
-    vmsg("opening Kerchunk Parquet reference store: ", path, verbose = verbose)
-    return(parse_kerchunk_parquet(path))
-  }
-
-  # VirtualiZarr Parquet reference store (directory with manifests)
-  if (grepl("^virtualizarr://", source)) {
-    base_url <- sub("^virtualizarr://", "", source)
-    return(open_virtualizarr(base_url, verbose = verbose))
-  }
 
   # for cloud URIs, auto-detect anonymous access for known public buckets
   bucket <- extract_bucket(source)
@@ -91,14 +77,28 @@ zaro <- function(source, verbose = TRUE, ...) {
     dots$anonymous <- TRUE
   }
 
-  # S3 — try Arrow first, fall back to gdalraster /vsis3/ on 301
-  if (grepl("^s3://", source)) {
+
+  # Kerchunk JSON reference store
+  if (grepl("^reference\\+json://", source)) {
+    path <- sub("^reference\\+json://", "", source)
+    vmsg("opening Kerchunk JSON reference store: ", path, verbose = verbose)
+    store <- parse_kerchunk_json(path)
+  } else if (grepl("^reference\\+parquet://", source)) {
+    # Kerchunk Parquet reference store (single file)
+    path <- sub("^reference\\+parquet://", "", source)
+    vmsg("opening Kerchunk Parquet reference store: ", path, verbose = verbose)
+    store <- parse_kerchunk_parquet(path)
+  } else if (grepl("^virtualizarr://", source)) {
+    # VirtualiZarr Parquet reference store (directory with manifests)
+    base_url <- sub("^virtualizarr://", "", source)
+    store <- open_virtualizarr(base_url, verbose = verbose)
+  } else if (grepl("^s3://", source)) {
+    # S3 — try Arrow first, fall back to gdalraster /vsis3/ on 301
     vmsg("opening S3 store via Arrow: ", source, verbose = verbose)
     store <- tryCatch({
       fs <- do.call(arrow::S3FileSystem$create, dots)
       root <- sub("^s3://", "", source)
       s <- ArrowStore(root = root, fs = fs)
-      # probe: try listing to detect region redirect early
       store_list(s, prefix = "")
       s
     }, error = function(e) {
@@ -108,12 +108,11 @@ zaro <- function(source, verbose = TRUE, ...) {
              verbose = verbose)
         if (!requireNamespace("gdalraster", quietly = TRUE)) {
           stop("S3 bucket requires region-aware access. Either:\n",
-               "  - specify region= in zaro(), e.g. zaro(\"", source,
+               "  - specify region= in zaro(\"", source,
                "\", region = \"ap-southeast-2\", anonymous = TRUE)\n",
                "  - install gdalraster for automatic region detection via /vsis3/",
                call. = FALSE)
         }
-        # propagate anonymous flag to GDAL
         if (isTRUE(dots[["anonymous"]])) {
           gdalraster::set_config_option("AWS_NO_SIGN_REQUEST", "YES")
           vmsg("set AWS_NO_SIGN_REQUEST=YES for anonymous access", verbose = verbose)
@@ -121,25 +120,22 @@ zaro <- function(source, verbose = TRUE, ...) {
         s3_path <- sub("^s3://", "", source)
         vsi_root <- paste0("/vsis3/", s3_path)
         vmsg("using gdalraster VSI store: ", vsi_root, verbose = verbose)
-        return(VSIStore(root = vsi_root))
+        return(VSIStore(root = vsi_root))  # returns as tryCatch result -> store
       }
-      # auth error guidance
       if (grepl("403|AccessDenied|Forbidden|credential", msg, ignore.case = TRUE)) {
         vmsg("access denied — try: zaro(\"", source, "\", anonymous = TRUE)",
              verbose = verbose)
       }
       stop(e)
     })
-    return(store)
-  }
 
-  # GCS
-  if (grepl("^gs://", source)) {
+  } else if (grepl("^gs://", source)) {
+    # GCS
     vmsg("opening GCS store via Arrow: ", source, verbose = verbose)
     tryCatch({
       fs <- do.call(arrow::GcsFileSystem$create, dots)
       root <- sub("^gs://", "", source)
-      return(ArrowStore(root = root, fs = fs))
+      store <- ArrowStore(root = root, fs = fs)
     }, error = function(e) {
       msg <- conditionMessage(e)
       if (grepl("OAuth|credential|403|Forbidden|UNAVAILABLE", msg, ignore.case = TRUE) &&
@@ -149,19 +145,28 @@ zaro <- function(source, verbose = TRUE, ...) {
       }
       stop(e)
     })
-  }
+  } else if (grepl("^https?://", source)) {
 
   # HTTP/HTTPS — use gdalraster VSI
-  if (grepl("^https?://", source)) {
     vsi_root <- paste0("/vsicurl/", source)
     vmsg("opening HTTP store via gdalraster VSI: ", vsi_root, verbose = verbose)
-    return(VSIStore(root = vsi_root))
-  }
+    store <- VSIStore(root = vsi_root)
+  } else {
 
-  # local filesystem
-  vmsg("opening local store: ", source, verbose = verbose)
-  fs <- arrow::LocalFileSystem$create()
-  ArrowStore(root = normalizePath(source, mustWork = FALSE), fs = fs)
+   # local filesystem
+   vmsg("opening local store: ", source, verbose = verbose)
+   fs <- arrow::LocalFileSystem$create()
+   store <- ArrowStore(root = normalizePath(source, mustWork = FALSE), fs = fs)
+  }
+  # eagerly probe the store if requested
+  if (validate) {
+    vmsg("validating store...", verbose = verbose)
+    tryCatch(
+      zaro_meta(store, verbose = verbose),
+      error = function(e) warning("store validation failed: ", conditionMessage(e), call. = FALSE)
+    )
+  }
+  store
 }
 
 
@@ -361,8 +366,9 @@ zaro_meta <- function(store, path = "", consolidated = TRUE, verbose = TRUE) {
 #' @returns An R array with dimensions matching \code{count}.
 #'
 #' @export
-zaro_read <- function(store, path, start = NULL, count = NULL, meta = NULL,
+zaro_read <- function(store, path = "", start = NULL, count = NULL, meta = NULL,
                       parallel = FALSE, verbose = TRUE) {
+  if (path == ".") path <- ""
   if (is.null(meta)) {
     meta <- zaro_meta(store, path, consolidated = TRUE, verbose = verbose)
   }
@@ -524,7 +530,8 @@ report_meta <- function(meta, verbose) {
 #' Fetch a single chunk's raw bytes from the store
 #' @noRd
 fetch_chunk <- function(store, path, chunk_idx, meta) {
-  key <- paste0(path, "/", chunk_key(meta, chunk_idx))
+  ck <- chunk_key(meta, chunk_idx)
+  key <- if (nzchar(path)) paste0(path, "/", ck) else ck
   store_get(store, key)
 }
 

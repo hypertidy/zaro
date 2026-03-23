@@ -1,5 +1,13 @@
 # zaro (development version)
 
+* Fix problem with Arrow decompression (logic was incorrect and hidden in a try/catch). 
+
+* Checks now in place for source strings. 
+
+* Optional validation by reading metadata on connect with zaro() (off by default). 
+
+* Use parallel read with mirai settings for zaro_read.
+
 * Add helpers for common cases. 
 
 * Improved print for meta group. 
