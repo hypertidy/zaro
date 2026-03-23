@@ -325,6 +325,14 @@ parse_numpy_dtype <- function(dtype_str) {
     stop("cannot parse dtype: ", dtype_str, call. = FALSE)
   }
 
+  # string types — recognise but flag as not yet readable
+  # <U59, |U100 = fixed-width Unicode
+  # |S10, |S100 = fixed-width byte strings
+  # |O = object (variable-length strings in V2)
+  if (grepl("^[<>|]?[USO]", dtype_str)) {
+    return(list(dtype = "string", size = NA_integer_,
+                what = "character", signed = TRUE, endian = "little"))
+  }
   endian_char <- substr(dtype_str, 1, 1)
   type_code <- substr(dtype_str, 2, 2)
   type_size <- as.integer(substr(dtype_str, 3, nchar(dtype_str)))
