@@ -1,6 +1,12 @@
 skip_if_not(Sys.getenv("ZARO_GALLERY_TESTS") == "YES")
-skip_if_offline()
+## do we really need curl for this
+offline <- function() {
+  tst <- try(readLines("https://raw.githubusercontent.com/cran/MASS/refs/heads/master/DESCRIPTION", n = 1))
+  if (inherits(tst, "try-error")) return(TRUE)
+  FALSE
+}
 
+skip_if(offline())
 
 
 test_that("Pangeo GPCP via HTTP", {
