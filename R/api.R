@@ -363,11 +363,13 @@ zaro_meta <- function(store, path = "", consolidated = TRUE, verbose = TRUE) {
 #'   Recommended backend: \code{future::plan(future.mirai::mirai_multisession)}.
 #'   Skipped automatically for reads of fewer than 4 chunks. Default FALSE.
 #' @param verbose logical. Emit diagnostic messages (default TRUE).
+#' @param assemble logical. If `TRUE`return a full array (the default), else the raw list
+#'  of decoded chunks.
 #' @returns An R array with dimensions matching \code{count}.
 #'
 #' @export
 zaro_read <- function(store, path = "", start = NULL, count = NULL, meta = NULL,
-                      parallel = FALSE, verbose = TRUE) {
+                      parallel = FALSE, verbose = TRUE, assemble = TRUE) {
   if (path == ".") path <- ""
   if (is.null(meta)) {
     meta <- zaro_meta(store, path, consolidated = TRUE, verbose = verbose)
@@ -392,6 +394,7 @@ zaro_read <- function(store, path = "", start = NULL, count = NULL, meta = NULL,
   if (is.null(start)) start <- rep(0L, ndim)
   if (is.null(count)) count <- rep(NA_integer_, ndim)
 
+
   start <- as.integer(start)
   count <- as.integer(count)
 
@@ -401,6 +404,13 @@ zaro_read <- function(store, path = "", start = NULL, count = NULL, meta = NULL,
 
   if (length(start) != ndim || length(count) != ndim) {
     stop("start and count must have length ", ndim, call. = FALSE)
+  }
+
+  if (any(start + count > meta@shape)) {
+    over <- which(start + count > meta@shape)
+    warning("request exceeds array extent on dimension(s) ",
+            paste(over, collapse = ", "), "; clamping", call. = FALSE)
+    count <- pmin(count, meta@shape - start)
   }
 
   # compute which chunks we need
@@ -432,13 +442,14 @@ zaro_read <- function(store, path = "", start = NULL, count = NULL, meta = NULL,
   }
 
   if (use_parallel) {
-    print(system.time({
     decoded <- future.apply::future_lapply(chunk_indices, fetch_and_decode)
-    }))
   } else {
     decoded <- lapply(chunk_indices, fetch_and_decode)
   }
 
+  if (!assemble) {
+    return(decoded)
+  }
   # -- phase 2: assemble into output array (sequential) --
   order <- meta@raw_meta[["order"]] %||% "C"
 
