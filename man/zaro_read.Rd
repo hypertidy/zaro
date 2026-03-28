@@ -4,7 +4,16 @@
 \alias{zaro_read}
 \title{Read data from a Zarr array}
 \usage{
-zaro_read(store, path, start = NULL, count = NULL, meta = NULL, verbose = TRUE)
+zaro_read(
+  store,
+  path = "",
+  start = NULL,
+  count = NULL,
+  meta = NULL,
+  parallel = FALSE,
+  verbose = TRUE,
+  assemble = TRUE
+)
 }
 \arguments{
 \item{store}{a store object from \code{\link[=zaro]{zaro()}}}
@@ -23,7 +32,16 @@ metadata is read from the store. Can also be the root group metadata
 from \code{zaro_meta(store)} — the array will be looked up by path
 in the consolidated entries.}
 
+\item{parallel}{logical. If \code{TRUE}, fetch and decode chunks in
+parallel using \code{future.apply::future_lapply()}. Requires the
+\code{future.apply} package and a \code{future::plan()} to be set.
+Recommended backend: \code{future::plan(future.mirai::mirai_multisession)}.
+Skipped automatically for reads of fewer than 4 chunks. Default FALSE.}
+
 \item{verbose}{logical. Emit diagnostic messages (default TRUE).}
+
+\item{assemble}{logical. If \code{TRUE}return a full array (the default), else the raw list
+of decoded chunks.}
 }
 \value{
 An R array with dimensions matching \code{count}.

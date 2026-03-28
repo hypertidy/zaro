@@ -4,7 +4,7 @@
 \alias{zaro}
 \title{Open a Zarr store}
 \usage{
-zaro(source, verbose = TRUE, ...)
+zaro(source, verbose = TRUE, ..., validate = FALSE)
 }
 \arguments{
 \item{source}{character. Path, URI, or reference store locator.}
@@ -14,6 +14,8 @@ Suppress with \code{suppressMessages()}.}
 
 \item{...}{additional arguments passed to Arrow filesystem constructors
 (e.g. \code{anonymous = TRUE}, \code{endpoint_override}, \code{region}).}
+
+\item{validate}{should the store be checked for valid metadata, \code{FALSE} is default}
 }
 \value{
 A store object (internal class) for use with other zaro functions.
@@ -39,6 +41,9 @@ automatically.
 Known public buckets (e.g. cmip6, aodn-cloud-optimised) are accessed
 anonymously by default. For other public stores, pass
 \code{anonymous = TRUE}.
+
+Validation of the store may be done by setting \code{validate = TRUE}, but this is otherwise
+avoided at open time by default (\code{source} is checked for being character, non- empty string).
 }
 \examples{
 \dontrun{

@@ -4,12 +4,14 @@
 \alias{zaro_list}
 \title{List contents of a Zarr store}
 \usage{
-zaro_list(store, path = "")
+zaro_list(store, path = "", ...)
 }
 \arguments{
 \item{store}{a store object from \code{\link[=zaro]{zaro()}}}
 
 \item{path}{character. Path prefix within the store (default root).}
+
+\item{...}{arguments for methods (specifically 'recursive = FALSE' is default for 'ArrowStore')}
 }
 \value{
 character vector of keys (relative paths).

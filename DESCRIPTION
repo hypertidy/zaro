@@ -1,6 +1,6 @@
 Package: zaro
 Title: Zarr via Arrow
-Version: 0.0.1.9009
+Version: 0.0.1.9010
 Authors@R: c(person("Michael", "Sumner", email = "mdsumner@gmail.com",
                   role = c("aut", "cre"), comment = c(ORCID = "0000-0002-2471-7511")), 
              person("Hugo", "Gruson", , , role = c("ctb"),
@@ -33,6 +33,7 @@ Collate:
     'store.R'
     'meta.R'
     'codec.R'
+    'chunk.R'
     'reference.R'
     'print.R'
     'api.R'

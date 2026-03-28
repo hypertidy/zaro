@@ -1,5 +1,7 @@
 # zaro (development version)
 
+* Add chunk facilites `zaro_chunk()`, `zaro_chunks()`, `zaro_chunk_apply()`, `zarr_chunk_info()`. 
+
 * Fix problem with Arrow decompression (logic was incorrect and hidden in a try/catch). 
 
 * Checks now in place for source strings. 
