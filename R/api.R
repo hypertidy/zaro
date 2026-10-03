@@ -18,6 +18,8 @@
 #'   \item \code{reference+json://}: Kerchunk JSON reference store
 #'   \item \code{reference+parquet://}: Kerchunk Parquet reference store
 #'   \item \code{virtualizarr://}: VirtualiZarr Parquet manifest store
+#'   \item \code{mdimrefs://}: mdim-refs SQLite byte-reference table; pass
+#'     \code{target = "public"} to apply that remap target to source paths
 #' }
 #'
 #' For S3 stores, if Arrow returns a 301 redirect (wrong region), zaro will
@@ -88,6 +90,10 @@ zaro <- function(source, verbose = TRUE, ..., validate = FALSE) {
     path <- sub("^reference\\+parquet://", "", source)
     vmsg("opening Kerchunk Parquet reference store: ", path, verbose = verbose)
     store <- parse_kerchunk_parquet(path)
+  } else if (grepl("^mdimrefs://", source)) {
+    # mdim-refs byte-reference table (SQLite), served as a Zarr V2 store
+    store <- open_mdimrefs(sub("^mdimrefs://", "", source),
+                           target = dots[["target"]], verbose = verbose)
   } else if (grepl("^virtualizarr://", source)) {
     # VirtualiZarr Parquet reference store (directory with manifests)
     base_url <- sub("^virtualizarr://", "", source)
