@@ -1,5 +1,7 @@
 # zaro (development version)
 
+* New `zaro_array()` opens a Zarr array as a lazy R array via the altarr package (ALTREP). Chunks are fetched and decoded only when R asks for them, and subsets such as `x[cbind(i, j, k)]` plan their chunks and fetch them in one batch. Dimensions are in R order (the Zarr shape reversed for C order), so chunks are used as decoded with no `aperm()`. 
+
 * Add chunk facilites `zaro_chunk()`, `zaro_chunks()`, `zaro_chunk_apply()`, `zarr_chunk_info()`. 
 
 * Fix problem with Arrow decompression (logic was incorrect and hidden in a try/catch). 

@@ -17,6 +17,16 @@ test_that("Pangeo GPCP via HTTP", {
   expect_equal(dim(data), c(time = 1, latitude = 2, longitude = 2))
 })
 
+test_that("Pangeo GPCP as a lazy array", {
+  skip_if_not_installed("altarr")
+  store <- zaro("https://ncsa.osn.xsede.org/Pangeo/pangeo-forge/gpcp-feedstock/gpcp.zarr")
+  x <- zaro_array(store, "precip")
+  expect_equal(names(dimnames(x)), c("longitude", "latitude", "time"))
+  data <- zaro_read(store, "precip", start = c(100, 0, 0), count = c(1, 2, 2))
+  expect_equal(altarr::altarr_extract(x, 1:2, 1:2, 101, drop = FALSE),
+               aperm(unname(data)), ignore_attr = TRUE)
+})
+
 test_that("CMEMS ARCO via HTTP (timeChunked)", {
   store <- zaro("https://s3.waw3-1.cloudferro.com/mdl-arco-time-045/arco/SEALEVEL_GLO_PHY_L4_MY_008_047/cmems_obs-sl_glo_phy-ssh_my_allsat-l4-duacs-0.125deg_P1D_202411/timeChunked.zarr")
 
