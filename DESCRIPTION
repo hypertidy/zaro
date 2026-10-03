@@ -15,7 +15,6 @@ Description: Low-level Zarr interface (V2 and V3) built on Arrow filesystem and
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.3
 Imports:
     arrow,
     jsonlite,
@@ -42,3 +41,4 @@ Collate:
     'api.R'
     'array.R'
     'virtualizarr.R'
+Config/roxygen2/version: 8.1.0

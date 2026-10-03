@@ -7,62 +7,62 @@
 zaro_array(store, path = "", meta = NULL, parallel = FALSE, verbose = TRUE)
 }
 \arguments{
-\item{store}{a store object from [zaro()]}
+\item{store}{a store object from \code{\link[=zaro]{zaro()}}}
 
 \item{path}{character. Path to the array within the store.}
 
 \item{meta}{optional pre-fetched ZaroMeta, or the root group meta with
-consolidated entries, as for [zaro_read()].}
+consolidated entries, as for \code{\link[=zaro_read]{zaro_read()}}.}
 
-\item{parallel}{logical. If `TRUE`, each batch of 4 or more chunks is
-fetched and decoded with `future.apply::future_lapply()`, as for
-[zaro_read()] (the same caveats about store serialization apply).}
+\item{parallel}{logical. If \code{TRUE}, each batch of 4 or more chunks is
+fetched and decoded with \code{future.apply::future_lapply()}, as for
+\code{\link[=zaro_read]{zaro_read()}} (the same caveats about store serialization apply).}
 
 \item{verbose}{logical. Emit diagnostic messages when reading metadata.}
 }
 \value{
-A lazy array, see [altarr::altarr()].
+A lazy array, see \code{\link[altarr:altarr]{altarr::altarr()}}.
 }
 \description{
 Returns an ordinary R array (a double, integer or logical vector with a
-`dim` attribute and no class) whose values are read from the store chunk
+\code{dim} attribute and no class) whose values are read from the store chunk
 by chunk, only when R asks for them. It is an ALTREP object built by
-[altarr::altarr()], with zaro's chunk fetch and codec pipeline behind it.
+\code{\link[altarr:altarr]{altarr::altarr()}}, with zaro's chunk fetch and codec pipeline behind it.
 Nothing is read when the array is created beyond the metadata.
 }
 \details{
-Subsetting with `x[i]`, `x[cbind(i, j, k)]` and
-`altarr::altarr_extract(x, i, j, k)` plans the chunks it needs and fetches
-them in one batch; `sum()`, `mean()`, `min()` and `max()` stream the chunk
-grid. See `?altarr::altarr_contract` for what base R does with a lazy
-array, and [altarr::altarr_stats()] to count fetches.
+Subsetting with \code{x[i]}, \code{x[cbind(i, j, k)]} and
+\code{altarr::altarr_extract(x, i, j, k)} plans the chunks it needs and fetches
+them in one batch; \code{sum()}, \code{mean()}, \code{min()} and \code{max()} stream the chunk
+grid. See \code{?altarr::altarr_contract} for what base R does with a lazy
+array, and \code{\link[altarr:altarr_stats]{altarr::altarr_stats()}} to count fetches.
 }
 \section{Dimension order}{
 
-A C-order Zarr array of shape `(s1, ..., sn)` (all Zarr V3 arrays, and V2
-arrays with `"order": "C"`) is returned with R `dim` `c(sn, ..., s1)`, and
+A C-order Zarr array of shape \verb{(s1, ..., sn)} (all Zarr V3 arrays, and V2
+arrays with \code{"order": "C"}) is returned with R \code{dim} \code{c(sn, ..., s1)}, and
 the dimension names reversed to match. This is the order the bytes are
 stored in, so a chunk is used as decoded. For a typical
-`(time, lat, lon)` array, `x[lon, lat, time]` is the R subscript. V2
-arrays with `"order": "F"` keep their shape. This is the transpose of
-what [zaro_read()] returns.
+\verb{(time, lat, lon)} array, \code{x[lon, lat, time]} is the R subscript. V2
+arrays with \code{"order": "F"} keep their shape. This is the transpose of
+what \code{\link[=zaro_read]{zaro_read()}} returns.
 }
 
 \section{Missing chunks and types}{
 
-Chunks absent from the store read as the array's `fill_value`. Integer
-types up to 32 bits give an integer array (`uint32` and 64-bit integers
-give double, as in [zaro_read()]), floats give double, `bool` gives
-logical. No CF packing (`scale_factor`, `add_offset`, `_FillValue`) is
+Chunks absent from the store read as the array's \code{fill_value}. Integer
+types up to 32 bits give an integer array (\code{uint32} and 64-bit integers
+give double, as in \code{\link[=zaro_read]{zaro_read()}}), floats give double, \code{bool} gives
+logical. No CF packing (\code{scale_factor}, \code{add_offset}, \verb{_FillValue}) is
 applied.
 }
 
 \section{Saving}{
 
-`saveRDS()` on the result writes the recipe (shape, chunk shape and the
+\code{saveRDS()} on the result writes the recipe (shape, chunk shape and the
 fetch function), not the values. Stores backed by Arrow or GDAL hold
 external pointers, so a saved array does not read in a new R session;
-re-open it with `zaro_array()`.
+re-open it with \code{zaro_array()}.
 }
 
 \examples{

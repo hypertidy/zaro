@@ -2,3 +2,5 @@
 ^\.Rproj\.user$
 ^ghrsst-refs.parquet$
 ^README\.Rmd$
+^\.positai$
+^\.claude$
