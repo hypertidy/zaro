@@ -74,7 +74,7 @@ parse_zarr_json <- function(raw_bytes) {
     data_type = meta[["data_type"]],
     chunk_shape = chunk_shape,
     codecs = codecs,
-    fill_value = meta[["fill_value"]],
+    fill_value = coerce_fill_value(meta[["fill_value"]], meta[["data_type"]]),
     dimension_names = dim_names,
     attributes = as.list(meta[["attributes"]] %||% list()),
     chunk_key_sep = chunk_key_sep,
@@ -192,25 +192,16 @@ dtype_size <- function(dtype) {
 }
 
 #' Coerce fill_value to the appropriate R type
+#'
+#' A Zarr fill_value may be absent (JSON `null`). After a JSON round-trip
+#' (e.g. the toJSON/fromJSON pass in [parse_zmetadata()]) a `null` can also
+#' degrade to an empty object `{}`, which parses back as an empty `list()`.
+#' Treat all of these "no fill value" forms as missing (`NA_real_`) so the
+#' output array is a numeric array rather than a list-array.
 #' @noRd
 coerce_fill_value <- function(fv, data_type) {
-  if (is.null(fv)) return(NA_real_)
-  if (is.numeric(fv)) return(fv)
-  if (is.character(fv)) {
-    if (tolower(fv) == "nan") return(NaN)
-    if (tolower(fv) == "infinity" || fv == "Inf") return(Inf)
-    if (tolower(fv) == "-infinity" || fv == "-Inf") return(-Inf)
-    # numeric string from JSON
-    if (grepl("^-?[0-9]", fv)) return(as.numeric(fv))
-  }
-  if (is.logical(fv) && is.na(fv)) return(NA_real_)
-  fv
-}
-
-#' Coerce fill_value to the appropriate R type
-#' @noRd
-coerce_fill_value <- function(fv, data_type) {
-  if (is.null(fv)) return(NA_real_)
+  # null, empty, or a (degraded) list/object -> missing
+  if (is.null(fv) || length(fv) == 0L || is.list(fv)) return(NA_real_)
   if (is.numeric(fv)) return(fv)
   if (is.character(fv)) {
     if (tolower(fv) == "nan") return(NaN)
@@ -440,14 +431,18 @@ parse_zmetadata <- function(raw_bytes) {
   for (key in zarray_keys) {
     var_path <- sub("/\\.zarray$", "", key)
 
-    zarray_json <- jsonlite::toJSON(entries[[key]], auto_unbox = TRUE)
+    # null = "null" so a JSON `null` (e.g. fill_value) round-trips as null
+    # rather than degrading to an empty object `{}`
+    zarray_json <- jsonlite::toJSON(entries[[key]], auto_unbox = TRUE,
+                                    null = "null")
 
     # find matching .zattrs
     zattrs_key <- paste0(var_path, "/.zattrs")
     zattrs_json <- NULL
     if (zattrs_key %in% names(entries)) {
       zattrs_json <- charToRaw(jsonlite::toJSON(entries[[zattrs_key]],
-                                                auto_unbox = TRUE))
+                                                auto_unbox = TRUE,
+                                                null = "null"))
     }
 
     result[[var_path]] <- parse_zarray(charToRaw(zarray_json), zattrs_json)

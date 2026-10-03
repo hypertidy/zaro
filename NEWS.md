@@ -1,6 +1,10 @@
 # zaro (development version)
 
-* New `zaro_array()` opens a Zarr array as a lazy R array via the altarr package (ALTREP). Chunks are fetched and decoded only when R asks for them, and subsets such as `x[cbind(i, j, k)]` plan their chunks and fetch them in one batch. Dimensions are in R order (the Zarr shape reversed for C order), so chunks are used as decoded with no `aperm()`. 
+* Fix `zaro_read()` returning a list-array when `fill_value` is null. A null
+  fill value (common for coordinate arrays) is now coerced to `NA`, so reads
+  return a plain numeric array. This also covers the case where a V2
+  consolidated-metadata round-trip degrades `null` to an empty object `{}`,
+  and the V3 path, which previously did not coerce `fill_value` at all.
 
 * Add chunk facilites `zaro_chunk()`, `zaro_chunks()`, `zaro_chunk_apply()`, `zarr_chunk_info()`. 
 

@@ -58,8 +58,7 @@ open_bran <- function(name = "ocean_temp_2023", refs = BRAN_REFS,
 
 #' Read a 1-D coordinate array (inlined in the manifest, no THREDDS access)
 bran_coord <- function(store, var) {
-  # unlist(): zaro_read() returns a list-array when fill_value is null
-  as.numeric(unlist(zaro_read(store, var, verbose = FALSE)))
+  as.numeric(zaro_read(store, var, verbose = FALSE))
 }
 
 #' Resolve Zarr chunk indices (0-based, Zarr/C order, one row per chunk) to
