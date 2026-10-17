@@ -23,6 +23,8 @@ Suggests:
     altarr,
     gdalraster,
     blosc,
+    DBI,
+    RSQLite,
     future.apply,
     future.mirai,
     testthat (>= 3.0.0)
@@ -41,4 +43,5 @@ Collate:
     'api.R'
     'array.R'
     'virtualizarr.R'
+    'mdimrefs.R'
 Config/roxygen2/version: 8.1.0

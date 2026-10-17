@@ -1,5 +1,9 @@
 # zaro (development version)
 
+* New `mdimrefs://` source: `zaro()` reads an mdim-refs SQLite byte-reference
+  table directly, serving Zarr V2 keys from its `arrays` table and
+  `refs_<array>` views (`target` selects a path remap).
+
 * Fix `zaro_read()` returning a list-array when `fill_value` is null. A null
   fill value (common for coordinate arrays) is now coerced to `NA`, so reads
   return a plain numeric array. This also covers the case where a V2
