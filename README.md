@@ -322,6 +322,12 @@ for GDAL-independent Zarr access and direct store-level control.
 Provides some of the same VSI filesystem access that zaro uses via
 gdalraster.
 
+**altarr** ([hypertidy/altarr](https://github.com/hypertidy/altarr)) --
+lazy chunked arrays as plain R arrays (ALTREP). `zaro_array()` uses
+zaro's chunk fetch and codec pipeline as an altarr fetch function, so a
+Zarr array subsets and reduces with base R, reading only the chunks it
+needs.
+
 ## How it works
 
 zaro implements the Zarr specification directly rather than wrapping a
