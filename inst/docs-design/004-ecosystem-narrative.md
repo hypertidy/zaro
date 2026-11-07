@@ -5,7 +5,7 @@ _February 2026_
 This document articulates how zaro fits into the broader R geospatial and
 scientific computing landscape, and makes the case for interoperability
 through shared specification rather than language-specific bindings. It is
-intended as source material for the hypertidy project narrative — explaining
+intended as source material for the hypertidy project narrative - explaining
 why these packages exist, what they share with the Python ecosystem, and
 where the R community has undersold its own capabilities.
 
@@ -16,8 +16,8 @@ Dask, and a coherent cloud-native data stack. R has some spatial packages
 but they're weird and bespoke, can't handle modern formats, and don't work
 at scale.
 
-This is wrong, and the existence of zaro — built in an afternoon from
-composable R infrastructure — is one illustration of why.
+This is wrong, and the existence of zaro - built in an afternoon from
+composable R infrastructure - is one illustration of why.
 
 ## What R actually has
 
@@ -28,7 +28,7 @@ underlying C/C++/Rust libraries as their Python equivalents:
 Arrow C++ library as PyArrow. It provides FileSystem abstraction over S3,
 GCS, and local storage; compression codecs (zstd, gzip, lz4, brotli,
 snappy, bz2); efficient memory buffers; and Parquet/IPC/CSV I/O. This is
-not a thin wrapper — it exposes the full breadth of Arrow's compute and I/O
+not a thin wrapper - it exposes the full breadth of Arrow's compute and I/O
 infrastructure.
 
 **GDAL.** The `gdalraster` package gives R the same GDAL C++ library as
@@ -39,7 +39,7 @@ raster/vector drivers are all accessible. The `vapour` package provides
 an alternative lightweight GDAL interface focused on direct access patterns.
 
 **Parallel computing.** The `mirai` package's C-level dispatcher has
-per-task overhead in the tens of microseconds — competitive with Python's
+per-task overhead in the tens of microseconds - competitive with Python's
 concurrent.futures and Dask's task scheduler. mirai is now the recommended
 async backend for Shiny, the only async backend for plumber2, the parallel
 backend for purrr, and an official alternative communications backend for
@@ -53,8 +53,8 @@ clean inheritance. It is arguably more principled than Python's ad-hoc class
 hierarchy, which relies on conventions (dunder methods, ABCs) rather than
 language-level enforcement.
 
-**Array semantics.** R's native array model — flat vectors with `dim<-()`
-and `aperm()` — is simple and adequate for N-dimensional data. It doesn't
+**Array semantics.** R's native array model - flat vectors with `dim<-()`
+and `aperm()` - is simple and adequate for N-dimensional data. It doesn't
 have xarray's labeled-dimension ergonomics built in, but that's a thin
 layer (the ndr package) over the same fundamental representation.
 
@@ -65,7 +65,7 @@ language. They interoperate because they share *specifications*.
 
 A climate scientist writes Zarr V3 data from xarray in Python, generates
 Kerchunk references with VirtualiZarr, and publishes them to S3. An R user
-reads the same data with zaro — parsing the same JSON metadata, applying
+reads the same data with zaro - parsing the same JSON metadata, applying
 the same codec chain, fetching bytes through the same S3 protocol, and
 assembling the same array. No format conversion, no language-specific
 serialization, no bridge library.
@@ -84,31 +84,31 @@ Python equivalent through shared specification, not through bindings.
 
 ## Where hypertidy packages sit
 
-The hypertidy ecosystem — tidync, vapour, sds, raadtools, ndr, and now
-zaro — represents a coherent vision for scientific array data in R. The
+The hypertidy ecosystem - tidync, vapour, sds, raadtools, ndr, and now
+zaro - represents a coherent vision for scientific array data in R. The
 packages aren't a monolith; they're composable primitives with different
 abstraction levels:
 
 **Data access primitives:**
-- `vapour` — direct GDAL access (raster values, vector features, metadata)
-- `gdalraster` — comprehensive GDAL interface (VSI, Multidim, warping)
-- `zaro` — GDAL-independent Zarr access via Arrow
+- `vapour` - direct GDAL access (raster values, vector features, metadata)
+- `gdalraster` - comprehensive GDAL interface (VSI, Multidim, warping)
+- `zaro` - GDAL-independent Zarr access via Arrow
 
 **Metadata and exploration:**
-- `tidync` — metadata-first NetCDF exploration (activate, filter, read)
-- `sds` — WMTS/data catalog discovery and tile access
+- `tidync` - metadata-first NetCDF exploration (activate, filter, read)
+- `sds` - WMTS/data catalog discovery and tile access
 
 **Higher-level abstractions:**
-- `ndr` — xarray-like labeled arrays with S7 classes and lazy evaluation
-- `raadtools` — domain-specific readers for Antarctic/ocean research data
+- `ndr` - xarray-like labeled arrays with S7 classes and lazy evaluation
+- `raadtools` - domain-specific readers for Antarctic/ocean research data
 
 **Utilities:**
-- `reproj` — lightweight coordinate reprojection
-- `controlledburn` — sparse polygon rasterization
+- `reproj` - lightweight coordinate reprojection
+- `controlledburn` - sparse polygon rasterization
 
 The design principle throughout: opinions at the top, primitives at the
 bottom. tidync has strong opinions about how you explore NetCDF files
-(activate grids, filter dimensions, hyper_array). vapour has almost none —
+(activate grids, filter dimensions, hyper_array). vapour has almost none -
 it gives you raw access and gets out of the way. zaro sits in the
 primitives layer: it reads Zarr stores and gives you arrays. What you do
 with them is your business.
@@ -138,7 +138,7 @@ But the stack is also opinionated in ways that aren't always acknowledged:
   performance characteristics.
 
 - The stack's tight integration means that deviating from the expected
-  workflow (xarray → Dask → Zarr → S3) can be surprisingly difficult.
+  workflow (xarray -> Dask -> Zarr -> S3) can be surprisingly difficult.
   Trying to use Zarr without xarray, or Dask without Zarr, requires more
   expertise than the tutorials suggest.
 
@@ -159,7 +159,7 @@ gives R a class system more principled than Python's. zaro reads the same
 Zarr V3 stores that zarr-python reads.
 
 But these capabilities are distributed across hypertidy, r-spatial,
-r-universe, individual maintainers, and CRAN — with no unified narrative
+r-universe, individual maintainers, and CRAN - with no unified narrative
 tying them together. A Python user looking at the landscape sees xarray's
 documentation, Pangeo's tutorials, and Earthmover's marketing. An R user
 looking at the same landscape sees a constellation of packages with
@@ -169,8 +169,8 @@ entry point.
 zaro's design documents (including this one) are a small step toward making
 the unified capability visible. They explain not just what zaro does but
 why it exists, what it shares with the Python stack, and where it fits in
-the broader ecosystem. This kind of documentation — architecture decisions,
-ecosystem positioning, design rationale — is what turns a collection of
+the broader ecosystem. This kind of documentation - architecture decisions,
+ecosystem positioning, design rationale - is what turns a collection of
 packages into a coherent project.
 
 ## Concrete interoperability examples
@@ -224,8 +224,8 @@ zaro embodies these principles in its architecture:
 4. **Optional dependencies for optional capabilities.** Icechunk access
    (when needed) would come via an optional IcechunkStore backend. Blosc
    decompression comes via an optional blosc dependency. HTTP access comes
-   via an optional gdalraster dependency. The core — JSON parsing, Arrow
-   codecs, array assembly — stands alone.
+   via an optional gdalraster dependency. The core - JSON parsing, Arrow
+   codecs, array assembly - stands alone.
 
 These aren't novel principles. They're how Unix tools work, how the web
 works, and how the best scientific software works. But they're worth stating

@@ -26,7 +26,7 @@ MdimRefsStore <- new_class("MdimRefsStore", parent = ZaroStore, properties = lis
 #' @param target remap target to apply to source paths (e.g. "public"), or
 #'   NULL for the verbatim sources.
 #' @noRd
-open_mdimrefs <- function(source, target = NULL, verbose = TRUE) {
+open_mdimrefs <- function(source, target = NULL, verbose = zaro_verbose()) {
   for (pkg in c("DBI", "RSQLite")) if (!requireNamespace(pkg, quietly = TRUE))
     stop(pkg, " is required to read mdim-refs stores", call. = FALSE)
   if (grepl("^https?://", source)) {

@@ -11,7 +11,7 @@ zaro_chunks(
   meta = NULL,
   shaped = TRUE,
   parallel = FALSE,
-  verbose = TRUE
+  verbose = zaro_verbose()
 )
 }
 \arguments{
@@ -30,7 +30,8 @@ dim 1, all chunks along dim 2, chunks 2-4 along dim 3.}
 
 \item{parallel}{logical. Use future.apply for parallel fetch+decode.}
 
-\item{verbose}{logical.}
+\item{verbose}{logical. Emit diagnostic messages. Default
+\code{getOption("zaro.verbose", TRUE)}.}
 }
 \value{
 A list of chunk results (as from \code{zaro_chunk()}). NULL

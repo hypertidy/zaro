@@ -4,7 +4,14 @@
 \alias{zaro_chunk}
 \title{Read a single chunk by grid index}
 \usage{
-zaro_chunk(store, path, chunk_idx, meta = NULL, shaped = TRUE, verbose = TRUE)
+zaro_chunk(
+  store,
+  path,
+  chunk_idx,
+  meta = NULL,
+  shaped = TRUE,
+  verbose = zaro_verbose()
+)
 }
 \arguments{
 \item{store}{a store object from \code{\link[=zaro]{zaro()}}}
@@ -21,15 +28,16 @@ fourth lon chunk).}
 chunk's actual dimensions (handling C-order and edge chunks).
 If FALSE, return a flat vector.}
 
-\item{verbose}{logical.}
+\item{verbose}{logical. Emit diagnostic messages. Default
+\code{getOption("zaro.verbose", TRUE)}.}
 }
 \value{
 A list with components:
 \describe{
-\item{cidx}{integer vector — the chunk grid index}
-\item{values}{array or vector — decoded chunk data}
-\item{start}{integer vector — 0-based array coordinates of chunk origin}
-\item{shape}{integer vector — actual shape of this chunk (may be
+\item{cidx}{integer vector - the chunk grid index}
+\item{values}{array or vector - decoded chunk data}
+\item{start}{integer vector - 0-based array coordinates of chunk origin}
+\item{shape}{integer vector - actual shape of this chunk (may be
 smaller than chunk_shape for edge chunks)}
 }
 Returns NULL if the chunk doesn't exist (missing/sparse).

@@ -1,4 +1,4 @@
-# reference.R — Kerchunk JSON and Parquet virtual reference stores
+# reference.R - Kerchunk JSON and Parquet virtual reference stores
 #
 # These allow Zarr-style access to existing archival files (NetCDF, HDF5,
 # GRIB, TIFF) without reformatting. A reference document maps Zarr keys
@@ -60,7 +60,7 @@ parse_kerchunk_json <- function(source) {
 parse_kerchunk_parquet <- function(source) {
   tbl <- arrow::read_parquet(source)
 
-  # normalise column names — different tools use different conventions
+  # normalise column names - different tools use different conventions
   nms <- tolower(names(tbl))
   names(tbl) <- nms
 
@@ -104,11 +104,8 @@ readr_or_readlines <- function(source) {
     if (requireNamespace("gdalraster", quietly = TRUE)) {
       vsi_path <- paste0("/vsicurl/", source)
       tryCatch({
-        #con <- gdalraster::vsi_open(vsi_path, "rb")
-        con <- new(gdalraster::VSIFile, "rb")
-        on.exit(con$close())
-        sz <- gdalraster::vsi_stat(vsi_path, "size")
-        raw <- con$ingest(-1)
+        con <- methods::new(gdalraster::VSIFile, vsi_path, "rb")
+        raw <- tryCatch(con$ingest(-1), finally = con$close())
         return(rawToChar(raw))
       }, error = function(e) NULL)
     }

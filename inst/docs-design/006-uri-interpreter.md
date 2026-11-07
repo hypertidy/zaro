@@ -99,7 +99,7 @@ https://ncsa.osn.xsede.org/Pangeo/pangeo-forge/gpcp-feedstock/gpcp.zarr
 https://s3.waw3-1.cloudferro.com/mdl-arco-time-045/arco/.../timeChunked.zarr
 ```
 
-No translation needed — these go directly to gdalraster `/vsicurl/`.
+No translation needed - these go directly to gdalraster `/vsicurl/`.
 
 ## Proposed solution: `zaro_uri()`
 
@@ -116,7 +116,7 @@ store <- zaro(zaro_uri(url))
 zaro_uri <- function(url) {
   # 1. Strip viewer/catalogue parameters
   url <- sub("::.*$", "", url)
-  url <- sub("\\?.*$", "", url)  # be cautious — some stores use query params
+  url <- sub("\\?.*$", "", url)  # be cautious - some stores use query params
 
   # 2. Strip trailing slashes
   url <- sub("/+$", "", url)
@@ -133,37 +133,37 @@ zaro_uri <- function(url) {
 
 ### Translation rules
 
-**GCS HTTPS → gs://**
+**GCS HTTPS -> gs://**
 
 ```r
-# https://storage.googleapis.com/bucket/path → gs://bucket/path
+# https://storage.googleapis.com/bucket/path -> gs://bucket/path
 if (grepl("^https://storage\\.googleapis\\.com/", url)) {
   url <- sub("^https://storage\\.googleapis\\.com/", "gs://", url)
 }
 ```
 
-**S3 path-style HTTPS → s3://**
+**S3 path-style HTTPS -> s3://**
 
 ```r
-# https://s3.amazonaws.com/bucket/path → s3://bucket/path
-# https://s3.region.amazonaws.com/bucket/path → s3://bucket/path
+# https://s3.amazonaws.com/bucket/path -> s3://bucket/path
+# https://s3.region.amazonaws.com/bucket/path -> s3://bucket/path
 if (grepl("^https://s3[.]([a-z0-9-]+[.])?amazonaws[.]com/", url)) {
   url <- sub("^https://s3[.]([a-z0-9-]+[.])?amazonaws[.]com/", "s3://", url)
 }
 ```
 
-**S3 virtual-hosted HTTPS → s3://**
+**S3 virtual-hosted HTTPS -> s3://**
 
 ```r
-# https://bucket.s3.amazonaws.com/path → s3://bucket/path
-# https://bucket.s3.region.amazonaws.com/path → s3://bucket/path
+# https://bucket.s3.amazonaws.com/path -> s3://bucket/path
+# https://bucket.s3.region.amazonaws.com/path -> s3://bucket/path
 m <- regmatches(url, regexec("^https://([^.]+)\\.s3\\.([a-z0-9-]+\\.)?amazonaws\\.com/(.*)$", url))[[1]]
 if (length(m) == 4) {
   url <- paste0("s3://", m[2], "/", m[4])
 }
 ```
 
-**Known custom endpoints — leave as HTTPS.** CEPH, MinIO, Wasabi
+**Known custom endpoints - leave as HTTPS.** CEPH, MinIO, Wasabi
 URLs can't be translated to `s3://` due to Arrow's bucket name
 restrictions. Keep as plain HTTP.
 
@@ -184,7 +184,7 @@ restrictions. Keep as plain HTTP.
 
 ## Worked examples
 
-### Pangeo catalogue link → working store
+### Pangeo catalogue link -> working store
 
 ```r
 raw <- "https://storage.googleapis.com/cmip6/CMIP6/CMIP/NOAA-GFDL/GFDL-ESM4/historical/r2i1p1f1/Omon/tos/gn/v20180701/::catalog=static/catalog.json::projectionCenterLat=0::projectionCenterLon=0::varname=tos"
@@ -197,7 +197,7 @@ store <- zaro(zaro_uri(raw))
 #> [zaro] opening GCS store via Arrow: gs://cmip6/...
 ```
 
-### S3 virtual-hosted URL → native S3
+### S3 virtual-hosted URL -> native S3
 
 ```r
 raw <- "https://aodn-cloud-optimised.s3.ap-southeast-2.amazonaws.com/model_sea_level_anomaly_gridded_realtime.zarr"
@@ -208,17 +208,17 @@ zaro_uri(raw)
 store <- zaro(zaro_uri(raw), anonymous = TRUE, region = "ap-southeast-2")
 ```
 
-### CEPH URL — no translation
+### CEPH URL - no translation
 
 ```r
 raw <- "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:sample-data/tutorial_data/cpm_v253/store.zarr"
 
 zaro_uri(raw)
 #> "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:sample-data/tutorial_data/cpm_v253/store.zarr"
-# Unchanged — colon in path means it's not standard S3
+# Unchanged - colon in path means it's not standard S3
 ```
 
-### Plain HTTP — no translation
+### Plain HTTP - no translation
 
 ```r
 raw <- "https://ncsa.osn.xsede.org/Pangeo/pangeo-forge/gpcp-feedstock/gpcp.zarr"
@@ -251,7 +251,7 @@ safe.
 
 Medium. The implementation is small (~50 lines of regex). The value
 is high for users coming from Python tutorials or catalogue links.
-Low risk — it's a pure string transformation with no side effects.
+Low risk - it's a pure string transformation with no side effects.
 Can ship as a standalone exported function without touching any
 existing code paths.
 
@@ -261,7 +261,7 @@ Every Python package in the Zarr ecosystem has an equivalent of this
 function buried inside its I/O stack: fsspec's URL parsing, intake's
 catalogue resolution, xarray's `open_dataset` argument normalisation,
 earthaccess's authentication-aware URL construction. They all solve
-the same problem — the gap between "URL someone gave me" and "address
+the same problem - the gap between "URL someone gave me" and "address
 my I/O library needs." In R, making this an explicit, documented,
 composable function is more honest than hiding it inside a magic
 opener.

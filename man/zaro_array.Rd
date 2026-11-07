@@ -9,7 +9,7 @@ zaro_array(
   path = "",
   meta = NULL,
   parallel = FALSE,
-  verbose = TRUE,
+  verbose = zaro_verbose(),
   cf = FALSE
 )
 }
@@ -26,7 +26,8 @@ consolidated entries, as for \code{\link[=zaro_read]{zaro_read()}}.}
 fetched and decoded with \code{future.apply::future_lapply()}, as for
 \code{\link[=zaro_read]{zaro_read()}} (the same caveats about store serialization apply).}
 
-\item{verbose}{logical. Emit diagnostic messages when reading metadata.}
+\item{verbose}{logical. Emit diagnostic messages when reading metadata.
+Default \code{getOption("zaro.verbose", TRUE)}.}
 
 \item{cf}{logical. Apply CF decoding (masking and unpacking, see below).
 Default \code{FALSE}.}

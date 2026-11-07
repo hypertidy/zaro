@@ -1,4 +1,4 @@
-# store.R — key-value store backends
+# store.R - key-value store backends
 #
 # All stores expose the same interface:
 #   $get(key)    -> raw vector or NULL
@@ -6,9 +6,9 @@
 #   $exists(key) -> logical
 #
 # Backends:
-#   ArrowStore     — arrow::FileSystem (local, S3, GCS)
-#   VSIStore       — gdalraster VSI (HTTP, Azure, any GDAL vfs)
-#   ReferenceStore — Kerchunk JSON or Parquet virtual references
+#   ArrowStore     - arrow::FileSystem (local, S3, GCS)
+#   VSIStore       - gdalraster VSI (HTTP, Azure, any GDAL vfs)
+#   ReferenceStore - Kerchunk JSON or Parquet virtual references
 
 # -- abstract store ---------------------------------------------------------
 

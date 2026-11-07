@@ -1,4 +1,4 @@
-# virtualizarr.R — VirtualiZarr Parquet reference store
+# virtualizarr.R - VirtualiZarr Parquet reference store
 #
 # VirtualiZarr emits a directory that looks like a V2 Zarr store:
 #
@@ -27,10 +27,11 @@
 #' Open a VirtualiZarr Parquet reference store
 #'
 #' @param base_url character. Base URL or local path to the .parq directory.
-#' @param verbose logical. Emit diagnostic messages.
+#' @param verbose logical. Emit diagnostic messages. Default
+#'   `getOption("zaro.verbose", TRUE)`.
 #' @returns A VirtualiZarrStore object.
 #' @noRd
-open_virtualizarr <- function(base_url, verbose = TRUE) {
+open_virtualizarr <- function(base_url, verbose = zaro_verbose()) {
   # strip trailing slash
   base_url <- sub("/$", "", base_url)
 
@@ -62,7 +63,7 @@ VirtualiZarrStore <- new_class("VirtualiZarrStore", parent = ZaroStore,
 # -- store methods -----------------------------------------------------------
 
 method(store_get, VirtualiZarrStore) <- function(store, key) {
-  # metadata files — fetch directly and cache
+  # metadata files - fetch directly and cache
   if (is_metadata_key(key)) {
     cached <- store@cache$meta[[key]]
     if (!is.null(cached)) return(cached)
@@ -74,7 +75,7 @@ method(store_get, VirtualiZarrStore) <- function(store, key) {
     return(raw)
   }
 
-  # chunk reads — resolve through manifest shards
+  # chunk reads - resolve through manifest shards
   parts <- parse_chunk_key(key)
   if (is.null(parts)) return(NULL)
 
@@ -283,7 +284,7 @@ vz_http_get <- function(url) {
     tryCatch({
       tf <- tempfile()
       on.exit(unlink(tf))
-      download.file(url, tf, quiet = TRUE, mode = "wb")
+      utils::download.file(url, tf, quiet = TRUE, mode = "wb")
       readBin(tf, "raw", file.size(tf))
     }, error = function(e) NULL)
   }

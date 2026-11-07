@@ -1,5 +1,29 @@
 # zaro (development version)
 
+* Fix decoding of `int64`, `uint64`, `uint32` and `float16` arrays, which
+  had never been read correctly: the 8- or 4-byte integers were
+  reinterpreted as floating point (e.g. CMIP6 `time`, stored as int64 hours,
+  read as values like 3.5e-321) and float16 failed. 64-bit integers and
+  uint32 now read as exact doubles (up to 2^53), float16 is decoded from its
+  bit fields, in either byte order.
+
+* `verbose` defaults to `getOption("zaro.verbose", TRUE)` in every
+  function, so `options(zaro.verbose = FALSE)` silences zaro everywhere;
+  an explicit `verbose =` still wins.
+
+* Package source, docs and NEWS are ASCII only.
+
+* `R CMD check` is clean: curl, methods and utils are declared in Imports
+  (curl will be the batched fetcher), `.github` and other dev files are
+  build-ignored, and the track-extract demo moved from `inst/demo` (a
+  directory R reserves) to `inst/examples`.
+
+* Fix remote kerchunk JSON never reading through gdalraster: the VSI file
+  was opened without its path, so the read always failed over to `url()`.
+
+* `parse_zarray()` passed an undefined `data_type` when coercing the fill
+  value; it now passes the parsed dtype.
+
 * New `zaro_dataset()`: every array at the root of a store, with dimension
   names and sizes in R order and the root attributes, read from consolidated
   metadata in one request (or by listing and probing the store). No data is
@@ -48,6 +72,10 @@
 
 * Add C style orientation (still upside down for ximage). 
 
+# zaro 0.0.1
+
+Initial version.
+
 ## Core architecture
 
 * Arrow-backed Zarr reader for R. Implements the Zarr specification directly
@@ -71,7 +99,7 @@
 
 * Parse `.zarray`, `.zgroup`, and `.zattrs` metadata.
 
-* Consolidated metadata via `.zmetadata` — a single HTTP request retrieves
+* Consolidated metadata via `.zmetadata` - a single HTTP request retrieves
   metadata for all arrays in a V2 store.
 
 * Numpy dtype string parsing (`<f4`, `>i2`, `|u1`, etc.) with endianness
@@ -101,7 +129,7 @@
   stores as produced by VirtualiZarr. These provide Zarr-style access to
   existing archival files (NetCDF, HDF5, GRIB) without reformatting.
 
-* Metadata layer (`.zmetadata`) fetched via curl — GDAL-free.
+* Metadata layer (`.zmetadata`) fetched via curl - GDAL-free.
 
 * Chunk manifests (`refs.N.parq` shards) loaded via `arrow::read_parquet()`
   with lazy per-variable loading and environment-based caching.
@@ -114,7 +142,7 @@
   byte-range references).
 
 * Byte-range reads into source files via `byte_range_read()` supporting
-  Arrow S3/GCS, gdalraster VSI, and curl for HTTP — the full chain is
+  Arrow S3/GCS, gdalraster VSI, and curl for HTTP - the full chain is
   GDAL-free when using curl.
 
 * URI scheme: `virtualizarr://https://example.com/dataset.parq` or

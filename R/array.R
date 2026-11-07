@@ -64,6 +64,7 @@
 #'   fetched and decoded with `future.apply::future_lapply()`, as for
 #'   [zaro_read()] (the same caveats about store serialization apply).
 #' @param verbose logical. Emit diagnostic messages when reading metadata.
+#'   Default `getOption("zaro.verbose", TRUE)`.
 #' @returns A lazy array, see [altarr::altarr()].
 #'
 #' @export
@@ -77,7 +78,7 @@
 #' altarr::altarr_stats(x)
 #' }
 zaro_array <- function(store, path = "", meta = NULL, parallel = FALSE,
-                       verbose = TRUE, cf = FALSE) {
+                       verbose = zaro_verbose(), cf = FALSE) {
   if (!requireNamespace("altarr", quietly = TRUE)) {
     stop("zaro_array() requires the altarr package:\n",
          "  remotes::install_github(\"hypertidy/altarr\")", call. = FALSE)

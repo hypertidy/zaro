@@ -112,21 +112,21 @@ collect_refs <- function(urls, region = "", anon = TRUE,
 }
 
 # ---------------------------------------------------------------------------
-# Build .zmetadata (pure R — no VirtualiZarr needed)
+# Build .zmetadata (pure R - no VirtualiZarr needed)
 # ---------------------------------------------------------------------------
 #
 # Compressor mode controls what we tell GDAL about the tile encoding:
 #
-#   "A" — zstd compressor + delta filter (full zarr v2 translation)
-#   "B" — zstd compressor only, no filter (GDAL may handle predictor)
-#   "C" — null compressor, null filter (GDAL handles everything)
+#   "A" - zstd compressor + delta filter (full zarr v2 translation)
+#   "B" - zstd compressor only, no filter (GDAL may handle predictor)
+#   "C" - null compressor, null filter (GDAL handles everything)
 #
 # Start with "B", compare pixel values, adjust if wrong.
 
 build_zmetadata <- function(n_times, dates, compressor_mode = "B") {
   m <- GHRSST_META
 
-  ## Use NA (not NULL) for JSON null — R drops NULL from lists
+  ## Use NA (not NULL) for JSON null - R drops NULL from lists
   compressor <- switch(compressor_mode,
                        "A" = list(id = "zstd", level = 9L),
                        "B" = list(id = "zstd", level = 9L),
@@ -233,7 +233,7 @@ write_kerchunk_parquet <- function(refs, zmeta, output_dir, record_size = NULL) 
     file.path(output_dir, ".zmetadata")
   )
 
-  ## refs parquet — one big partition
+  ## refs parquet - one big partition
   ## raw column must be binary type with null values (not list<null>)
   raw_col <- arrow::Array$create(
     rep(list(NULL), n_refs),
@@ -318,7 +318,7 @@ test_one_file <- function(url = NULL,
                     "B" = NA,
                     "C" = NA)
 
-  ## 2D zarray — simplest case
+  ## 2D zarray - simplest case
   zarray <- list(
     zarr_format = 2L,
     shape       = c(m$image_height, m$image_width),

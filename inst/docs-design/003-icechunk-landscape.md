@@ -13,8 +13,8 @@ to Icechunk-backed data.
 
 Icechunk is an open-source (Apache 2.0) storage engine built by Earthmover
 that sits between Zarr libraries and
-object storage. It uses the Zarr data model — arrays, groups, chunks, codecs
-— but replaces Zarr's transparent key-to-path mapping with an opaque
+object storage. It uses the Zarr data model - arrays, groups, chunks, codecs
+- but replaces Zarr's transparent key-to-path mapping with an opaque
 indirection layer that enables transactional semantics.
 
 The core capability: serializable isolation between concurrent readers and
@@ -34,7 +34,7 @@ collection, and a catalog UI on top.
 Zarr's founding principle is that the store is a flat key-value map. The keys
 are human-readable paths (`myarray/zarr.json`, `myarray/c/0/0`), and they map
 directly to filesystem paths or object keys. Any tool that understands the key
-scheme can read the data. No library required — just string construction and
+scheme can read the data. No library required - just string construction and
 byte fetching.
 
 This is the elegance that makes Zarr fundamentally different from HDF5. It's
@@ -43,30 +43,30 @@ It's why zaro exists as a viable package at all.
 
 Icechunk replaces this transparent contract with a layer of indirection. The
 Icechunk library translates Zarr key requests into actual storage locations
-given the user's transactional context — which branch, which snapshot, which
+given the user's transactional context - which branch, which snapshot, which
 commit. The on-disk layout is not a Zarr store. It consists of:
 
-- **Reference files** — JSON pointers to snapshot IDs, stored per-branch and
+- **Reference files** - JSON pointers to snapshot IDs, stored per-branch and
   per-tag at known paths (`refs/branch.main/ref.json`, etc.).
 
-- **Snapshot files** — FlatBuffers-encoded trees of node metadata (array
+- **Snapshot files** - FlatBuffers-encoded trees of node metadata (array
   shapes, chunk shapes, Zarr metadata) plus pointers to manifest files.
 
-- **Manifest files** — FlatBuffers-encoded chunk references. Each reference
+- **Manifest files** - FlatBuffers-encoded chunk references. Each reference
   can be native (pointing to a chunk file within the repo), inline (small
   chunks embedded directly), or virtual (pointing to byte ranges in external
   files like NetCDF/HDF5).
 
-- **Chunk files** — the actual compressed binary chunks. These can be one
+- **Chunk files** - the actual compressed binary chunks. These can be one
   chunk per file (standard Zarr layout), multiple chunks packed into a single
   file (sharding), or chunks from multiple arrays sharing a file.
 
-- **Transaction logs** — FlatBuffers-encoded records of per-commit
+- **Transaction logs** - FlatBuffers-encoded records of per-commit
   modifications, used for conflict resolution and diff.
 
 Object IDs are content-addressed in Crockford base32. You cannot point a
-naive Zarr reader at an Icechunk repo and get data — you need something that
-can resolve the branch → snapshot → manifest → chunk location chain.
+naive Zarr reader at an Icechunk repo and get data - you need something that
+can resolve the branch -> snapshot -> manifest -> chunk location chain.
 
 ## The HDF5 parallel
 
@@ -74,13 +74,13 @@ This is worth stating plainly: Icechunk's architecture recapitulates the
 move HDF5 made decades ago. Rich data model, opaque container format,
 mandatory library for access. The consequences of that design are well known:
 incredible capability, poor interoperability, libhdf5 as a permanent and
-sometimes painful dependency, and — eventually — Zarr was created
+sometimes painful dependency, and - eventually - Zarr was created
 specifically to escape that coupling.
 
 Icechunk is more open than HDF5 ever was (published spec, Apache 2.0 Rust
 library, FlatBuffers IDL available for inspection). And the problems it
-solves — concurrent write safety, transactional rollback, efficient
-versioning — are real engineering gaps in plain Zarr stores on S3. But the
+solves - concurrent write safety, transactional rollback, efficient
+versioning - are real engineering gaps in plain Zarr stores on S3. But the
 structural parallel is there: access requires a specific library, the
 on-disk format is not self-describing to a generic reader, and the spec is
 effectively defined by a single implementation.
@@ -97,29 +97,29 @@ The zarrs Rust crate (Lachlan Deakin, ANU Canberra) is the most complete
 and performant Zarr V3 implementation in Rust. It has a modular architecture
 with stores as separate crates:
 
-- **zarrs** — core library, supports filesystem, in-memory, HTTP, and a huge
+- **zarrs** - core library, supports filesystem, in-memory, HTTP, and a huge
   range of object storage backends via opendal and object_store crates.
 
-- **zarrs_icechunk** — separate crate that wraps an Icechunk session as an
+- **zarrs_icechunk** - separate crate that wraps an Icechunk session as an
   `AsyncIcechunkStore`. This is *not* a hard dependency of zarrs. You pull
   it in when you want it; otherwise zarrs works with plain stores
   independently.
 
-- **zarrs_ffi** — C/C++ bindings exposing a subset of the zarrs API as a
+- **zarrs_ffi** - C/C++ bindings exposing a subset of the zarrs API as a
   single-header library (`zarrs.h`). Currently covers array retrieval (get
   chunk, get subset, get shape, metadata) but only a small subset of the
   full API.
 
-- **zarrs-python** — a drop-in high-performance codec pipeline for
+- **zarrs-python** - a drop-in high-performance codec pipeline for
   zarr-python, backed by zarrs.
 
 This modularity matters. The supplementary crates are separated from zarrs
 specifically to stay up-to-date with unstable public dependencies (opendal,
 object_store, icechunk) without impacting the zarrs release cycle. Icechunk
-is treated as an optional, potentially volatile dependency — exactly the
+is treated as an optional, potentially volatile dependency - exactly the
 right posture.
 
-zarrs is developed at ANU — an Australian institution with geographic and
+zarrs is developed at ANU - an Australian institution with geographic and
 institutional proximity to AAD. The maintainer would be a natural
 collaborator on R bindings.
 
@@ -140,10 +140,10 @@ fastest Zarr implementation available and would bring its performance to R.
 codec dependencies is a substantial Cargo tree to build from source during
 R package installation. extendr's async story is still maturing.
 
-### Path 2: zarrs_ffi (C API) → R .Call()
+### Path 2: zarrs_ffi (C API) -> R .Call()
 
 Link against the zarrs_ffi shared library and call through R's C interface.
-No extendr needed — just a compiled .so/.dll and .Call() wrappers.
+No extendr needed - just a compiled .so/.dll and .Call() wrappers.
 
 **Advantages:** Thinnest FFI boundary. No Rust compiler needed at R install
 time if pre-built binaries are distributed (as polars does).
@@ -160,7 +160,7 @@ traversal, and chunk byte fetching, then feed raw bytes into zaro's existing
 R-native codec pipeline.
 
 **Advantages:** Narrower dependency than full zarrs. zaro retains its own
-codec pipeline and array semantics — only the store layer delegates to Rust.
+codec pipeline and array semantics - only the store layer delegates to Rust.
 
 **Disadvantages:** Still brings in icechunk's full dependency tree (object_store,
 FlatBuffers, tokio). Duplicates codec work that zarrs already does well.
@@ -169,7 +169,7 @@ FlatBuffers, tokio). Duplicates codec work that zarrs already does well.
 
 Path 1 is the most capable but makes zaro essentially a thin R wrapper
 around zarrs, which changes the package's character. Path 3 is the most
-natural fit for zaro's architecture — it keeps the store layer as the
+natural fit for zaro's architecture - it keeps the store layer as the
 integration point and preserves zaro's R-native codec pipeline and array
 assembly. Path 2 is attractive for distribution but premature given
 zarrs_ffi's current API surface.
@@ -184,18 +184,18 @@ more functionality downstream.
 ## How this fits zaro's architecture
 
 zaro's store abstraction was designed for exactly this extension. The three
-current backends — ArrowStore, VSIStore, ReferenceStore — each implement
+current backends - ArrowStore, VSIStore, ReferenceStore - each implement
 `store_get(key)`, `store_list(prefix)`, and `store_exists(key)`. An
 IcechunkStore backend would:
 
-1. **Open a repository** — take a path/URI plus branch/tag/snapshot
+1. **Open a repository** - take a path/URI plus branch/tag/snapshot
    specification, initialize an icechunk Session via the Rust library.
 
-2. **Resolve Zarr keys** — translate `store_get("myarray/zarr.json")` or
+2. **Resolve Zarr keys** - translate `store_get("myarray/zarr.json")` or
    `store_get("myarray/c/0/0")` through the Icechunk indirection layer
-   (session → snapshot → manifest → chunk location).
+   (session -> snapshot -> manifest -> chunk location).
 
-3. **Return raw bytes** — hand back the chunk bytes to zaro's existing
+3. **Return raw bytes** - hand back the chunk bytes to zaro's existing
    codec pipeline, which handles decompression and type coercion identically
    to any other store backend.
 
@@ -207,8 +207,8 @@ another implementation of the store interface.
 
 The parallelization design (002-parallelization.md) already identified the
 store serialization challenge: ArrowStore wraps R6/C++ objects that don't
-serialize across process boundaries. The solution — a `store_spec` pattern
-where stores describe themselves as serializable specifications — applies
+serialize across process boundaries. The solution - a `store_spec` pattern
+where stores describe themselves as serializable specifications - applies
 equally to IcechunkStore. Workers would reconstruct fresh Icechunk sessions
 from the repository URI, branch, and snapshot ID.
 
@@ -267,7 +267,7 @@ possibility rather than a dependency.
 The healthiest outcome for the ecosystem would be standardization of
 transactional semantics at the Zarr spec level (via a ZEP) rather than
 requiring a specific storage engine. This would allow any Zarr
-implementation — including zaro — to support transactional features through
+implementation - including zaro - to support transactional features through
 the standard key-value interface, with Icechunk as one implementation among
 potentially several.
 
@@ -288,7 +288,7 @@ R (increasingly likely as Earthmover's adoption grows in the climate/ocean
 community), add an IcechunkStore backend. This would be gated behind an
 optional dependency on a hypothetical `icechunkr` package (wrapping
 icechunk-rs via extendr). The store interface in zaro is already designed
-for this — only `store_get()`, `store_list()`, and `store_exists()` need
+for this - only `store_get()`, `store_list()`, and `store_exists()` need
 implementing.
 
 **Later:** If zarrs_ffi matures to expose Icechunk stores and richer array

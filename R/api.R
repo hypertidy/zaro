@@ -1,4 +1,4 @@
-# api.R — flat public API for zaro
+# api.R - flat public API for zaro
 #
 # zaro()          open a store
 # zaro_list()     list contents
@@ -33,7 +33,9 @@
 #' Validation of the store may be done by setting `validate = TRUE`, but this is otherwise
 #' avoided at open time by default (`source` is checked for being character, non- empty string).
 #' @param source character. Path, URI, or reference store locator.
-#' @param verbose logical. Emit progress and diagnostic messages (default TRUE).
+#' @param verbose logical. Emit progress and diagnostic messages. Default
+#'   `getOption("zaro.verbose", TRUE)`; set `options(zaro.verbose = FALSE)` to
+#'   silence zaro everywhere.
 #'   Suppress with \code{suppressMessages()}.
 #' @param ... additional arguments passed to Arrow filesystem constructors
 #'   (e.g. \code{anonymous = TRUE}, \code{endpoint_override}, \code{region}).
@@ -49,7 +51,7 @@
 #' # S3 store (anonymous)
 #' store <- zaro("s3://mur-sst/zarr-v1", anonymous = TRUE)
 #'
-#' # GCS — known public bucket, anonymous auto-detected
+#' # GCS - known public bucket, anonymous auto-detected
 #' store <- zaro("gs://cmip6/CMIP6/ScenarioMIP/NOAA-GFDL/GFDL-ESM4/ssp585/r1i1p1f1/Omon/zos/gn/v20180701")
 #'
 #' # VirtualiZarr Parquet reference
@@ -61,13 +63,13 @@
 #' data <- zaro_read(store, "analysed_sst",
 #'                   start = c(0, 0, 0), count = c(1, 100, 100))
 #' }
-zaro <- function(source, verbose = TRUE, ..., validate = FALSE) {
+zaro <- function(source, verbose = zaro_verbose(), ..., validate = FALSE) {
   dots <- list(...)
 
   if (!is.character(source) || length(source) != 1L || is.na(source) || !nzchar(source)) {
     stop("'source' must be a non-empty character string", call. = FALSE)
   }
-  # strip trailing slashes — avoids double-slash in file.path() paths
+  # strip trailing slashes - avoids double-slash in file.path() paths
   source <- sub("/+$", "", source)
 
   # for cloud URIs, auto-detect anonymous access for known public buckets
@@ -99,7 +101,7 @@ zaro <- function(source, verbose = TRUE, ..., validate = FALSE) {
     base_url <- sub("^virtualizarr://", "", source)
     store <- open_virtualizarr(base_url, verbose = verbose)
   } else if (grepl("^s3://", source)) {
-    # S3 — try Arrow first, fall back to gdalraster /vsis3/ on 301
+    # S3 - try Arrow first, fall back to gdalraster /vsis3/ on 301
     vmsg("opening S3 store via Arrow: ", source, verbose = verbose)
     store <- tryCatch({
       fs <- do.call(arrow::S3FileSystem$create, dots)
@@ -129,7 +131,7 @@ zaro <- function(source, verbose = TRUE, ..., validate = FALSE) {
         return(VSIStore(root = vsi_root))  # returns as tryCatch result -> store
       }
       if (grepl("403|AccessDenied|Forbidden|credential", msg, ignore.case = TRUE)) {
-        vmsg("access denied — try: zaro(\"", source, "\", anonymous = TRUE)",
+        vmsg("access denied - try: zaro(\"", source, "\", anonymous = TRUE)",
              verbose = verbose)
       }
       stop(e)
@@ -146,14 +148,14 @@ zaro <- function(source, verbose = TRUE, ..., validate = FALSE) {
       msg <- conditionMessage(e)
       if (grepl("OAuth|credential|403|Forbidden|UNAVAILABLE", msg, ignore.case = TRUE) &&
           !isTRUE(dots[["anonymous"]])) {
-        vmsg("authentication failed — try: zaro(\"", source,
+        vmsg("authentication failed - try: zaro(\"", source,
              "\", anonymous = TRUE)", verbose = verbose)
       }
       stop(e)
     })
   } else if (grepl("^https?://", source)) {
 
-  # HTTP/HTTPS — use gdalraster VSI
+  # HTTP/HTTPS - use gdalraster VSI
     vsi_root <- paste0("/vsicurl/", source)
     vmsg("opening HTTP store via gdalraster VSI: ", vsi_root, verbose = verbose)
     store <- VSIStore(root = vsi_root)
@@ -202,13 +204,14 @@ zaro_list <- function(store, path = "", ...) {
 #'   Use \code{""} or \code{"/"} for the root group.
 #' @param consolidated logical. If \code{TRUE}, attempt to read consolidated
 #'   metadata first (default).
-#' @param verbose logical. Emit diagnostic messages (default TRUE).
+#' @param verbose logical. Emit diagnostic messages. Default
+#'   `getOption("zaro.verbose", TRUE)`.
 #' @returns A ZaroMeta object. For root group requests with consolidated
 #'   metadata, the individual array metadata are attached as
 #'   \code{attr(, "consolidated")}.
 #'
 #' @export
-zaro_meta <- function(store, path = "", consolidated = TRUE, verbose = TRUE) {
+zaro_meta <- function(store, path = "", consolidated = TRUE, verbose = zaro_verbose()) {
 
   # --- consolidated metadata for root group requests ---
   if (consolidated && (path == "" || path == "/")) {
@@ -361,21 +364,22 @@ zaro_meta <- function(store, path = "", consolidated = TRUE, verbose = TRUE) {
 #'   \code{start}. Defaults to the full extent.
 #' @param meta optional pre-fetched ZaroMeta object. If NULL (default),
 #'   metadata is read from the store. Can also be the root group metadata
-#'   from \code{zaro_meta(store)} — the array will be looked up by path
+#'   from \code{zaro_meta(store)} - the array will be looked up by path
 #'   in the consolidated entries.
 #' @param parallel logical. If \code{TRUE}, fetch and decode chunks in
 #'   parallel using \code{future.apply::future_lapply()}. Requires the
 #'   \code{future.apply} package and a \code{future::plan()} to be set.
 #'   Recommended backend: \code{future::plan(future.mirai::mirai_multisession)}.
 #'   Skipped automatically for reads of fewer than 4 chunks. Default FALSE.
-#' @param verbose logical. Emit diagnostic messages (default TRUE).
+#' @param verbose logical. Emit diagnostic messages. Default
+#'   `getOption("zaro.verbose", TRUE)`.
 #' @param assemble logical. If `TRUE`return a full array (the default), else the raw list
 #'  of decoded chunks.
 #' @returns An R array with dimensions matching \code{count}.
 #'
 #' @export
 zaro_read <- function(store, path = "", start = NULL, count = NULL, meta = NULL,
-                      parallel = FALSE, verbose = TRUE, assemble = TRUE) {
+                      parallel = FALSE, verbose = zaro_verbose(), assemble = TRUE) {
   if (path == ".") path <- ""
   if (is.null(meta)) {
     meta <- zaro_meta(store, path, consolidated = TRUE, verbose = verbose)
@@ -506,7 +510,7 @@ zaro_read <- function(store, path = "", start = NULL, count = NULL, meta = NULL,
     # extract slice from chunk
     chunk_slice <- do.call(`[`, c(list(values), src_idx, list(drop = FALSE)))
 
-    # insert into output — use abind-style positional assignment
+    # insert into output - use abind-style positional assignment
     out <- do.call(`[<-`, c(list(out), dst_idx, list(value = chunk_slice)))
   }
 

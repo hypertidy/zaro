@@ -17,7 +17,7 @@ What's missing for daily use:
   numcodecs filters (`delta`, `fixedscaleoffset`, `bitround`). New data such
   as GeoZarr, EOPF Sentinel, Icechunk-backed stores and most V3 writers use
   sharding, so zaro can't read much of what gets published from now on.
-- **Batched I/O.** The fast fetch path is in `inst/demo`, not in the package.
+- **Batched I/O.** The fast fetch path is in `inst/examples`, not in the package.
   `zaro_read()` still goes one chunk per request (or one mirai task per
   chunk).
 - **A link to ndr.** ndr reads through GDAL7 and altarr. zaro already makes
@@ -104,7 +104,7 @@ ndr.
 3. Acceptance: these run in ndr with no GDAL in the pixel path, and give
    pixel-identical results to the GDAL7 backend:
    - AODN GSLA: `open_dataset(...)$GSLA |> sel(TIME = "2024-01-01")`
-   - BRAN2023 temp (virtual): the track extraction from `inst/demo`
+   - BRAN2023 temp (virtual): the track extraction from `inst/examples`
    - one V2 CMIP6 Pangeo store
 4. Add `options(zaro.verbose = FALSE)` and make quiet the default once
    inside ndr.
@@ -115,7 +115,7 @@ ndr.
    frame: `key, url, offset, length, inline`, plus a cost summary in print.
    Every store class implements `store_refs(keys)`. Native stores give
    whole-object rows.
-2. `zaro_fetch(plan)`: move the curl pool from `inst/demo/track-extract`
+2. `zaro_fetch(plan)`: move the curl pool from `inst/examples/track-extract`
    into the package. Per-host cap, retries with backoff, range merging,
    `If-Match`/ETag where available. Arrow S3 stays for signed access.
 3. `zaro_read()` and the altarr fetch both go through plan + fetch. mirai

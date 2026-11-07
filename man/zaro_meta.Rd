@@ -4,7 +4,7 @@
 \alias{zaro_meta}
 \title{Get metadata for a Zarr node}
 \usage{
-zaro_meta(store, path = "", consolidated = TRUE, verbose = TRUE)
+zaro_meta(store, path = "", consolidated = TRUE, verbose = zaro_verbose())
 }
 \arguments{
 \item{store}{a store object from \code{\link[=zaro]{zaro()}}}
@@ -15,7 +15,8 @@ Use \code{""} or \code{"/"} for the root group.}
 \item{consolidated}{logical. If \code{TRUE}, attempt to read consolidated
 metadata first (default).}
 
-\item{verbose}{logical. Emit diagnostic messages (default TRUE).}
+\item{verbose}{logical. Emit diagnostic messages. Default
+\code{getOption("zaro.verbose", TRUE)}.}
 }
 \value{
 A ZaroMeta object. For root group requests with consolidated

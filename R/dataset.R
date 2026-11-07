@@ -31,7 +31,8 @@
 #'   [zaro()] along with `...`.
 #' @param arrays optional character vector of array names to include. With
 #'   consolidated metadata it filters; without, it replaces the listing.
-#' @param verbose logical. Emit diagnostic messages.
+#' @param verbose logical. Emit diagnostic messages. Default
+#'   `getOption("zaro.verbose", TRUE)`.
 #' @param ... passed to [zaro()] when `source` is character.
 #' @returns A `zaro_dataset`: a list with `store`, `attributes` (root group
 #'   attributes), `arrays` (named list of array metadata), `dims` (named list
@@ -47,7 +48,7 @@
 #' ds$dims$GSLA                       # "LONGITUDE" "LATITUDE" "TIME"
 #' gsla <- zaro_array(ds, "GSLA", cf = TRUE)
 #' }
-zaro_dataset <- function(source, arrays = NULL, verbose = TRUE, ...) {
+zaro_dataset <- function(source, arrays = NULL, verbose = zaro_verbose(), ...) {
   store <- if (is.character(source)) zaro(source, verbose = verbose, ...) else source
   if (!S7::S7_inherits(store, ZaroStore)) {
     stop("'source' must be a zaro store or a character source", call. = FALSE)

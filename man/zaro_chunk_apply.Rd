@@ -12,7 +12,7 @@ zaro_chunk_apply(
   meta = NULL,
   shaped = TRUE,
   parallel = FALSE,
-  verbose = TRUE
+  verbose = zaro_verbose()
 )
 }
 \arguments{
@@ -31,7 +31,8 @@ zaro_chunk_apply(
 
 \item{parallel}{logical. Use future.apply for parallel execution.}
 
-\item{verbose}{logical.}
+\item{verbose}{logical. Emit diagnostic messages. Default
+\code{getOption("zaro.verbose", TRUE)}.}
 }
 \value{
 A list of results from \code{fun}, one per non-NULL chunk.

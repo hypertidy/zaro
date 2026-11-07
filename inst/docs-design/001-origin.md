@@ -4,7 +4,7 @@ _February 2026_
 
 This document records the rationale, questions, decisions, and design choices
 that led to the initial zaro package skeleton. It is intended as a persistent
-touchstone — the README and user-facing documentation will evolve, but this
+touchstone - the README and user-facing documentation will evolve, but this
 record of the founding logic should remain useful for understanding why things
 are the way they are.
 
@@ -21,19 +21,19 @@ The impetus was not to replace the GDAL backend for ndr but to explore what
 generic Zarr support via Arrow might look like as a composable building block.
 The key observations driving this:
 
-1. **Zarr metadata is just text and JSON** — no binary header parsing, no
+1. **Zarr metadata is just text and JSON** - no binary header parsing, no
    format-specific library needed for metadata discovery.
 
-2. **Arrow already has the plumbing** — filesystem abstraction over S3/GCS/local,
+2. **Arrow already has the plumbing** - filesystem abstraction over S3/GCS/local,
    compression codecs (zstd, gzip, lz4, brotli, snappy, bz2), efficient memory
    buffers, and remote data streaming.
 
-3. **Array semantics in memory are simple** — flat vectors with shape and
+3. **Array semantics in memory are simple** - flat vectors with shape and
    orientation metadata suffice much of the time. We don't need Arrow's columnar
    array model for N-dimensional array data; R's native arrays with `dim<-()`
    are adequate.
 
-4. **This is an illustration of what's possible** — part of a grander future
+4. **This is an illustration of what's possible** - part of a grander future
    community consolidation across R's array data ecosystem, not a standalone
    product in isolation.
 
@@ -41,20 +41,20 @@ The key observations driving this:
 
 A Zarr store (V2 or V3) reduces to five operations:
 
-- **Metadata resolution** — read `.zarray`/`.zattrs`/`.zgroup` (V2) or
+- **Metadata resolution** - read `.zarray`/`.zattrs`/`.zgroup` (V2) or
   `zarr.json` (V3) from known key paths, parse JSON.
 
-- **Chunk addressing** — compute the store key for a chunk given its grid
+- **Chunk addressing** - compute the store key for a chunk given its grid
   index. Deterministic string construction from index tuples.
 
-- **Chunk retrieval** — fetch raw bytes for a key from whatever store backend
+- **Chunk retrieval** - fetch raw bytes for a key from whatever store backend
   is in play (local, S3, HTTP, GCS, or a virtual reference into an archival
   file).
 
-- **Decompression** — run the codec pipeline in reverse. V3 has a formal codec
-  chain (array-to-array → array-to-bytes → bytes-to-bytes).
+- **Decompression** - run the codec pipeline in reverse. V3 has a formal codec
+  chain (array-to-array -> array-to-bytes -> bytes-to-bytes).
 
-- **Type coercion** — interpret decompressed bytes as a typed array given the
+- **Type coercion** - interpret decompressed bytes as a typed array given the
   dtype, endianness, and chunk shape.
 
 There is no query engine, no indexing structure, no relational model. The only
@@ -66,16 +66,16 @@ single R array. This is pure index arithmetic.
 
 Three packages matter:
 
-- **zarr** (CRAN, Dec 2025,  R-CF) — Native R implementation,
+- **zarr** (CRAN, Dec 2025,  R-CF) - Native R implementation,
   Zarr V3 only, extensible store/codec architecture with R6 classes. Local
   filesystem store only. Early stage, modular design. The "proper" community
   effort for V3.
 
-- **pizzarr** (GitHub, keller-mark) — Pure R, Zarr V2 focused, with optional
+- **pizzarr** (GitHub, keller-mark) - Pure R, Zarr V2 focused, with optional
   blosc via Rarr. HTTP store support. R6-based. More mature but not on CRAN.
   Bioimaging origin.
 
-- **GDAL Zarr driver** (via gdalraster/vapour) — C++ implementation supporting
+- **GDAL Zarr driver** (via gdalraster/vapour) - C++ implementation supporting
   V2 and V3, with Kerchunk reference stores, consolidated metadata, all GDAL
   virtual filesystems. This is the ndr Multidim backend and is extremely
   capable but tied to GDAL's abstractions.
@@ -118,7 +118,7 @@ package approachable.
 
 ### Package name
 
-**Decision:** "zaro" — compact, evocative of zarr + arrow without being too
+**Decision:** "zaro" - compact, evocative of zarr + arrow without being too
 literal. The name `zarrow` was considered but `zaro` is shorter and less likely
 to collide.
 
@@ -130,7 +130,7 @@ to collide.
 
 **Discussion:** Kerchunk JSON and Parquet virtual reference stores were raised
 as particularly important. These allow Zarr-style access to existing NetCDF,
-HDF5, GRIB, and TIFF archives without reformatting — you get a reference
+HDF5, GRIB, and TIFF archives without reformatting - you get a reference
 document that maps Zarr keys to (url, offset, length) tuples into the original
 files. This is how VirtualiZarr works and is directly relevant to AAD data
 holdings and climate/ocean data workflows.
@@ -147,7 +147,7 @@ Copernicus Marine, various data portals), a separate HTTP client would be
 needed. The initial analysis proposed httr2/curl as a fallback.
 
 However, gdalraster's VSIFile provides GDAL's entire virtual filesystem layer
-— vsicurl with byte-range support, vsis3, vsigs, vsiaz, and more. Rather than
+- vsicurl with byte-range support, vsis3, vsigs, vsiaz, and more. Rather than
 adding httr2 as yet another HTTP client in the stack, gdalraster VSI serves as
 a single fallback store backend for anything Arrow doesn't handle natively.
 
@@ -167,12 +167,12 @@ proper `$read()`, `$seek()`, `$tell()` methods.
 ### Blosc compression
 
 **Discussion:** Blosc is the default compressor for most existing Zarr V2 data
-and is common in many V2 stores. Arrow does not support blosc — this is the
+and is common in many V2 stores. Arrow does not support blosc - this is the
 biggest codec gap. The `zarr` CRAN package and `pizzarr` both have blosc
 support through the `blosc` R package.
 
 **Decision:** Blosc is handled via an optional dependency on the `blosc` R
-package with `requireNamespace()` checks. This is not a showstopper — it's a
+package with `requireNamespace()` checks. This is not a showstopper - it's a
 motivation for deeper compression consolidation in Arrow and in the R
 ecosystem more broadly. The V3 spec's move toward zstd as default means the
 blosc dependency becomes less critical over time as data providers migrate.
@@ -192,26 +192,26 @@ Three internal layers, one flat API.
 ### Layer 1: Store (key-value access)
 
 S7 class hierarchy rooted at `ZaroStore` with three generics: `store_get(key)`
-→ raw vector, `store_list(prefix)` → character vector, `store_exists(key)` →
+-> raw vector, `store_list(prefix)` -> character vector, `store_exists(key)` ->
 logical.
 
 Three backends:
 
-- `ArrowStore` — wraps `arrow::FileSystem` (LocalFileSystem, S3FileSystem,
+- `ArrowStore` - wraps `arrow::FileSystem` (LocalFileSystem, S3FileSystem,
   GcsFileSystem). Handles local paths, `s3://`, and `gs://` URIs.
 
-- `VSIStore` — wraps gdalraster VSI functions. Handles `http://`/`https://`
+- `VSIStore` - wraps gdalraster VSI functions. Handles `http://`/`https://`
   URIs (via `/vsicurl/`) and anything else GDAL can reach.
 
-- `ReferenceStore` — holds parsed Kerchunk references in memory. Inline
+- `ReferenceStore` - holds parsed Kerchunk references in memory. Inline
   string data returned directly; remote chunk references dispatched to
-  `byte_range_read()` which chains Arrow → gdalraster for the actual I/O.
+  `byte_range_read()` which chains Arrow -> gdalraster for the actual I/O.
 
 The `zaro()` constructor dispatches on URI scheme to create the appropriate
 store. Special `reference+json://` and `reference+parquet://` schemes trigger
 Kerchunk parsing.
 
-### Layer 2: Metadata (JSON → structured representation)
+### Layer 2: Metadata (JSON -> structured representation)
 
 Pure R with jsonlite. Parses `zarr.json` into a `ZaroMeta` S7 class holding
 shape, chunks, dtype, codecs, fill_value, dimension_names, attributes. Handles
@@ -274,21 +274,21 @@ or external pointers for mutable output buffers.
 
 ## Relationship to hypertidy packages
 
-- **tidync** — metadata-first exploration (activate grids, filter dimensions,
-  then read). The `hyper_filter()` → `hyper_array()` idiom maps directly to
+- **tidync** - metadata-first exploration (activate grids, filter dimensions,
+  then read). The `hyper_filter()` -> `hyper_array()` idiom maps directly to
   "compute chunk indices from dimension filters, fetch and decode chunks,
   assemble array." A zaro store could be another backend for the same UX.
 
-- **ndr** — S7-based xarray-alike. The gdalraster Multidim backend is the
+- **ndr** - S7-based xarray-alike. The gdalraster Multidim backend is the
   heavy-lifter. zaro is an alternative backend for GDAL-independent Zarr
   access or direct store-level control (e.g. Kerchunk reference stores,
   custom codec pipelines).
 
-- **vapour** — provides GDAL's virtual filesystem access. For HTTP-served Zarr,
+- **vapour** - provides GDAL's virtual filesystem access. For HTTP-served Zarr,
   zaro's VSIStore may lean on the same underlying GDAL infrastructure, but
   through gdalraster rather than vapour.
 
-- **sds** — WMTS catalog system. Zarr stores are increasingly how climate/ocean
+- **sds** - WMTS catalog system. Zarr stores are increasingly how climate/ocean
   data is served; zaro could simplify the data pipeline for Zarr-native
   sources.
 
@@ -318,7 +318,7 @@ supports seek + read, but shard index parsing is not yet implemented.
 Arrow's filesystem reads are synchronous from R's perspective. For cloud stores
 where latency dominates, parallel chunk fetching via `future`/`mirai` would
 significantly improve throughput. The store architecture is compatible with
-this — each `store_get()` call is independent.
+this - each `store_get()` call is independent.
 
 ### V2 read support
 
@@ -344,22 +344,22 @@ serialization. The store interface would need `store_set(key, raw_bytes)`.
 
 ```
 zaro/
-├── DESCRIPTION
-├── LICENSE
-├── NAMESPACE
-├── README.md
-├── R/
-│   ├── api.R          # flat public API: zaro(), zaro_list(), zaro_meta(), zaro_read()
-│   ├── codec.R        # V3 codec pipeline, Arrow decompression, blosc fallback
-│   ├── meta.R         # zarr.json parsing, dtype mapping, chunk key computation
-│   ├── print.R        # display methods for ZaroMeta and ZaroStore
-│   ├── reference.R    # Kerchunk JSON + Parquet reference store parsing
-│   ├── store.R        # S7 store classes: ArrowStore, VSIStore, ReferenceStore
-│   ├── utils.R        # %||% operator
-│   └── zaro-package.R # package-level docs and imports
-└── inst/
-    └── docs-design/
-        └── 001-origin.md  # this document
+|-- DESCRIPTION
+|-- LICENSE
+|-- NAMESPACE
+|-- README.md
+|-- R/
+|   |-- api.R          # flat public API: zaro(), zaro_list(), zaro_meta(), zaro_read()
+|   |-- codec.R        # V3 codec pipeline, Arrow decompression, blosc fallback
+|   |-- meta.R         # zarr.json parsing, dtype mapping, chunk key computation
+|   |-- print.R        # display methods for ZaroMeta and ZaroStore
+|   |-- reference.R    # Kerchunk JSON + Parquet reference store parsing
+|   |-- store.R        # S7 store classes: ArrowStore, VSIStore, ReferenceStore
+|   |-- utils.R        # %||% operator
+|   `-- zaro-package.R # package-level docs and imports
+`-- inst/
+    `-- docs-design/
+        `-- 001-origin.md  # this document
 ```
 
 ## Principles
