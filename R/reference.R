@@ -104,11 +104,8 @@ readr_or_readlines <- function(source) {
     if (requireNamespace("gdalraster", quietly = TRUE)) {
       vsi_path <- paste0("/vsicurl/", source)
       tryCatch({
-        #con <- gdalraster::vsi_open(vsi_path, "rb")
-        con <- new(gdalraster::VSIFile, "rb")
-        on.exit(con$close())
-        sz <- gdalraster::vsi_stat(vsi_path, "size")
-        raw <- con$ingest(-1)
+        con <- methods::new(gdalraster::VSIFile, vsi_path, "rb")
+        raw <- tryCatch(con$ingest(-1), finally = con$close())
         return(rawToChar(raw))
       }, error = function(e) NULL)
     }

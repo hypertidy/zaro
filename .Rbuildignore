@@ -5,3 +5,7 @@
 ^\.positai$
 ^\.claude$
 ^\.posit/assistant$
+^\.github$
+^DESIGN\.md$
+^\.Rhistory$
+^\.posit$

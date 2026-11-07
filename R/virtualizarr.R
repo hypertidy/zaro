@@ -284,7 +284,7 @@ vz_http_get <- function(url) {
     tryCatch({
       tf <- tempfile()
       on.exit(unlink(tf))
-      download.file(url, tf, quiet = TRUE, mode = "wb")
+      utils::download.file(url, tf, quiet = TRUE, mode = "wb")
       readBin(tf, "raw", file.size(tf))
     }, error = function(e) NULL)
   }

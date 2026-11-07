@@ -232,11 +232,10 @@ parse_zarray <- function(zarray_bytes, zattrs_bytes = NULL) {
 
   shape <- as.integer(unlist(meta[["shape"]]))
   chunk_shape <- as.integer(unlist(meta[["chunks"]]))
-  fill_value <- meta[["fill_value"]]
-  fill_value <- coerce_fill_value(fill_value, data_type)
   # parse numpy dtype string
   dtype_raw <- meta[["dtype"]]
   dtype_parsed <- parse_numpy_dtype(dtype_raw)
+  fill_value <- coerce_fill_value(meta[["fill_value"]], dtype_parsed$dtype)
 
   # build codec list from V2 compressor + filters
   codecs <- v2_codecs(meta[["compressor"]], meta[["filters"]], dtype_parsed$endian)

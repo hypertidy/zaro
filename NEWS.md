@@ -6,6 +6,17 @@
 
 * Package source, docs and NEWS are ASCII only.
 
+* `R CMD check` is clean: curl, methods and utils are declared in Imports
+  (curl will be the batched fetcher), `.github` and other dev files are
+  build-ignored, and the track-extract demo moved from `inst/demo` (a
+  directory R reserves) to `inst/examples`.
+
+* Fix remote kerchunk JSON never reading through gdalraster: the VSI file
+  was opened without its path, so the read always failed over to `url()`.
+
+* `parse_zarray()` passed an undefined `data_type` when coercing the fill
+  value; it now passes the parsed dtype.
+
 * New `zaro_dataset()`: every array at the root of a store, with dimension
   names and sizes in R order and the root attributes, read from consolidated
   metadata in one request (or by listing and probing the store). No data is
@@ -53,6 +64,10 @@
 * Fixed *egregious* error on how to use VSIFile hidden within tryCatch(). 
 
 * Add C style orientation (still upside down for ximage). 
+
+# zaro 0.0.1
+
+Initial version.
 
 ## Core architecture
 
