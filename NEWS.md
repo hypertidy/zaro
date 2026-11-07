@@ -1,5 +1,12 @@
 # zaro (development version)
 
+* Fix decoding of `int64`, `uint64`, `uint32` and `float16` arrays, which
+  had never been read correctly: the 8- or 4-byte integers were
+  reinterpreted as floating point (e.g. CMIP6 `time`, stored as int64 hours,
+  read as values like 3.5e-321) and float16 failed. 64-bit integers and
+  uint32 now read as exact doubles (up to 2^53), float16 is decoded from its
+  bit fields, in either byte order.
+
 * `verbose` defaults to `getOption("zaro.verbose", TRUE)` in every
   function, so `options(zaro.verbose = FALSE)` silences zaro everywhere;
   an explicit `verbose =` still wins.

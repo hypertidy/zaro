@@ -25,14 +25,68 @@ decode_chunk <- function(raw_bytes, meta) {
   }
 
   # reinterpret bytes as typed R vector
-  info <- dtype_info(meta@data_type)
   n <- prod(meta@chunk_shape)
 
   # determine endianness from the "bytes" codec if present
   endian <- chunk_endian(meta@codecs)
 
-  readBin(buf, what = info$what, n = n, size = info$size,
-          signed = info$signed, endian = endian)
+  read_typed(buf, meta@data_type, n, endian)
+}
+
+
+#' Reinterpret bytes as an R vector of a Zarr data type
+#'
+#' readBin() covers the types R holds natively. The rest are built here:
+#' uint32 and 64-bit integers become double (exact up to 2^53), float16 is
+#' decoded from its bit fields. `n` caps the number of elements read.
+#' @noRd
+read_typed <- function(buf, data_type, n, endian = "little") {
+  info <- dtype_info(data_type)
+  n <- min(n, length(buf) %/% info$size)
+  switch(data_type,
+    "uint32"  = {
+      v <- readBin(buf, "integer", n = n, size = 4L, endian = endian)
+      v <- as.double(v)
+      v[!is.na(v) & v < 0] <- v[!is.na(v) & v < 0] + 2^32
+      v[is.na(v)] <- 2^31   # readBin's NA is the bit pattern 0x80000000
+      v
+    },
+    "int64"   = read_int64(buf, n, endian, signed = TRUE),
+    "uint64"  = read_int64(buf, n, endian, signed = FALSE),
+    "float16" = read_float16(buf, n, endian),
+    readBin(buf, what = info$what, n = n, size = info$size,
+            signed = info$signed, endian = endian)
+  )
+}
+
+#' 64-bit integers as double, from 32-bit halves
+#' @noRd
+read_int64 <- function(buf, n, endian, signed) {
+  w <- readBin(buf, "integer", n = 2L * n, size = 4L, endian = endian)
+  w <- as.double(w)
+  w[is.na(w)] <- -2^31                       # 0x80000000
+  u <- ifelse(w < 0, w + 2^32, w)            # each half as unsigned
+  idx <- seq_len(n)
+  first <- u[2L * idx - 1L]
+  second <- u[2L * idx]
+  lo <- if (endian == "little") first else second
+  hi <- if (endian == "little") second else first
+  if (signed) hi <- ifelse(hi >= 2^31, hi - 2^32, hi)
+  hi * 2^32 + lo
+}
+
+#' IEEE 754 half precision as double
+#' @noRd
+read_float16 <- function(buf, n, endian) {
+  h <- readBin(buf, "integer", n = n, size = 2L, signed = FALSE,
+               endian = endian)
+  sgn <- ifelse(bitwAnd(h, 0x8000L) > 0L, -1, 1)
+  e <- bitwShiftR(bitwAnd(h, 0x7C00L), 10L)
+  m <- bitwAnd(h, 0x03FFL)
+  v <- ifelse(e == 0L, m * 2^-24,                       # subnormal / zero
+       ifelse(e == 31L, ifelse(m == 0L, Inf, NaN),      # inf / nan
+              (1 + m / 1024) * 2^(e - 15)))
+  sgn * v
 }
 
 
