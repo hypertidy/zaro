@@ -38,7 +38,14 @@
 #' types up to 32 bits give an integer array (`uint32` and 64-bit integers
 #' give double, as in [zaro_read()]), floats give double, `bool` gives
 #' logical. No CF packing (`scale_factor`, `add_offset`, `_FillValue`) is
-#' applied.
+#' applied unless `cf = TRUE`.
+#'
+#' @section CF decoding:
+#' With `cf = TRUE`, values equal to the array's `fill_value` or to the
+#' `_FillValue` or `missing_value` attributes (and NaN) read as `NA`, then
+#' `scale_factor` and `add_offset` are applied. Missing chunks read as `NA`.
+#' A packed array reads as double; an unpacked one keeps its type. This is
+#' what xarray's default decoding and GDAL's nodata plus unscaling give.
 #'
 #' @section Saving:
 #' `saveRDS()` on the result writes the recipe (shape, chunk shape and the
@@ -46,10 +53,13 @@
 #' external pointers, so a saved array does not read in a new R session;
 #' re-open it with `zaro_array()`.
 #'
-#' @param store a store object from [zaro()]
+#' @param store a store object from [zaro()], or a [zaro_dataset()] (whose
+#'   metadata is then used, no request made).
 #' @param path character. Path to the array within the store.
 #' @param meta optional pre-fetched ZaroMeta, or the root group meta with
 #'   consolidated entries, as for [zaro_read()].
+#' @param cf logical. Apply CF decoding (masking and unpacking, see below).
+#'   Default `FALSE`.
 #' @param parallel logical. If `TRUE`, each batch of 4 or more chunks is
 #'   fetched and decoded with `future.apply::future_lapply()`, as for
 #'   [zaro_read()] (the same caveats about store serialization apply).
@@ -67,17 +77,29 @@
 #' altarr::altarr_stats(x)
 #' }
 zaro_array <- function(store, path = "", meta = NULL, parallel = FALSE,
-                       verbose = TRUE) {
+                       verbose = TRUE, cf = FALSE) {
   if (!requireNamespace("altarr", quietly = TRUE)) {
     stop("zaro_array() requires the altarr package:\n",
          "  remotes::install_github(\"hypertidy/altarr\")", call. = FALSE)
   }
   if (path == ".") path <- ""
+  if (inherits(store, "zaro_dataset")) {
+    if (is.null(meta)) meta <- store$arrays[[path]]
+    if (is.null(meta)) {
+      stop("array '", path, "' is not in the dataset", call. = FALSE)
+    }
+    store <- store$store
+  }
   meta <- resolve_array_meta(store, path, meta, verbose)
   spec <- zaro_array_spec(meta)
+  transform <- if (isTRUE(cf)) cf_transform(meta, spec$type) else NULL
+  if (!is.null(transform) && isTRUE(attr(transform, "unpack"))) {
+    spec$type <- "double"
+  }
 
   altarr::altarr(spec$dim, spec$chunk,
-                 zaro_fetch_factory(store, path, meta, spec, parallel),
+                 zaro_fetch_factory(store, path, meta, spec, parallel,
+                                    transform),
                  dimnames = spec$dimnames, type = spec$type)
 }
 
@@ -118,24 +140,30 @@ zaro_array_spec <- function(meta) {
 #' A factory, so the closure carries only what it needs (see
 #' altarr's contract on saving recipes).
 #' @noRd
-zaro_fetch_factory <- function(store, path, meta, spec, parallel = FALSE) {
+zaro_fetch_factory <- function(store, path, meta, spec, parallel = FALSE,
+                               transform = NULL) {
   force(store); force(path); force(meta); force(spec); force(parallel)
+  force(transform)
   d <- spec$dim
   cs <- spec$chunk
   full <- prod(cs)
-  cast <- switch(spec$type, logical = as.logical, integer = as.integer,
+  ## the stored type: CF unpacking (transform) may make the result double
+  stored <- switch(dtype_info(meta@data_type)$what, logical = "logical",
+                   integer = "integer", "double")
+  cast <- switch(stored, logical = as.logical, integer = as.integer,
                  as.double)
   fill <- suppressWarnings(
     cast(coerce_fill_value(meta@fill_value, meta@data_type))[1L])
+  post <- if (is.null(transform)) identity else transform
 
   one <- function(cc) {
     st <- cc * cs + 1L
     ext <- as.integer(pmin(cs, d - st + 1L))
     zidx <- if (spec$rev_c) rev(cc) else cc
     raw <- fetch_chunk(store, path, as.integer(zidx), meta)
-    if (is.null(raw)) return(rep(fill, prod(ext)))
+    if (is.null(raw)) return(post(rep(fill, prod(ext))))
     v <- cast(decode_chunk(raw, meta))
-    clip_chunk(v, cs, ext)
+    post(clip_chunk(v, cs, ext))
   }
 
   function(chunks) {
@@ -147,6 +175,42 @@ zaro_fetch_factory <- function(store, path, meta, spec, parallel = FALSE) {
       lapply(rows, one)
     }
   }
+}
+
+
+#' CF decoding as a chunk transform: mask fill/missing values, then unpack
+#'
+#' Returns NULL when there is nothing to do. The returned function carries
+#' attribute `unpack = TRUE` when it scales or offsets (result is double).
+#' @noRd
+cf_transform <- function(meta, type) {
+  a <- meta@attributes
+  num <- function(x) {
+    x <- suppressWarnings(as.numeric(unlist(lapply(x, coerce_fill_value,
+                                                   meta@data_type))))
+    x[!is.na(x)]
+  }
+  mask <- unique(c(num(list(meta@fill_value)), num(a[["_FillValue"]]),
+                   num(a[["missing_value"]])))
+  scale <- num(a[["scale_factor"]])
+  offset <- num(a[["add_offset"]])
+  scale <- if (length(scale)) scale[1L] else 1
+  offset <- if (length(offset)) offset[1L] else 0
+  unpack <- scale != 1 || offset != 0
+  if (identical(type, "logical")) return(NULL)
+  cf_fun(mask, scale, offset, unpack)
+}
+
+#' @noRd
+cf_fun <- function(mask, scale, offset, unpack) {
+  force(mask); force(scale); force(offset); force(unpack)
+  f <- function(v) {
+    if (length(mask)) v[v %in% mask] <- NA
+    if (is.double(v)) v[is.nan(v)] <- NA
+    if (unpack) v * scale + offset else v
+  }
+  attr(f, "unpack") <- unpack
+  f
 }
 
 

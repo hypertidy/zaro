@@ -31,6 +31,8 @@ appropriate backend based on the URI scheme:
 \item \code{reference+json://}: Kerchunk JSON reference store
 \item \code{reference+parquet://}: Kerchunk Parquet reference store
 \item \code{virtualizarr://}: VirtualiZarr Parquet manifest store
+\item \code{mdimrefs://}: mdim-refs SQLite byte-reference table; pass
+\code{target = "public"} to apply that remap target to source paths
 }
 }
 \details{

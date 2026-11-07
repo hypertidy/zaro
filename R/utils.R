@@ -62,3 +62,16 @@ is_known_public <- function(bucket) {
   tolower(bucket) %in% known
 }
 
+
+
+#' Re-serialize a parsed JSON value without loss
+#'
+#' Consolidated metadata is parsed once and each entry re-serialized for
+#' the per-node parsers. jsonlite's default (`digits = 4`) truncates
+#' numbers, and `digits = NA` keeps only 15 significant digits; 17 is what
+#' every double needs to round-trip exactly (e.g. a CF `scale_factor` of
+#' 0.007782219909131527). `null = "null"` keeps JSON null as null.
+#' @noRd
+to_json_exact <- function(x) {
+  jsonlite::toJSON(x, auto_unbox = TRUE, null = "null", digits = I(17))
+}

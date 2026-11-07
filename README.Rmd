@@ -86,13 +86,15 @@ dtype mapping to R vectors via `readBin()`.
 
 ## API
 
-Four exported functions:
+The core functions:
 
 ```r
 store <- zaro(source, ...)       # open a store
 zaro_list(store)                 # list contents
 zaro_meta(store, path)           # read metadata
 zaro_read(store, path, ...)      # read array data
+zaro_dataset(store)              # every array and its dimensions, no data read
+zaro_array(store, path, cf = TRUE)  # a lazy R array (via altarr), CF-decoded
 ```
 
 ### Opening stores
