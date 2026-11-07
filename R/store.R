@@ -24,6 +24,16 @@ store_get <- new_generic("store_get", "store")
 store_list <- new_generic("store_list", "store")
 store_exists <- new_generic("store_exists", "store")
 store_refs <- new_generic("store_refs", "store")
+# store_range(store, key, offset, length): `length` bytes of a key from
+# `offset`; a negative offset means the last `length` bytes. NULL if absent.
+store_range <- new_generic("store_range", "store")
+
+method(store_range, ZaroStore) <- function(store, key, offset, length) {
+  raw <- store_get(store, key)
+  if (is.null(raw)) return(NULL)
+  if (offset < 0) offset <- base::length(raw) - length
+  raw[seq.int(offset + 1, length.out = length)]
+}
 
 # Any store: fetch each key through store_get() ("store" transport)
 method(store_refs, ZaroStore) <- function(store, keys) {
@@ -53,6 +63,15 @@ method(store_list, ArrowStore) <- function(store, prefix = "", recursive = FALSE
   paths <- vapply(infos, function(i) i$path, character(1))
   # return paths relative to root
   sub(paste0("^", store@root, "/?"), "", paths)
+}
+
+method(store_range, ArrowStore) <- function(store, key, offset, length) {
+  tryCatch({
+    f <- store@fs$OpenInputFile(file.path(store@root, key))
+    on.exit(f$close())
+    if (offset < 0) offset <- f$GetSize() - length
+    as.raw(f$ReadAt(offset, length))
+  }, error = function(e) NULL)
 }
 
 # Native chunks are whole objects: no request needed to plan them. S3 and
@@ -240,17 +259,20 @@ expand_template <- function(url, templates) {
 #' gdalraster VSI for everything else.
 #' @noRd
 byte_range_read <- function(url, offset, length) {
+  # a negative offset reads the last `length` bytes (a shard index at the end)
   # try arrow filesystem for s3:// and gs://
   if (grepl("^(s3|gs)://", url)) {
     fs_and_path <- arrow::FileSystem$from_uri(url)
     f <- fs_and_path$fs$OpenInputFile(fs_and_path$path)
     on.exit(f$close())
-    f$Seek(offset)
-    return(as.raw(f$Read(length)))   # an Arrow Buffer otherwise
+    if (offset < 0) offset <- f$GetSize() - length
+    return(as.raw(f$ReadAt(offset, length)))   # an Arrow Buffer otherwise
   }
 
   # local file: base R, no GDAL needed
   if (!grepl("^(https?://|/vsi)", url)) {
+    if (!file.exists(url)) return(NULL)
+    if (offset < 0) offset <- file.size(url) - length
     con <- file(url, "rb")
     on.exit(close(con))
     seek(con, offset)
@@ -265,6 +287,7 @@ byte_range_read <- function(url, offset, length) {
       url
     }
     #con <- gdalraster::vsi_open(vsi_url, "rb")
+    if (offset < 0) offset <- gdalraster::vsi_stat(vsi_url, "size") - length
     vsi <- methods::new(gdalraster::VSIFile, vsi_url, "rb")
     on.exit(vsi$close(), add = TRUE)
     vsi$seek(offset, "SEEK_SET")

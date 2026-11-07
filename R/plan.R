@@ -66,14 +66,121 @@ zaro_plan <- function(store, path = "", start = NULL, count = NULL,
          ")", call. = FALSE)
   }
 
-  ck <- apply(chunks, 1L, function(i) chunk_key(meta, i))
-  keys <- if (nzchar(path)) paste0(path, "/", ck) else ck
-  plan <- store_refs(store, keys)
+  shard <- attr(meta, "shard")
+  if (is.null(shard)) {
+    ck <- apply(chunks, 1L, function(i) chunk_key(meta, i))
+    keys <- if (nzchar(path)) paste0(path, "/", ck) else ck
+    plan <- store_refs(store, keys)
+  } else {
+    plan <- plan_sharded(store, path, meta, chunks, shard)
+  }
   plan$index <- lapply(seq_len(nrow(chunks)), function(r) chunks[r, ])
   vmsg("planned ", nrow(plan), " chunk(s) for path '", path, "'",
        verbose = verbose)
   structure(plan, class = c("zaro_plan", "data.frame"), path = path,
             meta = meta)
+}
+
+
+# -- sharding -----------------------------------------------------------------
+#
+# A shard is one more level of byte references. Its object holds an index of
+# (offset, nbytes) per inner chunk in C order (uint64 pairs, all 0xFF for an
+# empty chunk), at the end or start of the object, encoded by index_codecs
+# (bytes, optionally crc32c: stripped, not verified). Planning reads the
+# indexes of the shards a selection touches -- one small ranged read each,
+# fetched together -- and turns every inner chunk into a byte-range row of
+# its shard object. A missing shard leaves all its inner chunks absent.
+
+#' Plan inner chunks of a sharded array
+#' @noRd
+plan_sharded <- function(store, path, meta, chunks, shard) {
+  per <- shard$shape %/% meta@chunk_shape            # inner chunks per shard
+  n_inner <- prod(per)
+  sidx <- sweep(chunks, 2L, per, `%/%`)
+  iidx <- sweep(chunks, 2L, per, `%%`)
+  stride <- rev(cumprod(rev(c(per[-1L], 1))))
+  lin <- as.numeric(iidx %*% stride) + 1             # 1-based, C order
+  sk <- apply(sidx, 1L, function(i) chunk_key(meta, i))
+  skeys <- if (nzchar(path)) paste0(path, "/", sk) else sk
+
+  ushards <- unique(skeys)
+  srefs <- store_refs(store, ushards)
+  tabs <- shard_indexes(store, srefs, n_inner, shard)
+
+  plan <- refs_frame(skeys, transport = "absent")
+  for (i in seq_along(skeys)) {
+    m <- match(skeys[i], ushards)
+    tab <- tabs[[m]]
+    if (is.null(tab) || tab$empty[lin[i]]) next
+    o <- tab$offset[lin[i]]
+    n <- tab$nbytes[lin[i]]
+    ref <- srefs[m, , drop = FALSE]
+    base <- if (!is.na(ref$length)) ref$offset else 0
+    if (ref$transport == "inline") {
+      plan$inline[[i]] <- ref$inline[[1L]][seq.int(o + 1, length.out = n)]
+      plan$transport[i] <- "inline"
+      next
+    }
+    plan$url[i] <- ref$url
+    plan$offset[i] <- base + o
+    plan$length[i] <- n
+    plan$transport[i] <- ref$transport
+  }
+  plan
+}
+
+#' Read and decode the index of each shard (NULL for a missing shard)
+#' @noRd
+shard_indexes <- function(store, srefs, n_inner, shard) {
+  crc <- sum(vapply(shard$index_codecs, function(c) identical(c$name, "crc32c"),
+                    logical(1)))
+  size <- 16 * n_inner + 4 * crc
+  at_end <- !identical(shard$index_location, "start")
+
+  # where each index is: within a known byte range, or relative to the object
+  rows <- srefs
+  known <- !is.na(srefs$length)
+  rows$offset <- ifelse(known, if (at_end) srefs$offset + srefs$length - size
+                                  else srefs$offset,
+                        if (at_end) -1 else 0)
+  rows$length <- size
+  raw <- vector("list", nrow(rows))
+  http <- which(rows$transport == "http")
+  if (length(http)) {
+    raw[http] <- http_fetch(rows$url[http], rows$offset[http], rows$length[http],
+                            max_con = getOption("zaro.max_con", 8L),
+                            absent_ok = rep(TRUE, length(http)))
+  }
+  for (i in setdiff(seq_len(nrow(rows)), http)) {
+    r <- rows[i, , drop = FALSE]
+    if (r$transport == "inline") {
+      b <- r$inline[[1L]]
+      raw[[i]] <- if (at_end) b[seq.int(length(b) - size + 1, length(b))] else b[seq_len(size)]
+    } else {
+      raw[i] <- list(fetch_ref(store, r))
+    }
+  }
+  lapply(raw, decode_shard_index, n_inner = n_inner, shard = shard)
+}
+
+#' Shard index bytes -> data.frame(offset, nbytes, empty)
+#' @noRd
+decode_shard_index <- function(raw, n_inner, shard) {
+  if (is.null(raw)) return(NULL)
+  for (codec in rev(shard$index_codecs)) {
+    if (identical(codec$name, "crc32c")) raw <- raw[seq_len(length(raw) - 4L)]
+  }
+  if (length(raw) != 16 * n_inner) {
+    stop("shard index has ", length(raw), " bytes, expected ", 16 * n_inner,
+         call. = FALSE)
+  }
+  endian <- chunk_endian(shard$index_codecs)
+  v <- read_int64(raw, 2L * n_inner, endian, signed = FALSE)
+  ff <- matrix(raw == as.raw(0xff), nrow = 8L)
+  empty_word <- colSums(ff) == 8L
+  data.frame(offset = v[c(TRUE, FALSE)], nbytes = v[c(FALSE, TRUE)],
+             empty = empty_word[c(TRUE, FALSE)] & empty_word[c(FALSE, TRUE)])
 }
 
 

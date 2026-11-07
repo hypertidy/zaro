@@ -540,9 +540,10 @@ report_meta <- function(meta, verbose) {
 #' Fetch a single chunk's raw bytes from the store
 #' @noRd
 fetch_chunk <- function(store, path, chunk_idx, meta) {
-  ck <- chunk_key(meta, chunk_idx)
-  key <- if (nzchar(path)) paste0(path, "/", ck) else ck
-  store_get(store, key)
+  plan <- zaro_plan(store, path, meta = meta,
+                    chunks = matrix(as.integer(chunk_idx), nrow = 1L),
+                    verbose = FALSE)
+  zaro_fetch(store, plan, verbose = FALSE)[[1L]]
 }
 
 

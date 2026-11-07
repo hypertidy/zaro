@@ -4,7 +4,8 @@
 #
 #   key        the Zarr key asked for
 #   url        where the bytes are (object URL, file path, or VSI path)
-#   offset     byte offset within url (0 for a whole object)
+#   offset     byte offset within url (0 for a whole object; negative for
+#              the last `length` bytes, as for a shard index at the end)
 #   length     bytes to read; NA when the whole object is wanted and its
 #              size is not known without a request (native Zarr chunks)
 #   transport  how to get them:
@@ -58,7 +59,8 @@ fetch_ref <- function(store, ref) {
   switch(ref$transport,
     absent = NULL,
     inline = ref$inline[[1L]],
-    store  = store_get(store, ref$key),
+    store  = if (is.na(ref$length)) store_get(store, ref$key) else
+               store_range(store, ref$key, ref$offset, ref$length),
     {
       if (is.na(ref$length)) {
         read_whole(ref$url, ref$transport)
