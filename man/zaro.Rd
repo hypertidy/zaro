@@ -29,7 +29,12 @@ appropriate backend based on the URI scheme:
 \item Local paths: Arrow LocalFileSystem
 \item \code{s3://}: Arrow S3FileSystem (with automatic region detection)
 \item \code{gs://}: Arrow GcsFileSystem
-\item \code{http://}, \code{https://}: gdalraster VSI (\code{/vsicurl/})
+\item \code{http://}, \code{https://}: curl (no GDAL); chunk reads are
+batched through one connection pool, see \code{\link[=zaro_fetch]{zaro_fetch()}}. An HTTP
+store can't be listed, so it needs consolidated metadata (or array
+names, see \code{\link[=zaro_dataset]{zaro_dataset()}})
+\item \code{/vsi...}: any GDAL virtual file system path, through gdalraster
+(e.g. \code{/vsicurl/https://...} to keep GDAL's HTTP handling)
 \item \code{reference+json://}: Kerchunk JSON reference store
 \item \code{reference+parquet://}: Kerchunk Parquet reference store
 \item \code{virtualizarr://}: VirtualiZarr Parquet manifest store
