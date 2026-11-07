@@ -399,29 +399,9 @@ zaro_read <- function(store, path = "", start = NULL, count = NULL, meta = NULL,
   }
 
   ndim <- length(meta@shape)
-
-  # default to full extent
-  if (is.null(start)) start <- rep(0L, ndim)
-  if (is.null(count)) count <- rep(NA_integer_, ndim)
-
-
-  start <- as.integer(start)
-  count <- as.integer(count)
-
-  # NA in count means "rest of axis from start"
-  na_idx <- is.na(count)
-  count[na_idx] <- meta@shape[na_idx] - start[na_idx]
-
-  if (length(start) != ndim || length(count) != ndim) {
-    stop("start and count must have length ", ndim, call. = FALSE)
-  }
-
-  if (any(start + count > meta@shape)) {
-    over <- which(start + count > meta@shape)
-    warning("request exceeds array extent on dimension(s) ",
-            paste(over, collapse = ", "), "; clamping", call. = FALSE)
-    count <- pmin(count, meta@shape - start)
-  }
+  sel <- resolve_selection(meta, start, count)
+  start <- sel$start
+  count <- sel$count
 
   # compute which chunks we need
   chunk_ranges <- chunk_coverage(start, count, meta@chunk_shape)

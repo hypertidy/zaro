@@ -75,69 +75,75 @@ method(store_get, VirtualiZarrStore) <- function(store, key) {
     return(raw)
   }
 
-  # chunk reads - resolve through manifest shards
-  parts <- parse_chunk_key(key)
-  if (is.null(parts)) return(NULL)
+  # chunk reads - resolve through the manifest shards, then fetch
+  fetch_ref(store, store_refs(store, key))
+}
 
-  var_name <- parts$variable
-  chunk_key <- parts$chunk_key
 
-  # compute chunk grid dimensions from metadata (needed for C-order lookup)
-  chunk_grid <- store@cache$chunk_grids[[var_name]]
-  if (is.null(chunk_grid)) {
-    chunk_grid <- vz_compute_chunk_grid(store, var_name)
-    if (is.null(chunk_grid)) return(NULL)
-    store@cache$chunk_grids[[var_name]] <- chunk_grid
-  }
+# Chunk keys resolve through the Parquet manifest shards (fetched once per
+# shard and cached): a row is a byte range in a source file, or inline
+# bytes (coordinates), or empty (absent chunk).
+method(store_refs, VirtualiZarrStore) <- function(store, keys) {
+  out <- refs_frame(keys, transport = "absent")
+  meta_key <- is_metadata_key(keys)
+  out$transport[meta_key] <- "store"
+  out$url[meta_key] <- keys[meta_key]
 
-  # compute C-order linear index from chunk key
-  indices <- as.integer(strsplit(chunk_key, ".", fixed = TRUE)[[1]])
-  linear_idx <- 0L
-  stride <- 1L
-  for (d in rev(seq_along(indices))) {
-    linear_idx <- linear_idx + indices[d] * stride
-    stride <- stride * chunk_grid[d]
-  }
-
-  # determine shard size (rows per shard file)
-  shard_size <- store@cache$shard_sizes[[var_name]]
-  if (is.null(shard_size)) {
-    # fetch first shard to learn the row count
-    shard_0 <- vz_fetch_shard(store, var_name, 0L)
-    if (is.null(shard_0)) return(NULL)
-    shard_size <- nrow(shard_0)
-    store@cache$shard_sizes[[var_name]] <- shard_size
-    store@cache$shards[[paste0(var_name, ":0")]] <- shard_0
-  }
-
-  # which shard and which row within it?
-  shard_idx <- linear_idx %/% shard_size
-  row_idx <- (linear_idx %% shard_size) + 1L  # 1-based
-
-  # fetch shard (cached after first load)
-  shard_cache_key <- paste0(var_name, ":", shard_idx)
-  shard <- store@cache$shards[[shard_cache_key]]
-  if (is.null(shard)) {
-    shard <- vz_fetch_shard(store, var_name, shard_idx)
-    if (is.null(shard)) return(NULL)
-    store@cache$shards[[shard_cache_key]] <- shard
-  }
-
-  if (row_idx > nrow(shard)) return(NULL)
-
-  # check for inline data (coordinate variables)
-  if ("raw" %in% names(shard)) {
-    inline <- shard$raw[[row_idx]]
-    if (!is.null(inline) && length(inline) > 0) {
-      return(inline)
+  parts <- lapply(keys, function(k) if (is_metadata_key(k)) NULL else parse_chunk_key(k))
+  vars <- vapply(parts, function(p) if (is.null(p)) NA_character_ else p$variable,
+                 character(1))
+  for (var_name in unique(stats::na.omit(vars))) {
+    w <- which(vars == var_name)
+    grid <- store@cache$chunk_grids[[var_name]]
+    if (is.null(grid)) {
+      grid <- vz_compute_chunk_grid(store, var_name)
+      if (is.null(grid)) next
+      store@cache$chunk_grids[[var_name]] <- grid
+    }
+    shard_size <- store@cache$shard_sizes[[var_name]]
+    if (is.null(shard_size)) {
+      shard_0 <- vz_fetch_shard(store, var_name, 0L)
+      if (is.null(shard_0)) next
+      shard_size <- nrow(shard_0)
+      store@cache$shard_sizes[[var_name]] <- shard_size
+      store@cache$shards[[paste0(var_name, ":0")]] <- shard_0
+    }
+    # C-order linear index of each chunk in the grid
+    idx <- do.call(rbind, lapply(parts[w], function(p) {
+      as.numeric(strsplit(p$chunk_key, "[./]")[[1]])
+    }))
+    stride <- rev(cumprod(rev(c(grid[-1L], 1))))
+    lin <- as.numeric(idx %*% stride)
+    shard_of <- lin %/% shard_size
+    row_of <- lin %% shard_size + 1
+    for (sh in unique(shard_of)) {
+      ck <- paste0(var_name, ":", sh)
+      shard <- store@cache$shards[[ck]]
+      if (is.null(shard)) {
+        shard <- vz_fetch_shard(store, var_name, as.integer(sh))
+        if (is.null(shard)) next
+        store@cache$shards[[ck]] <- shard
+      }
+      for (i in which(shard_of == sh)) {
+        r <- row_of[i]
+        k <- w[i]
+        if (r > nrow(shard)) next
+        inline <- if ("raw" %in% names(shard)) shard$raw[[r]] else NULL
+        if (!is.null(inline) && length(inline) > 0L) {
+          out$inline[[k]] <- as.raw(inline)
+          out$transport[k] <- "inline"
+          next
+        }
+        path <- shard$path[r]
+        if (is.na(path) || !nzchar(path)) next
+        out$url[k] <- path
+        out$offset[k] <- shard$offset[r]
+        out$length[k] <- shard$size[r]
+        out$transport[k] <- url_transport(path)
+      }
     }
   }
-
-  path <- shard$path[row_idx]
-  if (is.na(path) || path == "") return(NULL)
-
-  # byte-range read from the source file
-  byte_range_read(path, shard$offset[row_idx], shard$size[row_idx])
+  out
 }
 
 
