@@ -9,7 +9,7 @@
 #   3. Zarr-compatible metadata as parquet file-level key-value pairs
 #   4. Everything needed to decode pixels without touching the source files' metadata
 #
-# This is the "enriched parquet refs" format — a single file that serves as
+# This is the "enriched parquet refs" format - a single file that serves as
 # both a byte-range catalogue AND a spatial-temporal index AND a codec spec.
 
 library(arrow)
@@ -226,7 +226,7 @@ enrich_ghrsst_mur <- function(refs) {
 
 #' Subset enriched refs by bounding box
 #'
-#' Uses Arrow predicate pushdown — no data loaded for non-matching row groups.
+#' Uses Arrow predicate pushdown - no data loaded for non-matching row groups.
 #' Returns a lazy arrow query or collected data.frame.
 subset_bbox <- function(path, xmin, xmax, ymin, ymax, collect = TRUE) {
   ds <- arrow::open_dataset(path)

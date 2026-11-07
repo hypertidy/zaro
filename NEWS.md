@@ -1,5 +1,11 @@
 # zaro (development version)
 
+* `verbose` defaults to `getOption("zaro.verbose", TRUE)` in every
+  function, so `options(zaro.verbose = FALSE)` silences zaro everywhere;
+  an explicit `verbose =` still wins.
+
+* Package source, docs and NEWS are ASCII only.
+
 * New `zaro_dataset()`: every array at the root of a store, with dimension
   names and sizes in R order and the root attributes, read from consolidated
   metadata in one request (or by listing and probing the store). No data is
@@ -71,7 +77,7 @@
 
 * Parse `.zarray`, `.zgroup`, and `.zattrs` metadata.
 
-* Consolidated metadata via `.zmetadata` — a single HTTP request retrieves
+* Consolidated metadata via `.zmetadata` - a single HTTP request retrieves
   metadata for all arrays in a V2 store.
 
 * Numpy dtype string parsing (`<f4`, `>i2`, `|u1`, etc.) with endianness
@@ -101,7 +107,7 @@
   stores as produced by VirtualiZarr. These provide Zarr-style access to
   existing archival files (NetCDF, HDF5, GRIB) without reformatting.
 
-* Metadata layer (`.zmetadata`) fetched via curl — GDAL-free.
+* Metadata layer (`.zmetadata`) fetched via curl - GDAL-free.
 
 * Chunk manifests (`refs.N.parq` shards) loaded via `arrow::read_parquet()`
   with lazy per-variable loading and environment-based caching.
@@ -114,7 +120,7 @@
   byte-range references).
 
 * Byte-range reads into source files via `byte_range_read()` supporting
-  Arrow S3/GCS, gdalraster VSI, and curl for HTTP — the full chain is
+  Arrow S3/GCS, gdalraster VSI, and curl for HTTP - the full chain is
   GDAL-free when using curl.
 
 * URI scheme: `virtualizarr://https://example.com/dataset.parq` or

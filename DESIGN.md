@@ -24,7 +24,7 @@
 Note: image_w, image_h, tile_w, tile_h, dtype, compression, bits_per_sample,
 samples_per_pixel, crs_epsg from rustycogs are CONSTANT per array and move
 to file-level metadata (not repeated per row). This is important: the raw
-rustycogs output repeats these ~2500 times per file × 8400 files = 21M rows
+rustycogs output repeats these ~2500 times per file x 8400 files = 21M rows
 of redundant strings. Moving them to metadata shrinks the parquet significantly.
 
 ### File-level metadata (parquet key-value pairs)
@@ -55,7 +55,7 @@ of redundant strings. Moving them to metadata shrinks the parquet significantly.
 ## Provenance: what can produce this format?
 
 ### 1. rustycogs (primary path)
-   tiff_refs() → enrich_refs() → write_parquet()
+   tiff_refs() -> enrich_refs() -> write_parquet()
    Already produces the raw columns. Enrichment adds bbox, time, metadata.
 
 ### 2. From existing kerchunk parquet (harvesting)
@@ -84,11 +84,11 @@ zaro_meta() from embedded metadata, resolves chunks by tile index or
 spatial bbox query. The decode pipeline is:
 
   Arrow predicate pushdown (spatial/temporal filter)
-  → fetch_bytes (curl/arrow-s3)
-  → Arrow codec decompress
-  → readBin (type coercion)
-  → cumsum per row (predictor reversal, 3 lines of R)
-  → scale/offset (CF convention)
+  -> fetch_bytes (curl/arrow-s3)
+  -> Arrow codec decompress
+  -> readBin (type coercion)
+  -> cumsum per row (predictor reversal, 3 lines of R)
+  -> scale/offset (CF convention)
 
 No GDAL in the pixel path. No zarr driver. No codec registry.
 The parquet IS the store, Arrow IS the codec engine.
@@ -97,7 +97,7 @@ The parquet IS the store, Arrow IS the codec engine.
 ### B. GDAL via /vsikerchunk/ (existing path)
 
 GDAL already reads kerchunk parquet via /vsikerchunk/.
-The enriched format is a superset — extra columns are ignored,
+The enriched format is a superset - extra columns are ignored,
 (path, offset, length) are in the same positions.
 
 To fully leverage the enriched metadata, GDAL would need to:
@@ -121,7 +121,7 @@ skip the sidecar reads (fewer HTTP requests for remote stores).
 
 The format is just parquet. Python reads it with pyarrow.
 Julia reads it with Arrow.jl. Rust reads it with arrow-rs.
-The spatial subsetting is column predicates — no geospatial
+The spatial subsetting is column predicates - no geospatial
 library needed for the index query, only for the pixel decode.
 
 ```python
@@ -129,7 +129,7 @@ library needed for the index query, only for the pixel decode.
 import pyarrow.parquet as pq
 t = pq.read_table("ghrsst_enriched.parquet")
 
-# Spatial subset — pure Arrow
+# Spatial subset - pure Arrow
 tiles = t.filter(
     (t["bbox_xmin"] < 170) & (t["bbox_xmax"] > 140) &
     (t["bbox_ymin"] < -30) & (t["bbox_ymax"] > -50)
@@ -151,18 +151,18 @@ zarray = json.loads(md[b"zarray"])
 
 ### vaster
   Grid assembly from tiles. read_window() in the zaro consumer
-  is doing what vaster does — placing tile matrices into an
+  is doing what vaster does - placing tile matrices into an
   output grid. The enriched parquet metadata (geotransform,
   image dimensions, tile dimensions) is exactly vaster's input.
 
 ### vapour
   GDAL read path. vapour::vapour_read_raster() is the validation
-  baseline — pixel-exact comparison against GDAL's direct read.
+  baseline - pixel-exact comparison against GDAL's direct read.
   The enriched parquet path should produce identical values.
 
 ### ndr
   Higher-level array interface. The enriched parquet store would
-  be a backend for ndr — ndr provides the xarray-like API,
+  be a backend for ndr - ndr provides the xarray-like API,
   the enriched parquet provides the chunk resolution and decode.
 
 ### tissot / geographiclib
@@ -188,7 +188,7 @@ The enriched parquet separates these concerns:
 
 The zarr JSON is embedded AS metadata, not used AS the store format.
 This means the codec spec can include non-standard filters
-(tiff_predictor) without breaking any zarr implementation —
+(tiff_predictor) without breaking any zarr implementation -
 because the parquet isn't claiming to be a zarr store.
 
 It CAN be consumed as zarr (via /vsikerchunk/ or zaro's
@@ -202,11 +202,11 @@ ReferenceStore), but it doesn't HAVE to be.
        on the full 21.5M row parquet
 3. [ ] Implement zaro EnrichedParquetStore and verify pixel-exact decode
        against vapour::vapour_read_raster() baseline
-4. [ ] Benchmark: enriched parquet → zaro vs. direct GDAL /vsicurl/ read
-5. [ ] Prototype GDAL integration: parquet KV metadata → .zarray synthesis
+4. [ ] Benchmark: enriched parquet -> zaro vs. direct GDAL /vsicurl/ read
+5. [ ] Prototype GDAL integration: parquet KV metadata -> .zarray synthesis
        in vsikerchunk_parquet_ref.cpp
-6. [ ] Test round-trip: rustycogs → enriched parquet → GDAL /vsikerchunk/
-       with tiff_predictor filter → warped output
+6. [ ] Test round-trip: rustycogs -> enriched parquet -> GDAL /vsikerchunk/
+       with tiff_predictor filter -> warped output
 7. [ ] Explore partitioned parquet for very large collections
        (partition by year/month for efficient temporal subsetting)
-8. [ ] Write harvester functions for kerchunk/VirtualiZarr/DMR++ → enriched
+8. [ ] Write harvester functions for kerchunk/VirtualiZarr/DMR++ -> enriched

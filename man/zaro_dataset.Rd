@@ -4,7 +4,7 @@
 \alias{zaro_dataset}
 \title{Open a store as a dataset: every array, its dimensions, no data read}
 \usage{
-zaro_dataset(source, arrays = NULL, verbose = TRUE, ...)
+zaro_dataset(source, arrays = NULL, verbose = zaro_verbose(), ...)
 }
 \arguments{
 \item{source}{a store from \code{\link[=zaro]{zaro()}}, or a character source passed to
@@ -13,7 +13,8 @@ zaro_dataset(source, arrays = NULL, verbose = TRUE, ...)
 \item{arrays}{optional character vector of array names to include. With
 consolidated metadata it filters; without, it replaces the listing.}
 
-\item{verbose}{logical. Emit diagnostic messages.}
+\item{verbose}{logical. Emit diagnostic messages. Default
+\code{getOption("zaro.verbose", TRUE)}.}
 
 \item{...}{passed to \code{\link[=zaro]{zaro()}} when \code{source} is character.}
 }

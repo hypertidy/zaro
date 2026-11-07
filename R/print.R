@@ -1,4 +1,4 @@
-# print.R — display methods
+# print.R - display methods
 #
 # S7 methods on base generics are written as `S7::method(print, X) <- f`
 # inside local(): the replacement form otherwise assigns a copy of `print`

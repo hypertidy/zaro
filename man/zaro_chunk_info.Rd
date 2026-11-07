@@ -4,7 +4,7 @@
 \alias{zaro_chunk_info}
 \title{Get chunk grid information for an array}
 \usage{
-zaro_chunk_info(store, path, meta = NULL, verbose = TRUE)
+zaro_chunk_info(store, path, meta = NULL, verbose = zaro_verbose())
 }
 \arguments{
 \item{store}{a store object from \code{\link[=zaro]{zaro()}}}
@@ -13,15 +13,16 @@ zaro_chunk_info(store, path, meta = NULL, verbose = TRUE)
 
 \item{meta}{optional pre-fetched ZaroMeta (or root group meta).}
 
-\item{verbose}{logical.}
+\item{verbose}{logical. Emit diagnostic messages. Default
+\code{getOption("zaro.verbose", TRUE)}.}
 }
 \value{
 A list with components:
 \describe{
-\item{grid}{integer vector — number of chunks along each dimension}
-\item{chunk_shape}{integer vector — shape of a full (non-edge) chunk}
-\item{array_shape}{integer vector — shape of the full array}
-\item{n_chunks}{integer — total number of chunks}
+\item{grid}{integer vector - number of chunks along each dimension}
+\item{chunk_shape}{integer vector - shape of a full (non-edge) chunk}
+\item{array_shape}{integer vector - shape of the full array}
+\item{n_chunks}{integer - total number of chunks}
 \item{dimension_names}{character vector or NULL}
 \item{meta}{ZaroMeta for the array}
 }

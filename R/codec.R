@@ -1,4 +1,4 @@
-# codec.R — codec pipeline (V2 and V3)
+# codec.R - codec pipeline (V2 and V3)
 #
 # V3 codecs are a chain: array-to-array, array-to-bytes, bytes-to-bytes.
 # V2 has a single compressor + optional filters, normalised to V3-style
@@ -84,7 +84,7 @@ arrow_decompress <- function(buf, type, config) {
   reader <- arrow::BufferReader$create(raw_buf)
   stream <- arrow::CompressedInputStream$create(reader, codec)
 
-  # overestimate is fine — Read() returns only what's available
+  # overestimate is fine - Read() returns only what's available
   out_size <- config[["decompressed_size"]]
   if (is.null(out_size)) {
     out_size <- length(buf) * 20L

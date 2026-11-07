@@ -153,3 +153,17 @@ test_that("consolidated metadata keeps full numeric precision (V2 and V3)", {
   expect_identical(ds3$arrays$a@attributes$scale_factor, sf)
   expect_identical(ds3$arrays$a@fill_value, fv)
 })
+
+test_that("options(zaro.verbose = FALSE) silences zaro by default", {
+  path <- file.path(tempdir(), "ds-quiet")
+  unlink(path, recursive = TRUE)
+  x <- array(1, c(2L, 2L))
+  write_test_zarr(path, x, chunk = c(2L, 2L))
+  expect_message(zaro_meta(zaro(path), verbose = TRUE), "\\[zaro\\]")
+  old <- options(zaro.verbose = FALSE)
+  on.exit(options(old), add = TRUE)
+  expect_silent(zaro_read(zaro(path)))
+  expect_silent(zaro_dataset(path))
+  ## an explicit argument still wins
+  expect_message(zaro(path, verbose = TRUE), "\\[zaro\\]")
+})

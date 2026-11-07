@@ -1,12 +1,16 @@
-# utils.R — small helpers
+# utils.R - small helpers
 
 #' Null coalescing operator
 #' @noRd
 `%||%` <- function(x, y) if (is.null(x)) y else x
 
+#' Default for every `verbose` argument: `getOption("zaro.verbose", TRUE)`
+#' @noRd
+zaro_verbose <- function() isTRUE(getOption("zaro.verbose", TRUE))
+
 #' Emit a verbose message (suppressed by suppressMessages)
 #' @noRd
-vmsg <- function(..., verbose = TRUE) {
+vmsg <- function(..., verbose = zaro_verbose()) {
   if (isTRUE(verbose)) message("[zaro] ", ...)
 }
 
@@ -50,13 +54,13 @@ is_known_public <- function(bucket) {
   known <- c(
     # GCS
     "cmip6",
-    # S3 — AODN
+    # S3 - AODN
     "aodn-cloud-optimised",
-    # S3 — NOAA / NASA
+    # S3 - NOAA / NASA
     "mur-sst", "era5-pds", "noaa-goes16", "noaa-goes17",
     "noaa-gfs-bdp-pds", "noaa-ghcn-pds", "noaa-cdr-sea-ice-conc-monthly",
     "noaa-nexrad-level2",
-    # S3 — Pangeo / Earthmover
+    # S3 - Pangeo / Earthmover
     "pangeo-forge"
   )
   tolower(bucket) %in% known

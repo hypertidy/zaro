@@ -3,7 +3,7 @@
 
 # zaro
 
-Arrow Zarr in R. A low-level Zarr reader for R built on Arrow’s
+Arrow Zarr in R. A low-level Zarr reader for R built on Arrow's
 filesystem and codec infrastructure. Supports V2 and V3 stores with
 automatic version detection and consolidated metadata.
 
@@ -54,20 +54,20 @@ range(data, na.rm = TRUE)
 
 Three internal layers, one flat API.
 
-**Store** — key-value access to Zarr stores. Arrow `FileSystem` handles
+**Store** - key-value access to Zarr stores. Arrow `FileSystem` handles
 local, S3, and GCS natively. gdalraster VSI handles HTTP and provides
 automatic S3 region detection when Arrow returns a 301 redirect.
 Kerchunk JSON and Parquet reference stores provide virtual Zarr access
 to existing archival files (NetCDF, HDF5, GRIB, TIFF).
 
-**Metadata** — pure R/jsonlite parsing with automatic V2/V3 detection.
+**Metadata** - pure R/jsonlite parsing with automatic V2/V3 detection.
 Consolidated metadata is preferred for cloud stores: `.zmetadata` (V2)
 or consolidated `zarr.json` (V3), retrieving all array metadata in a
-single request. Handles numpy dtype strings, xarray’s
+single request. Handles numpy dtype strings, xarray's
 `_ARRAY_DIMENSIONS` convention, and JSON-encoded fill values (`"NaN"`,
 `"Infinity"`).
 
-**Codec** — decompression pipeline using Arrow C++ codecs (zstd, gzip,
+**Codec** - decompression pipeline using Arrow C++ codecs (zstd, gzip,
 lz4, brotli, snappy, bz2) with optional blosc fallback for V2 stores. V2
 compressor + filters are normalised to the V3 codec chain model so the
 decode pipeline is uniform. Type coercion handles endianness and dtype
@@ -112,8 +112,8 @@ store <- zaro("reference+parquet:///path/to/refs.parquet")
 
 ### Consolidated metadata
 
-For cloud stores, `zaro_meta()` reads consolidated metadata first — a
-single HTTP request for the entire store’s metadata rather than one per
+For cloud stores, `zaro_meta()` reads consolidated metadata first - a
+single HTTP request for the entire store's metadata rather than one per
 array.
 
 ``` r
@@ -268,8 +268,8 @@ suppressMessages(zaro_read(store, "GSLA", start = c(0,0,0), count = c(5,351,641)
 
 ## S3 region handling
 
-Arrow’s `S3FileSystem` defaults to us-east-1 and does not follow 301
-region redirects. When this happens, zaro falls back to gdalraster’s
+Arrow's `S3FileSystem` defaults to us-east-1 and does not follow 301
+region redirects. When this happens, zaro falls back to gdalraster's
 `/vsis3/` which handles region detection transparently. You can also
 specify the region explicitly:
 
@@ -290,7 +290,7 @@ Optional: `gdalraster` (HTTP/VSI store access, S3 region fallback),
 Version detection is automatic. `zaro_meta()` tries V3 first
 (`zarr.json`), then falls back to V2 (`.zmetadata` consolidated, then
 per-array `.zarray` + `.zattrs`). Essentially all existing cloud Zarr
-data (AODN, Copernicus, CMIP6, NASA) is V2 — this is fully supported.
+data (AODN, Copernicus, CMIP6, NASA) is V2 - this is fully supported.
 
 V2 specifics handled: numpy dtype strings (`<f4`, `>i2`, `|u1`),
 `dimension_separator` (dot and slash), `_ARRAY_DIMENSIONS` (xarray), C/F
@@ -299,28 +299,28 @@ strings.
 
 ## Relationship to other packages
 
-**zarr** (CRAN) — native R Zarr V3 implementation with R6 store/codec
+**zarr** (CRAN) - native R Zarr V3 implementation with R6 store/codec
 architecture. zaro could contribute an Arrow-backed store class.
 Different approach: zarr aims for spec-complete V3, zaro prioritises
 cloud access and existing V2 data.
 
-**pizzarr** — pure R Zarr V2 implementation with HTTP store support.
+**pizzarr** - pure R Zarr V2 implementation with HTTP store support.
 Bioimaging origin.
 
-**gdalraster** — comprehensive GDAL bindings including the Zarr driver
+**gdalraster** - comprehensive GDAL bindings including the Zarr driver
 and Multidimensional API. This is the backend for ndr. zaro is
 GDAL-independent for array semantics and the codec pipeline, but uses
-GDAL VSI for filesystem access when Arrow doesn’t cover the transport
+GDAL VSI for filesystem access when Arrow doesn't cover the transport
 (HTTP, cross-region S3).
 
-**tidync** — metadata-first NetCDF exploration. zaro sits below this as
+**tidync** - metadata-first NetCDF exploration. zaro sits below this as
 potential backend infrastructure for Zarr sources.
 
-**ndr** — S7-based xarray-like labeled arrays for R. The gdalraster
+**ndr** - S7-based xarray-like labeled arrays for R. The gdalraster
 Multidim backend is the primary driver. zaro is an alternative backend
 for GDAL-independent Zarr access and direct store-level control.
 
-**vapour** — lightweight GDAL bindings for raster and vector data.
+**vapour** - lightweight GDAL bindings for raster and vector data.
 Provides some of the same VSI filesystem access that zaro uses via
 gdalraster.
 
@@ -335,7 +335,7 @@ needs.
 zaro implements the Zarr specification directly rather than wrapping a
 Zarr library. Capabilities interoperate with the Python ecosystem
 through shared specifications: the same JSON metadata, the same codec
-algorithms (via Arrow’s C++ implementations, identical to PyArrow), the
+algorithms (via Arrow's C++ implementations, identical to PyArrow), the
 same S3 protocols, the same chunk layout. A dataset written by xarray in
 Python reads in zaro without conversion.
 
@@ -343,9 +343,9 @@ Python reads in zaro without conversion.
 
 Detailed rationale and analysis live in `inst/docs-design/`:
 
-- `001-origin.md` — founding design decisions and architecture
-- `002-parallelization.md` — mirai/futurize integration roadmap
-- `003-icechunk-landscape.md` — Icechunk analysis and R integration
+- `001-origin.md` - founding design decisions and architecture
+- `002-parallelization.md` - mirai/futurize integration roadmap
+- `003-icechunk-landscape.md` - Icechunk analysis and R integration
   paths
-- `004-ecosystem-narrative.md` — R’s geospatial capability and
+- `004-ecosystem-narrative.md` - R's geospatial capability and
   interoperability through specification

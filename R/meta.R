@@ -1,4 +1,4 @@
-# meta.R — Zarr metadata parsing (V2 and V3)
+# meta.R - Zarr metadata parsing (V2 and V3)
 #
 # V3: metadata lives in zarr.json files at each node.
 # V2: metadata lives in .zarray (array config), .zattrs (user attributes),
@@ -194,7 +194,7 @@ dtype_size <- function(dtype) {
 #' Coerce fill_value to the appropriate R type
 #'
 #' A Zarr fill_value may be absent (JSON `null`). After a JSON round-trip
-#' (e.g. the toJSON/fromJSON pass in [parse_zmetadata()]) a `null` can also
+#' (e.g. the toJSON/fromJSON pass in `parse_zmetadata()`) a `null` can also
 #' degrade to an empty object `{}`, which parses back as an empty `list()`.
 #' Treat all of these "no fill value" forms as missing (`NA_real_`) so the
 #' output array is a numeric array rather than a list-array.
@@ -316,7 +316,7 @@ parse_numpy_dtype <- function(dtype_str) {
     stop("cannot parse dtype: ", dtype_str, call. = FALSE)
   }
 
-  # string types — recognise but flag as not yet readable
+  # string types - recognise but flag as not yet readable
   # <U59, |U100 = fixed-width Unicode
   # |S10, |S100 = fixed-width byte strings
   # |O = object (variable-length strings in V2)

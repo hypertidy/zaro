@@ -8,7 +8,7 @@
 #   - Metadata comes from parquet file-level KV pairs, not sidecar JSON
 #   - Spatial/temporal subsetting happens at the Arrow level before byte reads
 #   - The zarr .zarray/.zattrs are reconstructed from parquet metadata
-#   - No zarr directory tree needed — the parquet IS the store
+#   - No zarr directory tree needed - the parquet IS the store
 #
 # This is a design sketch for integration into zaro's store.R
 
@@ -147,7 +147,7 @@ get_chunk_ref <- function(store, chunk_idx) {
 
 #' Get all chunk refs within a spatial bbox
 #'
-#' This is the spatial query — Arrow predicate pushdown filters
+#' This is the spatial query - Arrow predicate pushdown filters
 #' the parquet without loading non-matching row groups.
 get_chunks_bbox <- function(store, xmin, xmax, ymin, ymax,
                             from = NULL, to = NULL) {

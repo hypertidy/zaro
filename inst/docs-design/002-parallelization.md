@@ -10,7 +10,7 @@ design decisions for how zaro should integrate with it.
 ## The parallelization opportunity
 
 Chunk fetching and decoding in zaro is embarrassingly parallel. Each
-`store_get()` + `decode_chunk()` call is independent — no shared state, no
+`store_get()` + `decode_chunk()` call is independent - no shared state, no
 ordering requirements, no communication between tasks. The results are
 assembled into the output array only after all chunks are collected.
 
@@ -38,7 +38,7 @@ overhead needs to be negligible relative to task duration. Existing R
 parallelism solutions typically operate in the millisecond range.
 
 **`mirai_map()` over chunk indices.** The chunk fetch loop in `zaro_read()`
-maps directly to `mirai_map()` — a list of chunk indices in, a list of
+maps directly to `mirai_map()` - a list of chunk indices in, a list of
 decoded chunk buffers out.
 
 **`race_mirai()` for streaming assembly.** For cloud stores with variable
@@ -111,7 +111,7 @@ it into `futurize()`.
 ### Why futurize fits zaro's design philosophy
 
 **Separate "what" from "how".** zaro genuinely doesn't care how chunks are
-fetched in parallel — it just needs them fetched. futurize embodies this
+fetched in parallel - it just needs them fetched. futurize embodies this
 principle: the analysis code (chunk iteration) is independent of the
 parallelization backend.
 
@@ -127,7 +127,7 @@ loop using `lapply()` over zaro results, piping `|> futurize()` just works.
 This is valuable beyond zaro's own internals.
 
 **Familiar code.** If you remove `|> futurize()`, the code runs sequentially.
-This aligns with zaro's `parallel = FALSE` default — sequential by default,
+This aligns with zaro's `parallel = FALSE` default - sequential by default,
 parallel when asked.
 
 ### Sketch: futurize in zaro_read() internals
@@ -164,10 +164,10 @@ So the full stack looks like:
 
 ```
 User code
-  └─ zaro_read(store, path, parallel = TRUE)
-       └─ future_lapply() over chunk indices
-            └─ dispatched via plan()
-                 └─ mirai daemons (or multisession, or Slurm, etc.)
+  `- zaro_read(store, path, parallel = TRUE)
+       `- future_lapply() over chunk indices
+            `- dispatched via plan()
+                 `- mirai daemons (or multisession, or Slurm, etc.)
 ```
 
 The user gets mirai's C-level dispatch performance and daemon connection
@@ -211,7 +211,7 @@ boundaries when sent to workers. The `ArrowStore` class wraps an Arrow R6
 **Solution:** a `store_spec` pattern. The store knows how to describe itself
 as a serializable specification (URI + auth parameters), and workers
 reconstruct a fresh store on arrival. This is essentially what `zaro()`
-already accepts as input — a URI string. So the worker-side code becomes:
+already accepts as input - a URI string. So the worker-side code becomes:
 
 ```r
 # on the worker
@@ -233,8 +233,8 @@ Arrow/VSI filesystem handles as needed.
 ### Chunk-level vs. slab-level parallelism
 
 The current design parallelizes at the chunk level within a single
-`zaro_read()` call. A higher-level parallelism — multiple `zaro_read()`
-calls in parallel (e.g. reading different time steps) — is automatically
+`zaro_read()` call. A higher-level parallelism - multiple `zaro_read()`
+calls in parallel (e.g. reading different time steps) - is automatically
 available through the future ecosystem without any zaro-specific code.
 The user just wraps their loop in `future_lapply()` or `|> futurize()`.
 

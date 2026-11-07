@@ -1,4 +1,4 @@
-# chunk.R — chunk-indexed read and iteration
+# chunk.R - chunk-indexed read and iteration
 #
 # Work directly with chunks as the unit of I/O and computation.
 # Complements zaro_read() which assembles chunks into a single array.
@@ -17,19 +17,20 @@
 #' @param store a store object from [zaro()]
 #' @param path character. Path to the array.
 #' @param meta optional pre-fetched ZaroMeta (or root group meta).
-#' @param verbose logical.
+#' @param verbose logical. Emit diagnostic messages. Default
+#'   `getOption("zaro.verbose", TRUE)`.
 #' @returns A list with components:
 #'   \describe{
-#'     \item{grid}{integer vector — number of chunks along each dimension}
-#'     \item{chunk_shape}{integer vector — shape of a full (non-edge) chunk}
-#'     \item{array_shape}{integer vector — shape of the full array}
-#'     \item{n_chunks}{integer — total number of chunks}
+#'     \item{grid}{integer vector - number of chunks along each dimension}
+#'     \item{chunk_shape}{integer vector - shape of a full (non-edge) chunk}
+#'     \item{array_shape}{integer vector - shape of the full array}
+#'     \item{n_chunks}{integer - total number of chunks}
 #'     \item{dimension_names}{character vector or NULL}
 #'     \item{meta}{ZaroMeta for the array}
 #'   }
 #'
 #' @export
-zaro_chunk_info <- function(store, path, meta = NULL, verbose = TRUE) {
+zaro_chunk_info <- function(store, path, meta = NULL, verbose = zaro_verbose()) {
   meta <- resolve_array_meta(store, path, meta, verbose)
 
   grid <- ceiling(meta@shape / meta@chunk_shape)
@@ -60,20 +61,21 @@ zaro_chunk_info <- function(store, path, meta = NULL, verbose = TRUE) {
 #' @param shaped logical. If TRUE (default), reshape the values to the
 #'   chunk's actual dimensions (handling C-order and edge chunks).
 #'   If FALSE, return a flat vector.
-#' @param verbose logical.
+#' @param verbose logical. Emit diagnostic messages. Default
+#'   `getOption("zaro.verbose", TRUE)`.
 #' @returns A list with components:
 #'   \describe{
-#'     \item{cidx}{integer vector — the chunk grid index}
-#'     \item{values}{array or vector — decoded chunk data}
-#'     \item{start}{integer vector — 0-based array coordinates of chunk origin}
-#'     \item{shape}{integer vector — actual shape of this chunk (may be
+#'     \item{cidx}{integer vector - the chunk grid index}
+#'     \item{values}{array or vector - decoded chunk data}
+#'     \item{start}{integer vector - 0-based array coordinates of chunk origin}
+#'     \item{shape}{integer vector - actual shape of this chunk (may be
 #'       smaller than chunk_shape for edge chunks)}
 #'   }
 #'   Returns NULL if the chunk doesn't exist (missing/sparse).
 #'
 #' @export
 zaro_chunk <- function(store, path, chunk_idx, meta = NULL,
-                       shaped = TRUE, verbose = TRUE) {
+                       shaped = TRUE, verbose = zaro_verbose()) {
   meta <- resolve_array_meta(store, path, meta, verbose)
   chunk_idx <- as.integer(chunk_idx)
 
@@ -113,13 +115,14 @@ zaro_chunk <- function(store, path, chunk_idx, meta = NULL,
 #' @param meta optional pre-fetched ZaroMeta (or root group meta).
 #' @param shaped logical. If TRUE, reshape each chunk's values.
 #' @param parallel logical. Use future.apply for parallel fetch+decode.
-#' @param verbose logical.
+#' @param verbose logical. Emit diagnostic messages. Default
+#'   `getOption("zaro.verbose", TRUE)`.
 #' @returns A list of chunk results (as from \code{zaro_chunk()}). NULL
 #'   entries indicate missing chunks.
 #'
 #' @export
 zaro_chunks <- function(store, path, ranges = NULL, meta = NULL,
-                        shaped = TRUE, parallel = FALSE, verbose = TRUE) {
+                        shaped = TRUE, parallel = FALSE, verbose = zaro_verbose()) {
   meta <- resolve_array_meta(store, path, meta, verbose)
   info <- zaro_chunk_info(store, path, meta = meta, verbose = FALSE)
 
@@ -184,7 +187,8 @@ zaro_chunks <- function(store, path, ranges = NULL, meta = NULL,
 #' @param meta optional pre-fetched ZaroMeta (or root group meta).
 #' @param shaped logical. If TRUE, reshape each chunk's values.
 #' @param parallel logical. Use future.apply for parallel execution.
-#' @param verbose logical.
+#' @param verbose logical. Emit diagnostic messages. Default
+#'   `getOption("zaro.verbose", TRUE)`.
 #' @returns A list of results from \code{fun}, one per non-NULL chunk.
 #'
 #' @export
@@ -202,7 +206,7 @@ zaro_chunks <- function(store, path, ranges = NULL, meta = NULL,
 #' }, ranges = list(0, NULL, NULL))
 #' }
 zaro_chunk_apply <- function(store, path, fun, ranges = NULL, meta = NULL,
-                             shaped = TRUE, parallel = FALSE, verbose = TRUE) {
+                             shaped = TRUE, parallel = FALSE, verbose = zaro_verbose()) {
   chunks <- zaro_chunks(store, path, ranges = ranges, meta = meta,
                         shaped = shaped, parallel = parallel,
                         verbose = verbose)

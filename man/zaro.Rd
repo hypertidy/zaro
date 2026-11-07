@@ -4,12 +4,14 @@
 \alias{zaro}
 \title{Open a Zarr store}
 \usage{
-zaro(source, verbose = TRUE, ..., validate = FALSE)
+zaro(source, verbose = zaro_verbose(), ..., validate = FALSE)
 }
 \arguments{
 \item{source}{character. Path, URI, or reference store locator.}
 
-\item{verbose}{logical. Emit progress and diagnostic messages (default TRUE).
+\item{verbose}{logical. Emit progress and diagnostic messages. Default
+\code{getOption("zaro.verbose", TRUE)}; set \code{options(zaro.verbose = FALSE)} to
+silence zaro everywhere.
 Suppress with \code{suppressMessages()}.}
 
 \item{...}{additional arguments passed to Arrow filesystem constructors
@@ -55,7 +57,7 @@ store <- zaro("/data/my_dataset.zarr")
 # S3 store (anonymous)
 store <- zaro("s3://mur-sst/zarr-v1", anonymous = TRUE)
 
-# GCS — known public bucket, anonymous auto-detected
+# GCS - known public bucket, anonymous auto-detected
 store <- zaro("gs://cmip6/CMIP6/ScenarioMIP/NOAA-GFDL/GFDL-ESM4/ssp585/r1i1p1f1/Omon/zos/gn/v20180701")
 
 # VirtualiZarr Parquet reference

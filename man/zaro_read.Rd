@@ -11,7 +11,7 @@ zaro_read(
   count = NULL,
   meta = NULL,
   parallel = FALSE,
-  verbose = TRUE,
+  verbose = zaro_verbose(),
   assemble = TRUE
 )
 }
@@ -29,7 +29,7 @@ dimension. Use \code{NA} for any axis to read the full extent from
 
 \item{meta}{optional pre-fetched ZaroMeta object. If NULL (default),
 metadata is read from the store. Can also be the root group metadata
-from \code{zaro_meta(store)} — the array will be looked up by path
+from \code{zaro_meta(store)} - the array will be looked up by path
 in the consolidated entries.}
 
 \item{parallel}{logical. If \code{TRUE}, fetch and decode chunks in
@@ -38,7 +38,8 @@ parallel using \code{future.apply::future_lapply()}. Requires the
 Recommended backend: \code{future::plan(future.mirai::mirai_multisession)}.
 Skipped automatically for reads of fewer than 4 chunks. Default FALSE.}
 
-\item{verbose}{logical. Emit diagnostic messages (default TRUE).}
+\item{verbose}{logical. Emit diagnostic messages. Default
+\code{getOption("zaro.verbose", TRUE)}.}
 
 \item{assemble}{logical. If \code{TRUE}return a full array (the default), else the raw list
 of decoded chunks.}
