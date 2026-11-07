@@ -95,10 +95,9 @@ mdimrefs_coord_raw <- function(a) {
 method(store_get, MdimRefsStore) <- function(store, key) {
   md <- mdimrefs_meta(store)
   if (key == ".zmetadata")
-    return(charToRaw(jsonlite::toJSON(list(metadata = md, zarr_consolidated_format = 1L),
-                                      auto_unbox = TRUE, null = "null", digits = NA)))
+    return(charToRaw(to_json_exact(list(metadata = md, zarr_consolidated_format = 1L))))
   if (key %in% names(md))
-    return(charToRaw(jsonlite::toJSON(md[[key]], auto_unbox = TRUE, null = "null", digits = NA)))
+    return(charToRaw(to_json_exact(md[[key]])))
 
   arr <- sub("/[^/]*$", "", key); ck <- sub("^.*/", "", key)
   a <- store@arrays[store@arrays$array == arr, , drop = FALSE]

@@ -240,12 +240,12 @@ zaro_meta <- function(store, path = "", consolidated = TRUE, verbose = TRUE) {
         doc <- jsonlite::fromJSON(jstxt, simplifyVector = FALSE)
         entries <- doc[["metadata"]]
         zgroup_raw <- if (".zgroup" %in% names(entries)) {
-          charToRaw(jsonlite::toJSON(entries[[".zgroup"]], auto_unbox = TRUE))
+          charToRaw(to_json_exact(entries[[".zgroup"]]))
         } else {
           NULL
         }
         zattrs_raw <- if (".zattrs" %in% names(entries)) {
-          charToRaw(jsonlite::toJSON(entries[[".zattrs"]], auto_unbox = TRUE))
+          charToRaw(to_json_exact(entries[[".zattrs"]]))
         } else {
           NULL
         }

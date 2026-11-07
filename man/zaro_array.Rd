@@ -4,10 +4,18 @@
 \alias{zaro_array}
 \title{Open a Zarr array as a lazy R array}
 \usage{
-zaro_array(store, path = "", meta = NULL, parallel = FALSE, verbose = TRUE)
+zaro_array(
+  store,
+  path = "",
+  meta = NULL,
+  parallel = FALSE,
+  verbose = TRUE,
+  cf = FALSE
+)
 }
 \arguments{
-\item{store}{a store object from \code{\link[=zaro]{zaro()}}}
+\item{store}{a store object from \code{\link[=zaro]{zaro()}}, or a \code{\link[=zaro_dataset]{zaro_dataset()}} (whose
+metadata is then used, no request made).}
 
 \item{path}{character. Path to the array within the store.}
 
@@ -19,6 +27,9 @@ fetched and decoded with \code{future.apply::future_lapply()}, as for
 \code{\link[=zaro_read]{zaro_read()}} (the same caveats about store serialization apply).}
 
 \item{verbose}{logical. Emit diagnostic messages when reading metadata.}
+
+\item{cf}{logical. Apply CF decoding (masking and unpacking, see below).
+Default \code{FALSE}.}
 }
 \value{
 A lazy array, see \code{\link[altarr:altarr]{altarr::altarr()}}.
@@ -54,7 +65,16 @@ Chunks absent from the store read as the array's \code{fill_value}. Integer
 types up to 32 bits give an integer array (\code{uint32} and 64-bit integers
 give double, as in \code{\link[=zaro_read]{zaro_read()}}), floats give double, \code{bool} gives
 logical. No CF packing (\code{scale_factor}, \code{add_offset}, \verb{_FillValue}) is
-applied.
+applied unless \code{cf = TRUE}.
+}
+
+\section{CF decoding}{
+
+With \code{cf = TRUE}, values equal to the array's \code{fill_value} or to the
+\verb{_FillValue} or \code{missing_value} attributes (and NaN) read as \code{NA}, then
+\code{scale_factor} and \code{add_offset} are applied. Missing chunks read as \code{NA}.
+A packed array reads as double; an unpacked one keeps its type. This is
+what xarray's default decoding and GDAL's nodata plus unscaling give.
 }
 
 \section{Saving}{

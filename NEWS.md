@@ -1,5 +1,25 @@
 # zaro (development version)
 
+* New `zaro_dataset()`: every array at the root of a store, with dimension
+  names and sizes in R order and the root attributes, read from consolidated
+  metadata in one request (or by listing and probing the store). No data is
+  read. This is the hand-off to ndr's `open_dataset(engine = "zaro")`.
+
+* `zaro_array()` gains `cf = TRUE`: fill and missing values read as `NA`,
+  then `scale_factor`/`add_offset` are applied per chunk. It also accepts a
+  `zaro_dataset` in place of a store.
+
+* Fix consolidated metadata losing numeric precision. Entries were
+  re-serialized with jsonlite's default of 4 significant digits, so e.g.
+  BRAN2023's `scale_factor` of 0.007782219909131527 became 0.0078 and
+  unpacked values were off by up to 0.53 degC. Numbers now round-trip
+  exactly (V2 `.zmetadata`, V3 consolidated `zarr.json`, mdim-refs).
+
+* Fix print methods not being used outside the package: the S7 methods are
+  now registered in `.onLoad()`, and a stray namespace copy of `print` no
+  longer captures the S3 registration. Printing an array of a
+  variable-length type (`string`) no longer errors.
+
 * New `mdimrefs://` source: `zaro()` reads an mdim-refs SQLite byte-reference
   table directly, serving Zarr V2 keys from its `arrays` table and
   `refs_<array>` views (`target` selects a path remap).

@@ -42,6 +42,7 @@ Collate:
     'print.R'
     'api.R'
     'array.R'
+    'dataset.R'
     'virtualizarr.R'
     'mdimrefs.R'
-Config/roxygen2/version: 8.1.0
+Config/roxygen2/version: 8.1.1

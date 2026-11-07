@@ -1,6 +1,12 @@
 # print.R — display methods
+#
+# S7 methods on base generics are written as `S7::method(print, X) <- f`
+# inside local(): the replacement form otherwise assigns a copy of `print`
+# into the namespace, which captures S3method(print, ...) registrations
+# from NAMESPACE so user code never dispatches them. The methods take
+# effect via S7::methods_register() in .onLoad.
 
-method(print, ZaroMeta) <- function(x, ...) {
+local(method(print, ZaroMeta) <- function(x, ...) {
   cat(sprintf("<ZaroMeta> [%s]\n", x@node_type))
   if (x@node_type == "group") {
     shapes <- lapply(attr(x, "consolidated"), \(.x) sprintf("[%s]", paste0(.x@shape, collapse = ",")))
@@ -40,8 +46,12 @@ method(print, ZaroMeta) <- function(x, ...) {
       cat(sprintf("  fill:   %s\n", as.character(x@fill_value)))
     }
 
-    nbytes <- prod(as.double(x@shape)) * dtype_size(x@data_type)
-    cat(sprintf("  size:   %s\n", format_bytes(nbytes)))
+    ## variable-length types (string) have no fixed element size
+    esize <- tryCatch(dtype_size(x@data_type), error = function(e) NA)
+    if (!is.na(esize)) {
+      cat(sprintf("  size:   %s\n",
+                  format_bytes(prod(as.double(x@shape)) * esize)))
+    }
   }
 
   if (length(x@attributes) > 0) {
@@ -49,14 +59,14 @@ method(print, ZaroMeta) <- function(x, ...) {
   }
 
   invisible(x)
-}
+})
 
-method(print, ZaroStore) <- function(x, ...) {
+local(method(print, ZaroStore) <- function(x, ...) {
   cls <- class(x)[1]
   cat(sprintf("<ZaroStore> [%s]\n", cls))
   cat(sprintf("  root: %s\n", x@root))
   invisible(x)
-}
+})
 
 
 #' Format byte count for display

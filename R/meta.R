@@ -150,7 +150,7 @@ parse_consolidated <- function(raw_bytes) {
 
   result <- list()
   for (path in names(entries)) {
-    entry_json <- jsonlite::toJSON(entries[[path]], auto_unbox = TRUE)
+    entry_json <- to_json_exact(entries[[path]])
     result[[path]] <- parse_zarr_json(charToRaw(entry_json))
   }
   result
@@ -431,18 +431,15 @@ parse_zmetadata <- function(raw_bytes) {
   for (key in zarray_keys) {
     var_path <- sub("/\\.zarray$", "", key)
 
-    # null = "null" so a JSON `null` (e.g. fill_value) round-trips as null
-    # rather than degrading to an empty object `{}`
-    zarray_json <- jsonlite::toJSON(entries[[key]], auto_unbox = TRUE,
-                                    null = "null")
+    # exact numbers, and JSON `null` (e.g. fill_value) stays null rather
+    # than degrading to an empty object `{}`
+    zarray_json <- to_json_exact(entries[[key]])
 
     # find matching .zattrs
     zattrs_key <- paste0(var_path, "/.zattrs")
     zattrs_json <- NULL
     if (zattrs_key %in% names(entries)) {
-      zattrs_json <- charToRaw(jsonlite::toJSON(entries[[zattrs_key]],
-                                                auto_unbox = TRUE,
-                                                null = "null"))
+      zattrs_json <- charToRaw(to_json_exact(entries[[zattrs_key]]))
     }
 
     result[[var_path]] <- parse_zarray(charToRaw(zarray_json), zattrs_json)
