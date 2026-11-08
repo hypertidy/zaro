@@ -1,5 +1,10 @@
 # zaro (development version)
 
+* New article, "Connecting to stores" (#4): what to give `zaro()` for
+  HTTPS, public and private S3, S3-compatible endpoints (including CEPH
+  `tenant:bucket` names), GCS, GDAL `/vsi` paths and virtual stores'
+  references, and a table translating Python's `storage_options`.
+
 * Documentation refresh: the README and pkgdown home page show the current
   package (plan and fetch, virtual and byterefs stores, sharding, groups,
   lazy arrays, options); `zaro_groups()` and `zaro_read_arrays()` are in

@@ -2,6 +2,14 @@
 
 _March 2026_
 
+Status (November 2026): the guide this note asks for is the article
+"Connecting to stores" (`vignettes/articles/connecting.Rmd`). Since this
+was written, HTTP stores are read with curl, not `/vsicurl/`, and S3/GCS
+objects go through the same curl pool when their access is known, so the
+HTTPS URL of a public object is as good as its `s3://` form. The
+`zaro_s3()` helper is not needed for that; address normalisation is
+`006-uri-interpreter.md`.
+
 ## The problem
 
 Scientific Zarr data increasingly lives on cloud object storage. Python

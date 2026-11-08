@@ -16,6 +16,7 @@ articles:
   navbar: ~
   contents:
   - articles/getting-started
+  - articles/connecting
   - articles/virtual-stores
   - articles/plan-fetch-shard
   - articles/zaro-and-ndr
