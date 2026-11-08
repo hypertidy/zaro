@@ -1,5 +1,14 @@
 # zaro (development version)
 
+* arrow moves from Imports to Suggests (#23). Local stores are read with
+  base R (a new `LocalStore`), and zstd, gzip and bz2 chunks decode with
+  `memDecompress()` (falling back to arrow if base R can't). arrow is
+  still used when installed for `s3://` and `gs://` stores and for the
+  lz4, brotli and snappy codecs; without it, `s3://` and `gs://` open
+  through GDAL's `/vsis3/` and `/vsigs/` (gdalraster). Imports are now
+  curl, jsonlite, methods, nanoparquet, S7 and utils.
+* `future` is declared in Suggests (used by the parallel tests).
+
 * Parquet reference manifests (VirtualiZarr shards, kerchunk Parquet) are
   read with nanoparquet, not arrow: a virtual store such as BRAN2023 now
   opens and reads without loading arrow (identical values). nanoparquet

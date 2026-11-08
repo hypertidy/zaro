@@ -81,7 +81,7 @@ read_whole <- function(url, transport = url_transport(url)) {
   switch(transport,
     http  = vz_http_get(url),
     local = if (file.exists(url)) readBin(url, "raw", file.size(url)) else NULL,
-    s3 = , gs = tryCatch({
+    s3 = , gs = if (!has_arrow()) read_whole(cloud_to_vsi(url), "vsi") else tryCatch({
       fp <- arrow::FileSystem$from_uri(url)
       f <- fp$fs$OpenInputFile(fp$path)
       on.exit(f$close())

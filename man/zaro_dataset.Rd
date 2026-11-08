@@ -61,7 +61,11 @@ ds$dims$GSLA                       # "LONGITUDE" "LATITUDE" "TIME"
 gsla <- zaro_array(ds, "GSLA", cf = TRUE)
 
 ## a nested store: list the groups, open one
-eopf <- zaro("https://s3.explorer.eopf.copernicus.eu/esa-zarr-sentinel-explorer-fra/tests-output/sentinel-2-l2a/S2C_MSIL2A_20260120T084301_N0511_R064_T36UXA_20260120T122910.zarr")
+eopf_url <- paste0(
+  "https://s3.explorer.eopf.copernicus.eu/esa-zarr-sentinel-explorer-fra/",
+  "tests-output/sentinel-2-l2a/",
+  "S2C_MSIL2A_20260120T084301_N0511_R064_T36UXA_20260120T122910.zarr")
+eopf <- zaro(eopf_url)
 zaro_groups(eopf)
 r10m <- zaro_dataset(eopf, group = "measurements/reflectance/r10m")
 b04 <- zaro_array(r10m, "b04")

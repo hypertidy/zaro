@@ -67,7 +67,8 @@ store <- zaro("/data/my_dataset.zarr")
 store <- zaro("s3://mur-sst/zarr-v1", anonymous = TRUE)
 
 # GCS - known public bucket, anonymous auto-detected
-store <- zaro("gs://cmip6/CMIP6/ScenarioMIP/NOAA-GFDL/GFDL-ESM4/ssp585/r1i1p1f1/Omon/zos/gn/v20180701")
+store <- zaro(paste0("gs://cmip6/CMIP6/ScenarioMIP/NOAA-GFDL/GFDL-ESM4/",
+                     "ssp585/r1i1p1f1/Omon/zos/gn/v20180701"))
 
 # VirtualiZarr Parquet reference
 store <- zaro("virtualizarr://https://example.com/dataset.parq")
