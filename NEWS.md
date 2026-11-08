@@ -1,5 +1,13 @@
 # zaro (development version)
 
+* byterefs stores: with no `target`, `zaro()` applies the store's
+  `meta.default_target` (byterefs/spec decision 0004); `target = ""` reads
+  the verbatim sources, and a target with no remap rules warns. Only the
+  identifiers a byterefs/0.1 reader takes are accepted, `byterefs/0.1` and
+  (until byterefs/0.2) `mdim-refs/0.2` (decision 0003); another `byterefs/`
+  version warns and is read as 0.1. New scheme `byterefs://`, with
+  `mdimrefs://` kept as an alias.
+
 * Sharded arrays with codecs after `sharding_indexed` (applied to the whole
   shard object) now read. A trailing `crc32c` is skipped and the shard is
   still read by byte ranges; a compressor means whole shards are fetched and

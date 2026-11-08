@@ -13,20 +13,23 @@
 # `.zmetadata` is synthesised from `arrays`, a chunk key is one lookup in
 # `refs_<array>` followed by a byte-range read of (path, offset, size).
 # Coordinates held inline or as start/step are served as one whole-array chunk.
-# `remap` rows of the chosen target rewrite the verbatim source paths.
+# `remap` rows of the chosen target rewrite the verbatim source paths; with
+# no target given, `meta.default_target` is applied (decision 0004).
 
 MdimRefsStore <- new_class("MdimRefsStore", parent = ZaroStore, properties = list(
   con    = class_any,        # DBI connection to the SQLite store
   remap  = class_data.frame, # prefix, replacement for the chosen target
-  arrays = class_data.frame  # the arrays table
+  arrays = class_data.frame, # the arrays table
+  target = class_character   # the remap target applied ("" = verbatim)
 ))
 
-#' Open an mdim-refs store
+#' Open a byterefs (or legacy mdim-refs) store
 #'
 #' @param source path to the SQLite file, or an http(s) URL (downloaded once
 #'   to a temporary file).
-#' @param target remap target to apply to source paths (e.g. "public"), or
-#'   NULL for the verbatim sources.
+#' @param target remap target to apply to source paths (e.g. "public"). NULL
+#'   (default) applies the store's `meta.default_target`, if any; `""` means
+#'   the verbatim sources.
 #' @noRd
 open_mdimrefs <- function(source, target = NULL, verbose = zaro_verbose()) {
   for (pkg in c("DBI", "RSQLite")) if (!requireNamespace(pkg, quietly = TRUE))
@@ -37,22 +40,50 @@ open_mdimrefs <- function(source, target = NULL, verbose = zaro_verbose()) {
     source <- tf
   }
   con <- DBI::dbConnect(RSQLite::SQLite(), source, flags = RSQLite::SQLITE_RO)
-  fmt <- DBI::dbGetQuery(con, "SELECT value FROM meta WHERE key = 'format_version'")$value
-  if (!mdimrefs_format_ok(fmt))
-    stop("not a byterefs (or mdim-refs) store: ", source, call. = FALSE)
+  meta <- DBI::dbGetQuery(con, "SELECT key, value FROM meta")
+  fmt <- meta$value[meta$key == "format_version"]
+  if (!mdimrefs_format_ok(fmt)) {
+    if (length(fmt) == 1L && !is.na(fmt) && startsWith(fmt, "byterefs/")) {
+      warning("zaro reads byterefs/0.1; this store is ", fmt,
+              ", read as byterefs/0.1", call. = FALSE)
+    } else {
+      stop("not a byterefs store (format_version ",
+           if (length(fmt)) fmt else "missing", "; zaro reads ",
+           paste(MR_FORMATS, collapse = " and "), "): ", source, call. = FALSE)
+    }
+  }
   vmsg("opening ", fmt, " store: ", source, verbose = verbose)
-  remap <- if (is.null(target)) data.frame(prefix = character(), replacement = character())
-           else DBI::dbGetQuery(con, "SELECT prefix, replacement FROM remap WHERE target = ?
-                                       ORDER BY length(prefix) DESC", params = list(target))
+
+  # decision 0004: a reader not told a target applies meta.default_target
+  if (is.null(target)) {
+    dt <- meta$value[meta$key == "default_target"]
+    target <- if (length(dt) == 1L && !is.na(dt)) dt else ""
+    if (nzchar(target)) {
+      vmsg("applying the store's default target '", target, "'", verbose = verbose)
+    }
+  }
+  remap <- data.frame(prefix = character(), replacement = character())
+  if (nzchar(target)) {
+    remap <- tryCatch(
+      DBI::dbGetQuery(con, "SELECT prefix, replacement FROM remap WHERE target = ?
+                            ORDER BY length(prefix) DESC", params = list(target)),
+      error = function(e) remap)
+    if (!nrow(remap)) {
+      warning("no remap rules for target '", target, "'; source paths are used verbatim",
+              call. = FALSE)
+    }
+  }
   MdimRefsStore(root = source, con = con, remap = remap,
-                arrays = DBI::dbGetQuery(con, "SELECT * FROM arrays"))
+                arrays = DBI::dbGetQuery(con, "SELECT * FROM arrays"),
+                target = target)
 }
 
-## format identifiers this reader takes: byterefs/0.x (what raad.virtualize
-## writes) and the legacy mdim-refs/0.x
+## byterefs/spec decision 0003: a byterefs/0.1 reader accepts byterefs/0.1
+## and, until byterefs/0.2 is tagged, the legacy mdim-refs/0.2 (same layout)
+MR_FORMATS <- c("byterefs/0.1", "mdim-refs/0.2")
+
 mdimrefs_format_ok <- function(fmt) {
-  length(fmt) == 1L && !is.na(fmt) &&
-    (startsWith(fmt, "byterefs/") || startsWith(fmt, "mdim-refs/"))
+  length(fmt) == 1L && !is.na(fmt) && fmt %in% MR_FORMATS
 }
 
 mdimrefs_json <- function(x) {

@@ -23,8 +23,12 @@
 #'   \item \code{reference+json://}: Kerchunk JSON reference store
 #'   \item \code{reference+parquet://}: Kerchunk Parquet reference store
 #'   \item \code{virtualizarr://}: VirtualiZarr Parquet manifest store
-#'   \item \code{mdimrefs://}: mdim-refs SQLite byte-reference table; pass
-#'     \code{target = "public"} to apply that remap target to source paths
+#'   \item \code{byterefs://} (or the older \code{mdimrefs://}): a byterefs
+#'     SQLite byte-reference table (\url{https://github.com/byterefs/spec}),
+#'     \code{byterefs/0.1} or the legacy \code{mdim-refs/0.2}. Source paths
+#'     are remapped for the store's \code{meta.default_target}; pass
+#'     \code{target = "public"} for another target, or \code{target = ""} for
+#'     the verbatim sources
 #' }
 #'
 #' For S3 stores, if Arrow returns a 301 redirect (wrong region), zaro will
@@ -97,9 +101,9 @@ zaro <- function(source, verbose = zaro_verbose(), ..., validate = FALSE) {
     path <- sub("^reference\\+parquet://", "", source)
     vmsg("opening Kerchunk Parquet reference store: ", path, verbose = verbose)
     store <- parse_kerchunk_parquet(path)
-  } else if (grepl("^mdimrefs://", source)) {
-    # mdim-refs byte-reference table (SQLite), served as a Zarr V2 store
-    store <- open_mdimrefs(sub("^mdimrefs://", "", source),
+  } else if (grepl("^(byterefs|mdimrefs)://", source)) {
+    # byterefs byte-reference table (SQLite), served as a Zarr V2 store
+    store <- open_mdimrefs(sub("^(byterefs|mdimrefs)://", "", source),
                            target = dots[["target"]], verbose = verbose)
   } else if (grepl("^virtualizarr://", source)) {
     # VirtualiZarr Parquet reference store (directory with manifests)
