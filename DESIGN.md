@@ -1,3 +1,7 @@
+Superseded (November 2026): this design is now the byterefs specification,
+https://github.com/byterefs/spec. See inst/docs-design/008-byterefs.md for
+zaro's position. Kept here for its history.
+
 # Enriched Parquet Refs: Design & Integration
 #
 # A self-contained reference store format for cloud-optimised geospatial arrays.
