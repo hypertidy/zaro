@@ -37,7 +37,7 @@
   ],
   "attributes": {},
   "dimension_names": [
-    "d0"
+    "n"
   ],
   "zarr_format": 3,
   "node_type": "array",

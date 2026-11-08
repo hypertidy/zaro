@@ -32,6 +32,9 @@
     }
   ],
   "attributes": {},
+  "dimension_names": [
+    "n"
+  ],
   "zarr_format": 3,
   "node_type": "array",
   "storage_transformers": []

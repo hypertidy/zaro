@@ -42,8 +42,8 @@
   ],
   "attributes": {},
   "dimension_names": [
-    "d0",
-    "d1"
+    "gy",
+    "gx"
   ],
   "zarr_format": 3,
   "node_type": "array",
