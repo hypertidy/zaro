@@ -1,0 +1,186 @@
+# Connecting to stores
+
+Tutorials, catalogues and papers hand out Zarr addresses in many forms:
+`s3://` and `gs://` URIs, HTTPS URLs of the same objects, custom S3
+endpoints, GDAL `/vsi` paths, and Python code full of `storage_options`.
+This article shows what to give
+[`zaro()`](https://hypertidy.github.io/zaro/reference/zaro.md) for each,
+and what zaro does with it. The examples are shown, not run.
+
+## The short version
+
+Give [`zaro()`](https://hypertidy.github.io/zaro/reference/zaro.md) the
+address you have. Every object zaro fetches ends up as an HTTPS request
+through one curl connection pool whenever it can, so most forms work as
+they are.
+
+| You have | Give zaro | Notes |
+|----|----|----|
+| `https://host/path/store.zarr` | the URL | read with curl; needs consolidated metadata, or `arrays =` |
+| `s3://bucket/path`, public | the URI, with `anonymous = TRUE` | known public buckets need nothing |
+| `s3://bucket/path`, private | the URI | AWS keys in the environment, or arrow/GDAL credentials |
+| S3-compatible service (CEPH, MinIO) | `s3://` with `endpoint_override`, or the HTTPS URL | `tenant:bucket` names: use HTTPS |
+| `gs://bucket/path`, public | the URI, with `anonymous = TRUE` |  |
+| a GDAL path, `/vsicurl/...`, `/vsis3/...` | the path | read through gdalraster, GDAL’s config applies |
+| kerchunk, VirtualiZarr, byterefs | `reference+json://`, `virtualizarr://`, `byterefs://`, `flatrefs://` | see [virtual stores](https://hypertidy.github.io/zaro/articles/virtual-stores.md) |
+
+## HTTPS
+
+Any static file server, object store or CDN that serves the store’s
+files over HTTPS works with the plain URL. zaro reads it with curl: no
+arrow, no GDAL.
+
+``` r
+eopf <- zaro("https://s3.explorer.eopf.copernicus.eu/esa-zarr-sentinel-explorer-fra/tests-output/sentinel-2-l2a/S2C_MSIL2A_20260120T084301_N0511_R064_T36UXA_20260120T122910.zarr")
+zaro_groups(eopf)
+r10m <- zaro_dataset(eopf, group = "measurements/reflectance/r10m")
+```
+
+HTTP can’t list a directory, so zaro needs the store’s consolidated
+metadata (`.zmetadata` for V2, a consolidated `zarr.json` for V3). Most
+published stores have it. If one doesn’t, name the arrays you want:
+
+``` r
+ds <- zaro_dataset("https://host/path/store.zarr", arrays = c("x", "y", "sst"))
+```
+
+An HTTPS URL of an S3 or GCS object
+(`https://bucket.s3.region.amazonaws.com/...`,
+`https://storage.googleapis.com/bucket/...`) is just another HTTPS URL
+and reads the same way. Use the `s3://` or `gs://` form when you need to
+list the store or sign the requests.
+
+## S3
+
+``` r
+## public: say so, and give the region if you know it
+store <- zaro("s3://aodn-cloud-optimised/model_sea_level_anomaly_gridded_realtime.zarr",
+              anonymous = TRUE, region = "ap-southeast-2")
+```
+
+A few well-known public buckets (AODN, CMIP6 on GCS, NOAA and Pangeo
+buckets) are read anonymously without being asked.
+`AWS_NO_SIGN_REQUEST=YES` in the environment, or
+`options(zaro.cloud_anonymous = TRUE)`, does the same for every bucket.
+
+When the access is known like this, chunks go through the curl pool as
+HTTPS, many at once. The bucket’s region is read once from S3’s
+`x-amz-bucket-region` header if you don’t give it. Metadata and listings
+go through arrow when it is installed, otherwise through GDAL’s
+`/vsis3/` (gdalraster).
+
+For a private bucket, put the keys in the environment:
+
+``` r
+Sys.setenv(AWS_ACCESS_KEY_ID = "...", AWS_SECRET_ACCESS_KEY = "...")
+## AWS_SESSION_TOKEN too, for temporary credentials
+store <- zaro("s3://my-bucket/path/store.zarr", region = "us-west-2")
+```
+
+zaro signs these requests itself (curl’s AWS SigV4), so they join the
+pool too. Other credentials (`~/.aws` profiles, instance roles) are left
+to arrow or GDAL, which read one object at a time: correct, but slower.
+zaro never guesses anonymous access for a bucket it doesn’t know,
+because S3 answers 403 for a missing object and a private bucket read
+anonymously would look like a store of empty chunks.
+
+## S3-compatible services
+
+CEPH, MinIO, Wasabi and institutional object stores speak the S3
+protocol at their own endpoint. Give the endpoint as `endpoint_override`
+(or set `AWS_ENDPOINT_URL`); objects are then addressed path-style,
+`<endpoint>/<bucket>/<key>`:
+
+``` r
+store <- zaro("s3://my-bucket/path/store.zarr",
+              endpoint_override = "https://objects.example.org",
+              anonymous = TRUE)
+```
+
+Without arrow, metadata is read through GDAL, which takes the endpoint
+from its own configuration: set `AWS_S3_ENDPOINT` (host only) and
+`AWS_VIRTUAL_HOSTING=NO` as well.
+
+If the service is public, the HTTPS URL is simpler and avoids S3 client
+quirks entirely. CEPH, for example, names buckets `tenant:bucket`, which
+S3 clients reject as a bucket name. EODC’s object store is one such:
+
+``` r
+base <- "https://objects.eodc.eu/e05ab01a9d56408d82ac32d69a5aae2a:sample-data"
+store <- zaro(paste0(base, "/tutorial_data/cpm_v253/S1A_IW_GRDH_1SDV_20220906T135439_20220906T135504_044885_055C76_B53F.zarr"))
+```
+
+To see what is in such a bucket, ask the endpoint for an S3 listing over
+plain HTTPS:
+
+``` r
+url <- paste0(base, "?prefix=tutorial_data/cpm_v253/&delimiter=/&max-keys=20")
+cat(rawToChar(curl::curl_fetch_memory(url)$content))   # XML, one <Prefix> per store
+```
+
+## GCS
+
+``` r
+store <- zaro(paste0("gs://cmip6/CMIP6/ScenarioMIP/NOAA-GFDL/GFDL-ESM4/",
+                     "ssp585/r1i1p1f1/Omon/zos/gn/v20180701"))   # known public
+store <- zaro("gs://some-public-bucket/store.zarr", anonymous = TRUE)
+```
+
+Anonymous GCS chunks go through the pool as
+`https://storage.googleapis.com/` URLs. Signed GCS access is left to
+arrow or GDAL.
+
+## GDAL paths
+
+Any path starting `/vsi` opens a store read through gdalraster, so
+GDAL’s own configuration applies (`AWS_*`, `GS_*`, `GDAL_HTTP_*`,
+credentials files, `/vsicurl/` options):
+
+``` r
+store <- zaro("/vsicurl/https://host/path/store.zarr")
+store <- zaro("/vsis3/bucket/path/store.zarr")
+```
+
+Use this when you need something only GDAL handles, or to compare zaro’s
+own transport with GDAL’s.
+
+## Virtual stores
+
+A reference store holds the URLs of other files: NetCDF, HDF5 or GeoTIFF
+archives, often in a bucket. zaro fetches those references through the
+same pool. They carry no `anonymous` or `region` of their own, so
+references to `s3://` objects use the environment and options above
+(`AWS_NO_SIGN_REQUEST`, `options(zaro.cloud_anonymous = TRUE)`, AWS
+keys, `AWS_ENDPOINT_URL`). byterefs stores can also remap their source
+paths, for example from a local mirror to a public HTTPS copy, with
+`target`; see [virtual
+stores](https://hypertidy.github.io/zaro/articles/virtual-stores.md).
+
+## From Python
+
+| Python (fsspec, s3fs, xarray) | zaro |
+|----|----|
+| `storage_options={"anon": True}`, `anon=True` | `anonymous = TRUE` |
+| `client_kwargs={"endpoint_url": url}` | `endpoint_override = url`, or the HTTPS URL |
+| `{"token": "anon"}` (gcsfs) | `anonymous = TRUE` |
+| `{"key": ..., "secret": ...}` | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` |
+| CEPH `tenant:bucket` handler workarounds | the HTTPS URL |
+| `xr.open_zarr(url, group = g)` | `zaro_dataset(url, group = g)` |
+| `xr.open_datatree(url)` | `zaro_groups(url)`, then `zaro_dataset(group = )` |
+| `fs.glob(...)` | [`zaro_list()`](https://hypertidy.github.io/zaro/reference/zaro_list.md), or an S3 listing over HTTPS |
+
+## Options
+
+| Option | Default |  |
+|----|----|----|
+| `zaro.cloud_anonymous` | `FALSE` | read every S3/GCS object anonymously |
+| `zaro.max_con` | `8` | connections per host and in total |
+| `zaro.merge_gap` | `0` | merge byte ranges this close on the same file |
+| `zaro.verbose` | `TRUE` | report which backend opened the store |
+
+With `zaro.verbose` on,
+[`zaro()`](https://hypertidy.github.io/zaro/reference/zaro.md) says
+which backend it chose and
+[`zaro_read()`](https://hypertidy.github.io/zaro/reference/zaro_read.md)
+how many requests a read took, which is usually the quickest way to see
+whether a store is going through the pool.

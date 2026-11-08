@@ -225,7 +225,10 @@ GDAL’s sharding test fixtures.
 
 The articles walk through each piece with live data: [getting
 started](https://hypertidy.github.io/zaro/articles/getting-started.html),
-[virtual
+[connecting to
+stores](https://hypertidy.github.io/zaro/articles/connecting.html)
+(HTTPS, S3, GCS, custom endpoints, credentials, translating Python’s
+`storage_options`), [virtual
 stores](https://hypertidy.github.io/zaro/articles/virtual-stores.html),
 [planning, fetching and
 sharding](https://hypertidy.github.io/zaro/articles/plan-fetch-shard.html),
