@@ -104,7 +104,9 @@ zaro_chunk <- function(store, path, chunk_idx, meta = NULL,
 #' Read multiple chunks by index range
 #'
 #' Fetches and decodes a set of chunks identified by ranges along each
-#' dimension of the chunk grid. Supports parallel fetching.
+#' dimension of the chunk grid, one at a time or in parallel. For
+#' batched, pooled reads use [zaro_plan()] and [zaro_fetch()], or
+#' [zaro_read()].
 #'
 #' @param store a store object from [zaro()]
 #' @param path character. Path to the array.

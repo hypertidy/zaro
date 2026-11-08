@@ -1,357 +1,238 @@
-
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
 # zaro
 
-Arrow Zarr in R. A low-level Zarr reader for R built on Arrow's
-filesystem and codec infrastructure. Supports V2 and V3 stores with
-automatic version detection and consolidated metadata.
+<!-- badges: start -->
+[![R-CMD-check](https://github.com/hypertidy/zaro/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/hypertidy/zaro/actions/workflows/R-CMD-check.yaml)
+[![pkgdown](https://github.com/hypertidy/zaro/actions/workflows/pkgdown.yaml/badge.svg)](https://hypertidy.github.io/zaro/)
+<!-- badges: end -->
 
-Documentation and articles: <https://hypertidy.github.io/zaro/>
-([getting started](https://hypertidy.github.io/zaro/articles/getting-started.html),
-[virtual stores](https://hypertidy.github.io/zaro/articles/virtual-stores.html),
-[planning, fetching and sharding](https://hypertidy.github.io/zaro/articles/plan-fetch-shard.html),
-[zaro as an ndr engine](https://hypertidy.github.io/zaro/articles/zaro-and-ndr.html)).
+zaro reads Zarr arrays into R: native Zarr V2 and V3 (sharded too), and
+*virtual* Zarr, where the chunks are byte ranges inside NetCDF, HDF5 and
+GeoTIFF files that stay where they are. Local disk, HTTP(S), S3 and GCS.
 
-## Status
+Every read is the same three steps, and you can run each one yourself:
 
-Experimental but functional. Reads real-world cloud Zarr stores
-end-to-end including AODN (Australian Ocean Data Network) datasets on
-S3.
+    selection --zaro_plan()--> refs table --zaro_fetch()--> bytes --decode--> R array
+
+The plan is a plain data frame with one row per chunk (path, offset, size),
+in the shape of a [byterefs](https://github.com/byterefs/spec) view. The
+fetch sends every row through one curl connection pool, merging touching
+byte ranges. Decoding is R. arrow and GDAL are optional.
+
+![BRAN2023 sea surface temperature, read by zaro from NCI's NetCDF archive through a VirtualiZarr reference store](man/figures/README-bran-surface.png)
+
+*One day of BRAN2023 surface temperature: 60 byte ranges in one NetCDF
+file on NCI's THREDDS server, found by a VirtualiZarr reference store,
+fetched in one merged request.*
 
 ## Install
 
-``` r
+```r
 install.packages("zaro", repos = c("https://hypertidy.r-universe.dev",
                                     "https://cloud.r-project.org"))
 ```
 
-## Quick start
+Imports are light: curl, jsonlite, nanoparquet, S7 (and base R's methods
+and utils). Optional: altarr (lazy arrays), arrow (S3 and GCS listing and
+credentials, lz4/brotli/snappy codecs), gdalraster (GDAL `/vsi...` paths,
+S3 and GCS without arrow), blosc, DBI and RSQLite (byterefs SQLite stores).
 
-``` r
+## A first look
+
+```r
 library(zaro)
+options(zaro.verbose = FALSE)   # zaro explains what it does by default
 
-# open an AODN sea level dataset (Zarr V2 on S3)
-store <- zaro("s3://aodn-cloud-optimised/model_sea_level_anomaly_gridded_realtime.zarr",
-              anonymous = TRUE, region = "ap-southeast-2")
-
-# consolidated metadata in one request
-meta <- zaro_meta(store)
-#> [zaro] found .zmetadata (Zarr V2 consolidated)
-#> [zaro]   9 arrays: GSL, GSLA, LATITUDE, LONGITUDE, TIME, UCUR, VCUR, end_time, start_time
-
-# inspect an array
-gsla <- attr(meta, "consolidated")[["GSLA"]]
-gsla@shape           # [1] 100 351 641
-gsla@data_type       # "float64"
-gsla@dimension_names # "TIME" "LATITUDE" "LONGITUDE"
-
-# read a slab (0-based indexing)
-data <- zaro_read(store, "GSLA",
-                  start = c(0, 0, 0), count = c(1, 351, 641),
-                  meta = gsla)
-                  
-#> [zaro] reading 1 chunk(s) for path 'GSLA' (V2)
-dim(data)  # [1]   5 351 641
-range(data, na.rm = TRUE)
+ds <- zaro_dataset("s3://aodn-cloud-optimised/model_sea_level_anomaly_gridded_realtime.zarr",
+                   anonymous = TRUE, region = "ap-southeast-2")
+ds
+#> <zaro_dataset> 8 array(s) [zaro::ArrowStore]
+#>   GSL       float64  (LONGITUDE: 641, LATITUDE: 351, TIME: 2519)
+#>   GSLA      float64  (LONGITUDE: 641, LATITUDE: 351, TIME: 2519)
+#>   LATITUDE  float32  (LATITUDE: 351)
+#>   LONGITUDE float32  (LONGITUDE: 641)
+#>   TIME      float64  (TIME: 2519)
+#>   UCUR      float64  (LONGITUDE: 641, LATITUDE: 351, TIME: 2519)
+#>   VCUR      float64  (LONGITUDE: 641, LATITUDE: 351, TIME: 2519)
+#>   filename  string   (TIME: 2519)
+#>   attributes: 37
 ```
 
-## Design
+One request (the consolidated metadata), no array data. Then read a slice
+(0-based `start`, `count` in Zarr order, `NA` for the rest of an axis):
 
-Three internal layers, one flat API.
-
-**Store** - key-value access to Zarr stores. Arrow `FileSystem` handles
-local, S3, and GCS natively. gdalraster VSI handles HTTP and provides
-automatic S3 region detection when Arrow returns a 301 redirect.
-Kerchunk JSON and Parquet reference stores provide virtual Zarr access
-to existing archival files (NetCDF, HDF5, GRIB, TIFF).
-
-**Metadata** - pure R/jsonlite parsing with automatic V2/V3 detection.
-Consolidated metadata is preferred for cloud stores: `.zmetadata` (V2)
-or consolidated `zarr.json` (V3), retrieving all array metadata in a
-single request. Handles numpy dtype strings, xarray's
-`_ARRAY_DIMENSIONS` convention, and JSON-encoded fill values (`"NaN"`,
-`"Infinity"`).
-
-**Codec** - decompression pipeline using Arrow C++ codecs (zstd, gzip,
-lz4, brotli, snappy, bz2) with optional blosc fallback for V2 stores. V2
-compressor + filters are normalised to the V3 codec chain model so the
-decode pipeline is uniform. Type coercion handles endianness and dtype
-mapping to R vectors via `readBin()`.
-
-## API
-
-The core functions:
-
-``` r
-store <- zaro(source, ...)       # open a store
-zaro_list(store)                 # list contents
-zaro_meta(store, path)           # read metadata
-zaro_read(store, path, ...)      # read array data
-zaro_dataset(store)              # every array and its dimensions, no data read
-zaro_array(store, path, cf = TRUE)  # a lazy R array (via altarr), CF-decoded
+```r
+gsla <- zaro_read(ds, "GSLA", start = c(0, 0, 0), count = c(1, NA, NA))
+dim(gsla)
+#>      TIME  LATITUDE LONGITUDE
+#>         1       351       641
 ```
 
-### Opening stores
+![Gridded sea level anomaly around Australia](man/figures/README-gsla.png)
 
-``` r
-# S3 (anonymous)
-store <- zaro("s3://bucket/dataset.zarr", anonymous = TRUE)
+Or open it as a lazy R array that reads only the chunks you index (an
+[altarr](https://hypertidy.github.io/altarr/) ALTREP array, dimensions in
+R order), with CF masking and unpacking:
 
-# S3 (specific region)
-store <- zaro("s3://aodn-cloud-optimised/dataset.zarr",
-              region = "ap-southeast-2", anonymous = TRUE)
+```r
+x <- zaro_array(ds, "GSLA", cf = TRUE)
+dim(x)
+#> [1]  641  351 2519
 
-# local filesystem
-store <- zaro("/data/my_store.zarr")
-
-# HTTP (via gdalraster /vsicurl/)
-store <- zaro("https://example.com/data.zarr")
-
-# GCS
-store <- zaro("gs://bucket/dataset.zarr")
-
-# Kerchunk virtual references
-store <- zaro("reference+json:///path/to/refs.json")
-store <- zaro("reference+parquet:///path/to/refs.parquet")
+## both coordinates in one fetch, then a 200-day series at 155E, 35S
+xy <- zaro_read_arrays(ds, c("LONGITUDE", "LATITUDE"))
+i <- which.min(abs(xy$LONGITUDE - 155)); j <- which.min(abs(xy$LATITUDE + 35))
+ts <- x[cbind(i, j, 1:200)]
+summary(ts)
+#>    Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
+#> -0.4010  0.1382  0.4242  0.3446  0.5358  0.8861
 ```
 
-### Consolidated metadata
+## Virtual stores: the bytes stay in place
 
-For cloud stores, `zaro_meta()` reads consolidated metadata first - a
-single HTTP request for the entire store's metadata rather than one per
-array.
+A virtual store holds references, not data. Once open it behaves like any
+other store.
 
-``` r
-meta <- zaro_meta(store)
-# all arrays available without additional requests:
-names(attr(meta, "consolidated"))
-# root group attributes (CF conventions etc):
-meta@attributes
+| Source | Address |
+|---|---|
+| kerchunk JSON | `reference+json:///path/refs.json` |
+| kerchunk Parquet | `reference+parquet:///path/refs.parquet` |
+| VirtualiZarr Parquet manifests | `virtualizarr://https://.../dataset.parq` |
+| byterefs SQLite table | `byterefs:///path/store.sqlite` |
+| byterefs flat Parquet export | `flatrefs://https://.../store` |
 
-# read metadata for a specific array (also uses consolidated cache):
-temp_meta <- zaro_meta(store, "temperature")
-temp_meta@shape
-temp_meta@data_type
-temp_meta@dimension_names
-temp_meta@codecs
+byterefs stores apply their default path remap (`target`), so a table
+scanned on a local mirror reads from the public copy. A flat refs store is
+read by Parquet row group, only those whose statistics can hold the
+selection: a one-day plan from BRAN2023's 37.5M-row `temp` table reads one
+9 MB row group.
+
+This made-up 30-day track off Tasmania reads one value per day from 30
+NetCDF files, all fetched concurrently (the full code is in the
+[virtual stores](https://hypertidy.github.io/zaro/articles/virtual-stores.html)
+article):
+
+```r
+bran <- zaro_dataset("virtualizarr://https://raw.githubusercontent.com/mdsumner/virtualized/refs/heads/main/remote/ocean_temp_2023.parq")
+temp <- zaro_array(bran, "temp", cf = TRUE)   # int16 unpacked to degrees C
+dim(temp)
+#> [1] 3600 1500   51 5479
+system.time(track$temp <- temp[idx])          # idx: lon, lat, depth, day per row
+#>    user  system elapsed
+#>   0.539   0.128   1.024
 ```
 
-### Reading data
+![Temperature along a made-up track, from BRAN2023](man/figures/README-bran-track.png)
 
-``` r
-# read a hyperslab (0-based start, element counts)
-data <- zaro_read(store, "temperature",
-                  start = c(0, 100, 200),
-                  count = c(10, 50, 50))
+## Plan, then fetch
 
-# read full extent (omit start/count)
-lat <- zaro_read(store, "LATITUDE")
+```r
+bran <- zaro("virtualizarr://https://raw.githubusercontent.com/mdsumner/virtualized/refs/heads/main/remote/ocean_temp_2023.parq")
+p <- zaro_plan(bran, "temp", start = c(0, 0, 0, 0), count = c(1, 1, NA, NA))
+p
+#> <zaro_plan> 'temp': 60 chunk(s), 60 request(s)
+#>   transport: http 60
+#>   bytes:     3.6 MB
+#>   hosts:     thredds.nci.org.au
+#>           key transport  offset  size                                 path
+#>  temp/0.0.0.0      http   46353 74186 ...N2023/daily/ocean_temp_2010_01.nc
+#>  temp/0.0.1.0      http  941632 69286 ...N2023/daily/ocean_temp_2010_01.nc
+#>   ... 58 more
 
-# pass pre-fetched metadata to skip redundant request
-data <- zaro_read(store, "GSLA", meta = gsla,
-                  start = c(0, 0, 0), count = c(5, 351, 641))
+raw <- zaro_fetch(bran, p)
+attr(raw, "stats")$requests     # the 60 ranges touch, so they merge
+#> [1] 1
 ```
 
-## Examples
+## Sharded Zarr V3 and nested groups
 
-Two zarr examples
+A shard is planned as one more level of byte references: one small ranged
+read for its index, then each inner chunk is a byte range of the shard.
+This EOPF Sentinel-2 L2A product keeps its bands several groups down:
 
-### Material Zarr
-
-``` r
-library(zaro)
-store <- zaro("s3://aodn-cloud-optimised/model_sea_level_anomaly_gridded_realtime.zarr",
-              anonymous = TRUE, region = "ap-southeast-2")
-#> [zaro] opening S3 store via Arrow: s3://aodn-cloud-optimised/model_sea_level_anomaly_gridded_realtime.zarr
-# consolidated metadata in one request
-meta <- zaro_meta(store)
-#> [zaro] found .zmetadata (Zarr V2 consolidated)
-#> [zaro]   9 arrays: GSL, GSLA, LATITUDE, LONGITUDE, TIME, UCUR, VCUR, end_time, start_time
-
-gsla <- attr(meta, "consolidated")[["GSLA"]]
-gsla@shape           # [1] 100 351 641
-#> [1] 100 351 641
-gsla@data_type       # "float64"
-#> [1] "float64"
-gsla@dimension_names # "TIME" "LATITUDE" "LONGITUDE"
-#> [1] "TIME"      "LATITUDE"  "LONGITUDE"
-# read a slab (0-based indexing)
-data <- zaro_read(store, "GSLA",
-                  start = c(0, 0, 0), count = c(1, NA, NA),
-                  meta = gsla) ## or meta = meta
-#> [zaro] reading 1 chunk(s) for path 'GSLA' (V2)
-
-lon <- zaro_read(store, "LONGITUDE", meta = meta)
-#> [zaro] reading 1 chunk(s) for path 'LONGITUDE' (V2)
-lat <- zaro_read(store, "LATITUDE", meta = meta)
-#> [zaro] reading 1 chunk(s) for path 'LATITUDE' (V2)
-ximage::ximage(data[1,ncol(data):1,], c(range(lon), range(lat)))
-maps::map(col = "green", add = T)
+```r
+eopf <- zaro("https://s3.explorer.eopf.copernicus.eu/esa-zarr-sentinel-explorer-fra/tests-output/sentinel-2-l2a/S2C_MSIL2A_20260120T084301_N0511_R064_T36UXA_20260120T122910.zarr")
+zaro_groups(eopf)                                   # every group, arrays in each
+r10m <- zaro_dataset(eopf, group = "measurements/reflectance/r10m")
+v <- zaro_read(r10m, "b04", start = c(5000, 5000), count = c(1000, 1000))
 ```
 
-<img src="man/figures/README-material-1.png" width="100%" />
+![A 1000 x 1000 window of Sentinel-2 B04 from a sharded GeoZarr](man/figures/README-eopf-b04.png)
 
-### Virtual Zarr
+Checked against zarr-python 3.2.1 and GDAL on this store, and against
+GDAL's sharding test fixtures.
 
-``` r
-store <- zaro("virtualizarr://https://raw.githubusercontent.com/mdsumner/virtualized/refs/heads/main/remote/ocean_temp_2023.parq")
-#> [zaro] opening VirtualiZarr Parquet reference store: https://raw.githubusercontent.com/mdsumner/virtualized/refs/heads/main/remote/ocean_temp_2023.parq
-meta <- zaro_meta(store)
-#> [zaro] found .zmetadata (Zarr V2 consolidated)
-#> [zaro]   11 arrays: Time, Time_bnds, average_DT, average_T1, average_T2, nv, st_edges_ocean, st_ocean, temp, xt_ocean, yt_ocean
+## What it covers
 
-str(zaro:::store_get(store, "temp/0.0.0.0"))
-#>  raw [1:74186] 78 01 ec bc ...
-data <- zaro_read(store, "temp", start = c(0, 0, 0, 0), count = c(1, 1, NA, NA), meta = meta)
-#> [zaro] reading 60 chunk(s) for path 'temp' (V2)
-dim(data)
-#>     Time st_ocean yt_ocean xt_ocean 
-#>        1        1     1500     3600
-lon <- zaro_read(store, "xt_ocean", meta = meta)
-#> [zaro] reading 1 chunk(s) for path 'xt_ocean' (V2)
-lat <- zaro_read(store, "yt_ocean", meta = meta)
-#> [zaro] reading 1 chunk(s) for path 'yt_ocean' (V2)
-ximage::ximage(data[1,1,dim(data)[3]:1,], c(range(lon), range(lat)))
-maps::map("world2", add = TRUE)
-```
+* **Zarr V2 and V3**: consolidated metadata (`.zmetadata`, consolidated
+  `zarr.json`) including nested groups; `sharding_indexed` with its index at
+  either end; numpy dtype strings, `_ARRAY_DIMENSIONS`, C and F order.
+* **Types**: integers, floats (float16 too), bool, 64-bit integers as exact
+  doubles; strings (`fixed_length_utf32`, `null_terminated_bytes`,
+  `vlen-utf8`) as character.
+* **Codecs**: zstd, gzip, zlib and bz2 in base R; blosc; lz4, brotli and
+  snappy via arrow; shuffle, `imagecodecs_delta` (TIFF predictor 2);
+  `crc32c` stripped. A codec zaro doesn't know is refused clearly.
+* **Transport**: local files in base R; HTTP(S) with curl; S3 and GCS as
+  HTTPS through the same pool when access is known (anonymous, or S3 keys
+  in the environment), otherwise through arrow or GDAL; any GDAL `/vsi...`
+  path through gdalraster.
+* **Lazy arrays**: `zaro_array()` via altarr, with CF decoding.
+* **ndr**: zaro is the Zarr engine for
+  [ndr](https://hypertidy.github.io/ndr/)'s `open_dataset()` (labelled
+  dimensions, selection by value, reductions).
 
-<img src="man/figures/README-virtual-1.png" width="100%" />
+## Functions
 
-Or another
+| | |
+|---|---|
+| `zaro()` | open a store (any of the sources above) |
+| `zaro_dataset()`, `zaro_groups()` | every array of a group and its dimensions; the groups of a store |
+| `zaro_list()`, `zaro_meta()` | list keys; read an array or group's metadata |
+| `zaro_read()`, `zaro_read_arrays()` | a hyperslab as an R array; several whole arrays in one fetch |
+| `zaro_array()` | a lazy R array, optionally CF-decoded |
+| `zaro_plan()`, `zaro_fetch()` | the byte references a read needs; fetching them |
+| `zaro_chunk()`, `zaro_chunks()`, `zaro_chunk_info()`, `zaro_chunk_apply()` | work chunk by chunk |
 
-``` r
-store <- zaro("virtualizarr://https://raw.githubusercontent.com/mdsumner/virtualized/refs/heads/main/remote/ocean_salt_2023.parq")
-#> [zaro] opening VirtualiZarr Parquet reference store: https://raw.githubusercontent.com/mdsumner/virtualized/refs/heads/main/remote/ocean_salt_2023.parq
-meta <- zaro_meta(store)
-#> [zaro] found .zmetadata (Zarr V2 consolidated)
-#> [zaro]   11 arrays: Time, Time_bnds, average_DT, average_T1, average_T2, nv, salt, st_edges_ocean, st_ocean, xt_ocean, yt_ocean
+## Options
 
-data <- zaro_read(store, "salt", start = c(185, 10, 0, 0), count = c(1, 1, NA, NA), meta = meta)
-#> [zaro] reading 60 chunk(s) for path 'salt' (V2)
-dim(data)
-#>     Time st_ocean yt_ocean xt_ocean 
-#>        1        1     1500     3600
-lon <- zaro_read(store, "xt_ocean", meta = meta)
-#> [zaro] reading 1 chunk(s) for path 'xt_ocean' (V2)
-lat <- zaro_read(store, "yt_ocean", meta = meta)
-#> [zaro] reading 1 chunk(s) for path 'yt_ocean' (V2)
+| Option | Default | |
+|---|---|---|
+| `zaro.verbose` | `TRUE` | diagnostic messages from every function |
+| `zaro.max_con` | `8` | HTTP connections, per host and in total |
+| `zaro.merge_gap` | `0` | merge byte ranges this close on the same file |
+| `zaro.cloud_anonymous` | `FALSE` | treat S3/GCS as anonymous (curl pool) |
+| `zaro.flat_cache_row_groups` | `4` | flat refs row groups kept in memory |
 
-ximage::ximage(data[1,1,dim(data)[3]:1,], c(range(lon), range(lat)), col = hcl.colors(64))
-maps::map("world2", add = TRUE)
-abline(v = lon[1700])
-```
+## Learn more
 
-<img src="man/figures/README-salt-1.png" width="100%" />
+The articles walk through each piece with live data:
+[getting started](https://hypertidy.github.io/zaro/articles/getting-started.html),
+[virtual stores](https://hypertidy.github.io/zaro/articles/virtual-stores.html),
+[planning, fetching and sharding](https://hypertidy.github.io/zaro/articles/plan-fetch-shard.html),
+and [zaro as an ndr engine](https://hypertidy.github.io/zaro/articles/zaro-and-ndr.html).
 
-``` r
+Design notes live in
+[`inst/docs-design/`](https://github.com/hypertidy/zaro/tree/main/inst/docs-design):
+origin, parallelization, Icechunk, ecosystem position, cloud connection
+helpers, URI interpretation, the roadmap, and zaro's position on byterefs.
 
-data <- zaro_read(store, "salt", start = c(0, 0, 0, 1700), count = c(1, NA, NA, 1))
-#> [zaro] checking .zmetadata for 'salt'
-#> [zaro] found 'salt' in consolidated metadata
-#> [zaro]   dtype: int16 | shape: [5479, 51, 1500, 3600] | chunks: [1, 1, 300, 300]
-#> [zaro]   codecs: bytes -> shuffle -> zlib
-#> [zaro]   dimensions: Time, st_ocean, yt_ocean, xt_ocean
-#> [zaro] reading 255 chunk(s) for path 'salt' (V2)
-ximage::ximage(data[1, ,, 1], col = hcl.colors(64))
-```
+## Related packages
 
-<img src="man/figures/README-salt-2.png" width="100%" />
+* [ndr](https://hypertidy.github.io/ndr/): xarray-like labelled arrays for
+  R; uses zaro for Zarr and virtual Zarr, GDAL for the rest.
+* [altarr](https://hypertidy.github.io/altarr/): lazy chunked arrays as
+  plain R arrays; `zaro_array()` is built on it.
+* [zarr](https://CRAN.R-project.org/package=zarr) (CRAN) and
+  [pizzarr](https://github.com/zarr-developers/pizzarr): R Zarr
+  implementations with their own store and codec models.
+* [gdalraster](https://github.com/firelab/gdalraster): GDAL bindings,
+  including the Zarr driver and the multidimensional API; zaro uses its VSI
+  layer when asked.
+* [raad.virtualize](https://github.com/mdsumner/raad.virtualize): produces
+  byterefs stores that zaro reads.
 
-### Verbose diagnostics
-
-Diagnostic messages are on by default to help with discovery and
-debugging. They report which store backend was selected, metadata format
-detected, dtype/shape/chunks/codecs, and chunk counts during reads.
-
-``` r
-# silence per-call
-zaro_meta(store, "GSLA", verbose = FALSE)
-
-# silence globally
-suppressMessages(zaro_read(store, "GSLA", start = c(0,0,0), count = c(5,351,641)))
-```
-
-## S3 region handling
-
-Arrow's `S3FileSystem` defaults to us-east-1 and does not follow 301
-region redirects. When this happens, zaro falls back to gdalraster's
-`/vsis3/` which handles region detection transparently. You can also
-specify the region explicitly:
-
-``` r
-store <- zaro("s3://aodn-cloud-optimised/dataset.zarr",
-              region = "ap-southeast-2", anonymous = TRUE)
-```
-
-## Dependencies
-
-Required: `arrow`, `jsonlite`, `S7`
-
-Optional: `gdalraster` (HTTP/VSI store access, S3 region fallback),
-`blosc` (blosc-compressed chunks common in V2 stores)
-
-## Zarr version support
-
-Version detection is automatic. `zaro_meta()` tries V3 first
-(`zarr.json`), then falls back to V2 (`.zmetadata` consolidated, then
-per-array `.zarray` + `.zattrs`). Essentially all existing cloud Zarr
-data (AODN, Copernicus, CMIP6, NASA) is V2 - this is fully supported.
-
-V2 specifics handled: numpy dtype strings (`<f4`, `>i2`, `|u1`),
-`dimension_separator` (dot and slash), `_ARRAY_DIMENSIONS` (xarray), C/F
-memory order, consolidated `.zmetadata`, fill value coercion from JSON
-strings.
-
-## Relationship to other packages
-
-**zarr** (CRAN) - native R Zarr V3 implementation with R6 store/codec
-architecture. zaro could contribute an Arrow-backed store class.
-Different approach: zarr aims for spec-complete V3, zaro prioritises
-cloud access and existing V2 data.
-
-**pizzarr** - pure R Zarr V2 implementation with HTTP store support.
-Bioimaging origin.
-
-**gdalraster** - comprehensive GDAL bindings including the Zarr driver
-and Multidimensional API. This is the backend for ndr. zaro is
-GDAL-independent for array semantics and the codec pipeline, but uses
-GDAL VSI for filesystem access when Arrow doesn't cover the transport
-(HTTP, cross-region S3).
-
-**tidync** - metadata-first NetCDF exploration. zaro sits below this as
-potential backend infrastructure for Zarr sources.
-
-**ndr** - S7-based xarray-like labeled arrays for R. The gdalraster
-Multidim backend is the primary driver. zaro is an alternative backend
-for GDAL-independent Zarr access and direct store-level control.
-
-**vapour** - lightweight GDAL bindings for raster and vector data.
-Provides some of the same VSI filesystem access that zaro uses via
-gdalraster.
-
-**altarr** ([hypertidy/altarr](https://github.com/hypertidy/altarr)) --
-lazy chunked arrays as plain R arrays (ALTREP). `zaro_array()` uses
-zaro's chunk fetch and codec pipeline as an altarr fetch function, so a
-Zarr array subsets and reduces with base R, reading only the chunks it
-needs.
-
-## How it works
-
-zaro implements the Zarr specification directly rather than wrapping a
-Zarr library. Capabilities interoperate with the Python ecosystem
-through shared specifications: the same JSON metadata, the same codec
-algorithms (via Arrow's C++ implementations, identical to PyArrow), the
-same S3 protocols, the same chunk layout. A dataset written by xarray in
-Python reads in zaro without conversion.
-
-## Design documents
-
-Detailed rationale and analysis live in `inst/docs-design/`:
-
-- `001-origin.md` - founding design decisions and architecture
-- `002-parallelization.md` - mirai/futurize integration roadmap
-- `003-icechunk-landscape.md` - Icechunk analysis and R integration
-  paths
-- `004-ecosystem-narrative.md` - R's geospatial capability and
-  interoperability through specification
+zaro implements the Zarr specification directly rather than wrapping a Zarr
+library, so a store written by xarray or zarr-python reads without
+conversion, and the same references serve Python, GDAL and zaro.

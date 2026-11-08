@@ -39,5 +39,7 @@ entries indicate missing chunks.
 }
 \description{
 Fetches and decodes a set of chunks identified by ranges along each
-dimension of the chunk grid. Supports parallel fetching.
+dimension of the chunk grid, one at a time or in parallel. For
+batched, pooled reads use \code{\link[=zaro_plan]{zaro_plan()}} and \code{\link[=zaro_fetch]{zaro_fetch()}}, or
+\code{\link[=zaro_read]{zaro_read()}}.
 }

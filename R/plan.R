@@ -12,9 +12,12 @@
 #' Works out which chunks of an array a hyperslab touches and where each
 #' chunk's bytes are: a whole object in a native store, a byte range inside
 #' a NetCDF/HDF5/TIFF file for a virtual store (kerchunk, VirtualiZarr,
-#' mdim-refs), inline bytes, or absent (reads as `fill_value`). No chunk data
-#' is read. For a native store no request is made at all; a virtual store
-#' may fetch the manifest it needs (cached in the store).
+#' byterefs), a byte range inside a shard object for a sharded array, inline
+#' bytes, or absent (reads as `fill_value`). No chunk data
+#' is read. For a native unsharded store no request is made at all; a
+#' sharded array reads the index of each shard it touches, and a virtual
+#' store may fetch the manifest or row groups it needs (cached in the
+#' store).
 #'
 #' The result is a data frame you can inspect, filter, save or hand to
 #' another tool. Printing it summarises the cost: requests, known bytes and

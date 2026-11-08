@@ -4,8 +4,12 @@ template:
 
 navbar:
   structure:
-    left: [intro, reference, articles, news]
+    left: [intro, reference, articles, design, news]
     right: [search, github]
+  components:
+    design:
+      text: Design notes
+      href: https://github.com/hypertidy/zaro/tree/main/inst/docs-design
 
 articles:
 - title: Articles
@@ -22,15 +26,19 @@ reference:
   contents:
   - zaro
   - zaro_dataset
+  - zaro_groups
   - zaro_list
   - zaro_meta
 - title: Read
-  desc: Hyperslabs as R arrays, or lazy arrays that read on demand.
+  desc: Hyperslabs as R arrays, several whole arrays in one fetch, or lazy
+    arrays that read on demand.
   contents:
   - zaro_read
+  - zaro_read_arrays
   - zaro_array
 - title: Plan and fetch
-  desc: Which bytes a read needs (a byterefs-shaped table), and fetching them.
+  desc: Which bytes a read needs (a byterefs-shaped table), and fetching them
+    through one connection pool.
   contents:
   - zaro_plan
   - zaro_fetch
