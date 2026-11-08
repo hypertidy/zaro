@@ -3,10 +3,10 @@
 # Every store answers store_refs(store, keys) with one row per key:
 #
 #   key        the Zarr key asked for
-#   url        where the bytes are (object URL, file path, or VSI path)
-#   offset     byte offset within url (0 for a whole object; negative for
-#              the last `length` bytes, as for a shard index at the end)
-#   length     bytes to read; NA when the whole object is wanted and its
+#   path       where the bytes are (object URL, file path, or VSI path)
+#   offset     byte offset within path (0 for a whole object; negative for
+#              the last `size` bytes, as for a shard index at the end)
+#   size       bytes to read; NA when the whole object is wanted and its
 #              size is not known without a request (native Zarr chunks)
 #   transport  how to get them:
 #                store   the store's own get (Arrow S3/GCS with its
@@ -15,9 +15,12 @@
 #                s3, gs  an object URL, read with Arrow's default filesystem
 #                vsi     a GDAL virtual file path (gdalraster)
 #                local   a local file
-#                inline  the bytes are in the table (`inline` column)
+#                inline  the bytes are in the table (`data` column)
 #                absent  no such chunk: reads as fill_value
-#   inline     list column of raw vectors (NULL unless transport "inline")
+#   data       list column of raw vectors (NULL unless transport "inline")
+#
+# Column names follow the byterefs view (https://github.com/byterefs/spec):
+# path, offset, size, data. zaro_plan() adds present and dim_0..dim_{n-1}.
 #
 # Native, virtual and (later) sharded stores all reduce to this, so one
 # fetcher and one decoder serve every backend.
@@ -25,16 +28,16 @@
 
 #' Build a refs table
 #' @noRd
-refs_frame <- function(keys, url = NA_character_, offset = NA_real_,
-                       length = NA_real_, transport = "store") {
-  n <- base::length(keys)
+refs_frame <- function(keys, path = NA_character_, offset = NA_real_,
+                       size = NA_real_, transport = "store") {
+  n <- length(keys)
   out <- data.frame(key = as.character(keys),
-                    url = rep_len(as.character(url), n),
+                    path = rep_len(as.character(path), n),
                     offset = rep_len(as.numeric(offset), n),
-                    length = rep_len(as.numeric(length), n),
+                    size = rep_len(as.numeric(size), n),
                     transport = rep_len(as.character(transport), n),
                     stringsAsFactors = FALSE)
-  out$inline <- vector("list", n)
+  out$data <- vector("list", n)
   out
 }
 
@@ -58,14 +61,14 @@ fetch_ref <- function(store, ref) {
   stopifnot(nrow(ref) == 1L)
   switch(ref$transport,
     absent = NULL,
-    inline = ref$inline[[1L]],
-    store  = if (is.na(ref$length)) store_get(store, ref$key) else
-               store_range(store, ref$key, ref$offset, ref$length),
+    inline = ref$data[[1L]],
+    store  = if (is.na(ref$size)) store_get(store, ref$key) else
+               store_range(store, ref$key, ref$offset, ref$size),
     {
-      if (is.na(ref$length)) {
-        read_whole(ref$url, ref$transport)
+      if (is.na(ref$size)) {
+        read_whole(ref$path, ref$transport)
       } else {
-        byte_range_read(ref$url, ref$offset, ref$length)
+        byte_range_read(ref$path, ref$offset, ref$size)
       }
     }
   )

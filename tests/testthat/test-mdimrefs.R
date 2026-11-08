@@ -87,13 +87,13 @@ test_that("meta.default_target is applied when no target is given (decision 0004
   v <- zaro_read(st, "v", verbose = FALSE)
   expect_equal(as.vector(t(matrix(v, 2))), c(1:4, -1L, -1L, 5:8, -1L, -1L))
   p <- zaro_plan(st, "v", verbose = FALSE)
-  expect_false(any(startsWith(stats::na.omit(p$url), "/old/")))
+  expect_false(any(startsWith(stats::na.omit(p$path), "/old/")))
 
   ## target = "" forces the verbatim sources (here unreadable: /old/...)
   verb <- zaro(paste0("byterefs://", db), target = "", verbose = FALSE)
   expect_equal(verb@target, "")
   pv <- zaro_plan(verb, "v", verbose = FALSE)
-  expect_true(all(startsWith(stats::na.omit(pv$url), "/old/")))
+  expect_true(all(startsWith(stats::na.omit(pv$path), "/old/")))
 
   ## no default target: verbatim, as before
   expect_equal(zaro(paste0("byterefs://", make_byterefs()), verbose = FALSE)@target, "")

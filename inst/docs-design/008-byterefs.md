@@ -31,17 +31,20 @@ superseded by it.
 
 ## The two tables side by side
 
-| byterefs view (`refs_<array>`) | zaro plan (today) | Notes |
+| byterefs view (`refs_<array>`) | zaro plan (0.0.1.9022) | Notes |
 |---|---|---|
-| `dim_0 .. dim_{n-1}` | `index` (list column) | 0-based, C order in both |
-| `present` | `transport != "absent"` | byterefs `present = 0` is known empty, read as fill |
-| `path` | `url` | byterefs: remapped for the chosen target |
+| `dim_0 .. dim_{n-1}` | `dim_0 .. dim_{n-1}` | 0-based, C order in both |
+| `present` | `present` (logical) | byterefs `present = 0` is known empty, read as fill |
+| `path` | `path` | byterefs: remapped for the chosen target |
 | `offset` | `offset` | |
-| `size` | `length` | zaro `NA` = whole object of unknown size (native Zarr) |
+| `size` | `size` | zaro `NA` = whole object of unknown size (native Zarr) |
 | `info` | (codecs from array metadata) | block-info text; zaro decodes from the array's codec chain |
-| `data` | `inline` | inline chunk bytes |
-| (none) | `transport` | zaro only: how the bytes are fetched (`http`, `store`, ...) |
+| `data` | `data` | inline chunk bytes |
 | (none) | `key` | zaro only: the Zarr key, kept for store reads |
+| (none) | `transport` | zaro only: how the bytes are fetched (`http`, `store`, ...) |
+
+Until 0.0.1.9022 the plan used `url`, `length`, `inline` and a list column
+`index`.
 
 Native Zarr chunks are whole objects whose size isn't known until fetched.
 byterefs rows always carry a size, so a zaro-produced table either looks
@@ -54,10 +57,10 @@ size. That is a question for byterefs, below.
    (decision 0004), accepts exactly `byterefs/0.1` and `mdim-refs/0.2`
    (decision 0003), and opens `byterefs://` (`mdimrefs://` stays as an
    alias).
-2. **Rename plan columns to byterefs names** while nothing depends on them:
-   `url` to `path`, `length` to `size`, `inline` to `data`, add `present`
-   and integer `dim_i` columns in place of `index`. Keep `key` and
-   `transport` as extras.
+2. **Done** (0.0.1.9022). Plan columns renamed to byterefs names: `url`
+   to `path`, `length` to `size`, `inline` to `data`, `present` and integer
+   `dim_i` columns in place of `index`, in byterefs view order; `key` and
+   `transport` kept as extras.
 3. **Read byterefs natively.** Today a byterefs store is served through
    synthesized Zarr V2 keys and one view query per key. Instead,
    `store_refs()` takes all of a plan's keys in one query, and uses the

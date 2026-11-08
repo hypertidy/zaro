@@ -32,12 +32,16 @@ row per chunk, Zarr dimension order), instead of \code{start}/\code{count}.}
 \code{getOption("zaro.verbose", TRUE)}.}
 }
 \value{
-A \code{zaro_plan} data frame, one row per chunk: \code{key}, \code{url},
-\code{offset}, \code{length} (\code{NA} for a whole object of unknown size), \code{transport}
+A \code{zaro_plan} data frame, one row per chunk, in the shape of a
+byterefs view (\url{https://github.com/byterefs/spec}):
+\code{dim_0}, ..., \verb{dim_\{n-1\}} (the chunk's 0-based grid index, Zarr
+dimension order), \code{present} (\code{FALSE} for an absent chunk, read as
+\code{fill_value}), \code{path} (where the bytes are), \code{offset}, \code{size} (\code{NA} for
+a whole object of unknown size), \code{data} (list of raw, for inline
+chunks), then zaro's own columns: \code{key} (the Zarr key) and \code{transport}
 (\code{"store"}, \code{"http"}, \code{"s3"}, \code{"gs"}, \code{"vsi"}, \code{"local"}, \code{"inline"} or
-\code{"absent"}), \code{inline} (list of raw) and \code{index} (list of the chunk's
-0-based grid index). Attributes \code{path} and \code{meta} record what was
-planned.
+\code{"absent"}: how the bytes are fetched). Attributes \code{array} (the array's
+path in the store) and \code{meta} record what was planned.
 }
 \description{
 Works out which chunks of an array a hyperslab touches and where each

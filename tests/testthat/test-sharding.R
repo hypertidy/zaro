@@ -41,9 +41,9 @@ test_that("sharded V3 (index at end, crc32c): read, lazy array, plan", {
   expect_equal(nrow(p), 3L * 4L)                      # inner grid 3 x 4
   ## present inner chunks are byte ranges of their shard file
   present <- p$transport == "local"
-  expect_true(all(!is.na(p$length[present])))
-  expect_true(all(p$length[present] == 3 * 2 * 8))
-  expect_true(all(grepl("/c/[0-9]+/[0-9]+$", p$url[present])))
+  expect_true(all(!is.na(p$size[present])))
+  expect_true(all(p$size[present] == 3 * 2 * 8))
+  expect_true(all(grepl("/c/[0-9]+/[0-9]+$", p$path[present])))
   ## absent: the empty inner chunk (1, 0), and the inner chunks of the
   ## missing shard (1, 1) that exist in the 3 x 4 inner grid: (2, 2), (2, 3)
   expect_equal(sum(p$transport == "absent"), 3L)
@@ -61,7 +61,7 @@ test_that("sharded V3 (index at start, no crc), 3D, edge padding", {
   ## a hyperslab touching a single inner chunk plans one byte range
   p <- zaro_plan(store, start = c(1, 2, 0), count = c(1, 1, 2), verbose = FALSE)
   expect_equal(nrow(p), 1L)
-  expect_equal(p$length, 2 * 2 * 1 * 8)
+  expect_equal(p$size, 2 * 2 * 1 * 8)
   ## zaro_chunk() (one inner chunk) goes through the same plan
   ch <- zaro_chunk(store, "", c(0L, 0L, 0L), verbose = FALSE)
   expect_equal(as.vector(ch$values), as.vector(aperm(x[1:2, 1:2, 1, drop = FALSE])))
@@ -83,7 +83,7 @@ test_that("sharded V3 over HTTP: suffix-range index reads, pooled fetch", {
   p <- zaro_plan(store, verbose = FALSE)
   ## 1 metadata GET + 4 shard index reads (the missing shard is a 404)
   expect_lte(srv$stats()$requests - before, 5L)
-  expect_true(all(p$transport[!is.na(p$url)] == "http"))
+  expect_true(all(p$transport[!is.na(p$path)] == "http"))
   expect_equal(sum(p$transport == "absent"), 4L)
   r <- zaro_read(store, verbose = FALSE)
   expect_equal(as.vector(aperm(unname(r))), as.vector(want))
