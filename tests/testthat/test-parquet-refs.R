@@ -21,15 +21,20 @@ make_vz <- function(dir) {
   path[3] <- NA                      # chunk (1, 0) is inline
   raw_col[[3]] <- bytes[[3]]
   rows <- data.frame(path = path, offset = offs, size = lengths(bytes))
-  ## shard 0 by nanoparquet, shard 1 by arrow (as pyarrow writes them:
-  ## int64 offset, binary raw)
+  ## shard 0 by nanoparquet, shard 1 by arrow when installed (as pyarrow
+  ## writes them: int64 offset, binary raw)
   s0 <- rows[1:2, ]; s0$raw <- raw_col[1:2]
   nanoparquet::write_parquet(s0, file.path(dir, "a", "refs.0.parq"))
-  s1 <- arrow::arrow_table(path = rows$path[3:4],
-                           offset = arrow::Array$create(rows$offset[3:4], arrow::int64()),
-                           size = arrow::Array$create(rows$size[3:4], arrow::int64()),
-                           raw = arrow::Array$create(raw_col[3:4], arrow::binary()))
-  arrow::write_parquet(s1, file.path(dir, "a", "refs.1.parq"))
+  if (requireNamespace("arrow", quietly = TRUE)) {
+    s1 <- arrow::arrow_table(path = rows$path[3:4],
+                             offset = arrow::Array$create(rows$offset[3:4], arrow::int64()),
+                             size = arrow::Array$create(rows$size[3:4], arrow::int64()),
+                             raw = arrow::Array$create(raw_col[3:4], arrow::binary()))
+    arrow::write_parquet(s1, file.path(dir, "a", "refs.1.parq"))
+  } else {
+    s1 <- rows[3:4, ]; s1$raw <- raw_col[3:4]
+    nanoparquet::write_parquet(s1, file.path(dir, "a", "refs.1.parq"))
+  }
   writeLines(paste0(
     '{"zarr_consolidated_format": 1, "metadata": {',
     '".zgroup": {"zarr_format": 2}, ".zattrs": {}, ',

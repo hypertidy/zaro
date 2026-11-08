@@ -11,7 +11,8 @@ zaro_list(store, path = "", ...)
 
 \item{path}{character. Path prefix within the store (default root).}
 
-\item{...}{arguments for methods (specifically 'recursive = FALSE' is default for 'ArrowStore')}
+\item{...}{arguments for methods (specifically 'recursive = FALSE' is
+default for local and Arrow stores)}
 }
 \value{
 character vector of keys (relative paths).

@@ -8,6 +8,26 @@
 #' @noRd
 zaro_verbose <- function() isTRUE(getOption("zaro.verbose", TRUE))
 
+#' Is arrow installed? (Suggests: S3/GCS filesystems, lz4/brotli/snappy)
+#' @noRd
+has_arrow <- function() requireNamespace("arrow", quietly = TRUE)
+
+#' Stop unless arrow is installed
+#' @noRd
+need_arrow <- function(what) {
+  if (!has_arrow()) {
+    stop(what, " needs the 'arrow' package: install.packages(\"arrow\")",
+         call. = FALSE)
+  }
+  invisible(TRUE)
+}
+
+#' s3://bucket/key or gs://bucket/key as a GDAL /vsis3/ or /vsigs/ path
+#' @noRd
+cloud_to_vsi <- function(url) {
+  sub("^(s3|gs)://", "/vsi\\1/", url)
+}
+
 #' Emit a verbose message (suppressed by suppressMessages)
 #' @noRd
 vmsg <- function(..., verbose = zaro_verbose()) {

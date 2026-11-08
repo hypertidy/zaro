@@ -56,8 +56,22 @@ test_that("float data with a horizontal delta is refused clearly", {
   expect_error(decode_chunk(as.raw(rep(0, 16)), meta), "TIFF predictor 3")
 })
 
+test_that("zstd, gzip and bz2 decode with base R, no arrow", {
+  raw_in <- writeBin(rep(1234L, 512 * 512), raw(), size = 2L)
+  for (type in c("zstd", "gzip", "bz2")) {
+    base_type <- switch(type, bz2 = "bzip2", type)
+    packed <- tryCatch(memCompress(raw_in, base_type), error = function(e) NULL)
+    if (is.null(packed)) next              # R built without libzstd
+    expect_identical(decode_one(packed, list(name = type), NULL), raw_in,
+                     label = type)
+  }
+  expect_error(base_decompress(as.raw(1:10), "gzip", list()))
+})
+
 test_that("chunks compressing better than 20:1 decompress in full", {
-  ## a constant 512 x 512 int16 chunk: zstd/gzip compress it far beyond 20:1
+  skip_if_not_installed("arrow")
+  ## a constant 512 x 512 int16 chunk: zstd/gzip compress it far beyond 20:1;
+  ## arrow writes streaming frames, which base R also reads
   for (type in c("zstd", "gzip")) {
     raw_in <- writeBin(rep(1234L, 512 * 512), raw(), size = 2L)
     codec <- arrow::Codec$create(type)
@@ -68,6 +82,7 @@ test_that("chunks compressing better than 20:1 decompress in full", {
     packed <- as.raw(sink$finish())
     expect_gt(length(raw_in) / length(packed), 20)
     expect_identical(arrow_decompress(packed, type, list()), raw_in, label = type)
+    expect_identical(base_decompress(packed, type, list()), raw_in, label = type)
   }
 })
 

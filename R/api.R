@@ -61,7 +61,8 @@
 #' store <- zaro("s3://mur-sst/zarr-v1", anonymous = TRUE)
 #'
 #' # GCS - known public bucket, anonymous auto-detected
-#' store <- zaro("gs://cmip6/CMIP6/ScenarioMIP/NOAA-GFDL/GFDL-ESM4/ssp585/r1i1p1f1/Omon/zos/gn/v20180701")
+#' store <- zaro(paste0("gs://cmip6/CMIP6/ScenarioMIP/NOAA-GFDL/GFDL-ESM4/",
+#'                      "ssp585/r1i1p1f1/Omon/zos/gn/v20180701"))
 #'
 #' # VirtualiZarr Parquet reference
 #' store <- zaro("virtualizarr://https://example.com/dataset.parq")
@@ -109,6 +110,20 @@ zaro <- function(source, verbose = zaro_verbose(), ..., validate = FALSE) {
     # VirtualiZarr Parquet reference store (directory with manifests)
     base_url <- sub("^virtualizarr://", "", source)
     store <- open_virtualizarr(base_url, verbose = verbose)
+  } else if (grepl("^(s3|gs)://", source) && !has_arrow()) {
+    # no arrow: GDAL's /vsis3/ or /vsigs/ through gdalraster
+    if (!requireNamespace("gdalraster", quietly = TRUE)) {
+      stop("s3:// and gs:// stores need 'arrow' or 'gdalraster'",
+           call. = FALSE)
+    }
+    if (isTRUE(dots[["anonymous"]])) {
+      opt <- if (grepl("^s3://", source)) "AWS_NO_SIGN_REQUEST" else "GS_NO_SIGN_REQUEST"
+      gdalraster::set_config_option(opt, "YES")
+    }
+    vsi_root <- cloud_to_vsi(source)
+    vmsg("arrow not installed, opening gdalraster VSI store: ", vsi_root,
+         verbose = verbose)
+    store <- VSIStore(root = vsi_root)
   } else if (grepl("^s3://", source)) {
     # S3 - try Arrow first, fall back to gdalraster /vsis3/ on 301
     vmsg("opening S3 store via Arrow: ", source, verbose = verbose)
@@ -172,10 +187,9 @@ zaro <- function(source, verbose = zaro_verbose(), ..., validate = FALSE) {
     store <- VSIStore(root = source)
   } else {
 
-   # local filesystem
+   # local filesystem, base R
    vmsg("opening local store: ", source, verbose = verbose)
-   fs <- arrow::LocalFileSystem$create()
-   store <- ArrowStore(root = normalizePath(source, mustWork = FALSE), fs = fs)
+   store <- LocalStore(root = normalizePath(source, mustWork = FALSE))
   }
   # eagerly probe the store if requested
   if (validate) {
@@ -193,7 +207,8 @@ zaro <- function(source, verbose = zaro_verbose(), ..., validate = FALSE) {
 #'
 #' @param store a store object from [zaro()]
 #' @param path character. Path prefix within the store (default root).
-#' @param ... arguments for methods (specifically 'recursive = FALSE' is default for 'ArrowStore')
+#' @param ... arguments for methods (specifically 'recursive = FALSE' is
+#'   default for local and Arrow stores)
 #' @returns character vector of keys (relative paths).
 #'
 #' @export

@@ -9,7 +9,8 @@
 #                                 without fetching them (see refs.R)
 #
 # Backends:
-#   ArrowStore     - arrow::FileSystem (local, S3, GCS)
+#   LocalStore     - local files, base R
+#   ArrowStore     - arrow::FileSystem (S3, GCS; arrow is in Suggests)
 #   HttpStore      - plain HTTP(S) via curl
 #   VSIStore       - gdalraster VSI (Azure, any GDAL vfs; S3 region fallback)
 #   ReferenceStore - Kerchunk JSON or Parquet virtual references
@@ -40,7 +41,38 @@ method(store_refs, ZaroStore) <- function(store, keys) {
   refs_frame(keys, path = keys, transport = "store")
 }
 
-# -- Arrow filesystem store -------------------------------------------------
+# -- Local filesystem store (base R) ----------------------------------------
+
+LocalStore <- new_class("LocalStore", parent = ZaroStore)
+
+method(store_get, LocalStore) <- function(store, key) {
+  path <- file.path(store@root, key)
+  if (!file.exists(path) || dir.exists(path)) return(NULL)
+  readBin(path, "raw", file.size(path))
+}
+
+method(store_list, LocalStore) <- function(store, prefix = "", recursive = FALSE) {
+  prefix <- sub("^/+", "", sub("/+$", "", prefix))
+  path <- if (nzchar(prefix)) file.path(store@root, prefix) else store@root
+  out <- list.files(path, all.files = TRUE, no.. = TRUE,
+                    recursive = recursive, include.dirs = TRUE)
+  if (nzchar(prefix) && length(out)) paste0(prefix, "/", out) else out
+}
+
+method(store_range, LocalStore) <- function(store, key, offset, length) {
+  byte_range_read(file.path(store@root, key), offset, length)
+}
+
+method(store_refs, LocalStore) <- function(store, keys) {
+  refs_frame(keys, path = paste0(store@root, "/", keys), offset = 0,
+             transport = "local")
+}
+
+method(store_exists, LocalStore) <- function(store, key) {
+  file.exists(file.path(store@root, key))
+}
+
+# -- Arrow filesystem store (S3, GCS) ----------------------------------------
 
 ArrowStore <- new_class("ArrowStore", parent = ZaroStore, properties = list(
   fs = class_any  # arrow::FileSystem (can't type-check R6)
@@ -260,12 +292,14 @@ expand_template <- function(url, templates) {
 
 #' Read a byte range from a URL or file path
 #'
-#' Dispatches to the best available method: arrow S3/GCS for cloud URIs,
-#' gdalraster VSI for everything else.
+#' Dispatches to the best available method: arrow S3/GCS for cloud URIs
+#' (GDAL /vsis3/, /vsigs/ when arrow isn't installed), base R for local
+#' files, gdalraster VSI for everything else.
 #' @noRd
 byte_range_read <- function(url, offset, length) {
   # a negative offset reads the last `length` bytes (a shard index at the end)
   # try arrow filesystem for s3:// and gs://
+  if (grepl("^(s3|gs)://", url) && !has_arrow()) url <- cloud_to_vsi(url)
   if (grepl("^(s3|gs)://", url)) {
     fs_and_path <- arrow::FileSystem$from_uri(url)
     f <- fs_and_path$fs$OpenInputFile(fs_and_path$path)

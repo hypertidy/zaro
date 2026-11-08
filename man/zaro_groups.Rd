@@ -28,6 +28,10 @@ that can be listed (not plain HTTP).
 }
 \examples{
 \dontrun{
-zaro_groups("https://s3.explorer.eopf.copernicus.eu/esa-zarr-sentinel-explorer-fra/tests-output/sentinel-2-l2a/S2C_MSIL2A_20260120T084301_N0511_R064_T36UXA_20260120T122910.zarr")
+eopf_url <- paste0(
+  "https://s3.explorer.eopf.copernicus.eu/esa-zarr-sentinel-explorer-fra/",
+  "tests-output/sentinel-2-l2a/",
+  "S2C_MSIL2A_20260120T084301_N0511_R064_T36UXA_20260120T122910.zarr")
+zaro_groups(eopf_url)
 }
 }

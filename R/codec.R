@@ -120,12 +120,14 @@ decode_one <- function(buf, codec, meta) {
 
   switch(name,
          # -- bytes-to-bytes codecs (compression) --
-         "zstd"   = arrow_decompress(buf, "zstd", config),
-         "gzip"   = arrow_decompress(buf, "gzip", config),
+         # base R first (memDecompress), arrow when base can't
+         "zstd"   = base_decompress(buf, "zstd", config),
+         "gzip"   = base_decompress(buf, "gzip", config),
+         "bz2"    = base_decompress(buf, "bz2", config),
+         # arrow only
          "lz4"    = arrow_decompress(buf, "lz4", config),
          "brotli" = arrow_decompress(buf, "brotli", config),
          "snappy" = arrow_decompress(buf, "snappy", config),
-         "bz2"    = arrow_decompress(buf, "bz2", config),
 
          # V2 zlib -- R's memDecompress handles raw zlib/deflate
          "zlib"   = memDecompress(buf, type = "gzip"),
@@ -201,9 +203,26 @@ undo_horizontal_delta <- function(buf, config, meta) {
 }
 
 
+#' Decompress with base R's memDecompress(), falling back to arrow
+#'
+#' gzip and bzip2 are always in base R; zstd is when R was built with
+#' libzstd (R >= 4.5). A failure (codec unavailable, or a stream base R
+#' can't read) falls back to arrow when it is installed.
+#' @noRd
+base_decompress <- function(buf, type, config) {
+  base_type <- switch(type, bz2 = "bzip2", type)
+  out <- tryCatch(memDecompress(buf, type = base_type), error = function(e) e)
+  if (!inherits(out, "error")) return(out)
+  if (has_arrow()) return(arrow_decompress(buf, type, config))
+  stop("can't decompress ", type, " chunk with base R (",
+       conditionMessage(out), "); installing 'arrow' adds another decoder",
+       call. = FALSE)
+}
+
 #' Decompress using arrow::Codec
 #' @noRd
 arrow_decompress <- function(buf, type, config) {
+  need_arrow(paste0("the ", type, " codec"))
   codec <- arrow::Codec$create(type)
   raw_buf <- arrow::buffer(buf)
   reader <- arrow::BufferReader$create(raw_buf)

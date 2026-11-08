@@ -44,7 +44,8 @@
 #' @export
 #' @examples
 #' \dontrun{
-#' store <- zaro("virtualizarr://https://raw.githubusercontent.com/mdsumner/virtualized/refs/heads/main/remote/ocean_temp_2023.parq")
+#' store <- zaro(paste0("virtualizarr://https://raw.githubusercontent.com/",
+#'   "mdsumner/virtualized/refs/heads/main/remote/ocean_temp_2023.parq"))
 #' p <- zaro_plan(store, "temp", start = c(0, 0, 0, 0), count = c(1, 1, NA, NA))
 #' p                          # 60 byte ranges on one host, ~4 MB
 #' table(p$transport)
