@@ -33,22 +33,29 @@ metadata is read from the store. Can also be the root group metadata
 from \code{zaro_meta(store)} - the array will be looked up by path
 in the consolidated entries.}
 
-\item{parallel}{logical. If \code{TRUE}, fetch and decode chunks in
-parallel using \code{future.apply::future_lapply()}. Requires the
-\code{future.apply} package and a \code{future::plan()} to be set.
-Recommended backend: \code{future::plan(future.mirai::mirai_multisession)}.
-Skipped automatically for reads of fewer than 4 chunks. Default FALSE.}
+\item{parallel}{logical. If \code{TRUE}, decode chunks in parallel using
+\code{future.apply::future_lapply()}. Fetching is always one pooled
+\code{\link[=zaro_fetch]{zaro_fetch()}} (concurrent for HTTP), so this helps only when decoding
+is the cost. Requires the \code{future.apply} package and a
+\code{future::plan()}, e.g.
+\code{future::plan(future.mirai::mirai_multisession)}. Skipped for reads
+of fewer than 4 chunks. Default \code{FALSE}.}
 
 \item{verbose}{logical. Emit diagnostic messages. Default
 \code{getOption("zaro.verbose", TRUE)}.}
 
-\item{assemble}{logical. If \code{TRUE}return a full array (the default), else the raw list
-of decoded chunks.}
+\item{assemble}{logical. If \code{TRUE} (the default) return the assembled
+array, else the list of decoded chunks.}
 }
 \value{
-An R array with dimensions matching \code{count}.
+An R array with dimensions matching \code{count}, in Zarr
+dimension order and named by the array's dimension names (the
+transpose of \code{\link[=zaro_array]{zaro_array()}} for C-order arrays). String arrays read as
+character.
 }
 \description{
 Reads a hyperslab from a Zarr array, fetching and decoding the necessary
-chunks and assembling them into an R array. Supports both Zarr V2 and V3.
+chunks and assembling them into an R array. Supports Zarr V2 and V3,
+including sharded V3 arrays, and every store \code{\link[=zaro]{zaro()}} opens. The chunks
+are planned with \code{\link[=zaro_plan]{zaro_plan()}} and fetched together with \code{\link[=zaro_fetch]{zaro_fetch()}}.
 }

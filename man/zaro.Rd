@@ -11,13 +11,16 @@ zaro(source, verbose = zaro_verbose(), ..., validate = FALSE)
 
 \item{verbose}{logical. Emit progress and diagnostic messages. Default
 \code{getOption("zaro.verbose", TRUE)}; set \code{options(zaro.verbose = FALSE)} to
-silence zaro everywhere.
-Suppress with \code{suppressMessages()}.}
+silence zaro everywhere.}
 
-\item{...}{additional arguments passed to Arrow filesystem constructors
-(e.g. \code{anonymous = TRUE}, \code{endpoint_override}, \code{region}).}
+\item{...}{store options: for \code{s3://} and \code{gs://}, arguments for
+the Arrow filesystem constructors (e.g. \code{anonymous = TRUE},
+\code{region}, \code{endpoint_override}), also used for curl-pool
+access; for \code{byterefs://} and \code{flatrefs://}, \code{target}
+(the path remap to apply).}
 
-\item{validate}{should the store be checked for valid metadata, \code{FALSE} is default}
+\item{validate}{logical. Read the root metadata at open, warning if that
+fails. Default \code{FALSE}.}
 }
 \value{
 A store object (internal class) for use with other zaro functions.
@@ -26,9 +29,12 @@ A store object (internal class) for use with other zaro functions.
 Connects to a Zarr store at the given path or URI. Dispatches to the
 appropriate backend based on the URI scheme:
 \itemize{
-\item Local paths: Arrow LocalFileSystem
-\item \code{s3://}: Arrow S3FileSystem (with automatic region detection)
-\item \code{gs://}: Arrow GcsFileSystem
+\item Local paths: base R (no arrow or GDAL needed)
+\item \code{s3://}, \code{gs://}: listed and read through Arrow when
+arrow is installed, else through GDAL's \code{/vsis3/} or
+\code{/vsigs/} (gdalraster). When access is known (anonymous, or S3
+keys in the environment) chunks are fetched as HTTPS through the curl
+pool instead, see \code{\link[=zaro_fetch]{zaro_fetch()}}
 \item \code{http://}, \code{https://}: curl (no GDAL); chunk reads are
 batched through one connection pool, see \code{\link[=zaro_fetch]{zaro_fetch()}}. An HTTP
 store can't be listed, so it needs consolidated metadata (or array
@@ -61,8 +67,9 @@ Known public buckets (e.g. cmip6, aodn-cloud-optimised) are accessed
 anonymously by default. For other public stores, pass
 \code{anonymous = TRUE}.
 
-Validation of the store may be done by setting \code{validate = TRUE}, but this is otherwise
-avoided at open time by default (\code{source} is checked for being character, non- empty string).
+Opening reads nothing from the store by default (\code{source} is only checked
+to be a non-empty character string); set \code{validate = TRUE} to read the
+root metadata at open.
 }
 \examples{
 \dontrun{
@@ -78,6 +85,10 @@ store <- zaro(paste0("gs://cmip6/CMIP6/ScenarioMIP/NOAA-GFDL/GFDL-ESM4/",
 
 # VirtualiZarr Parquet reference
 store <- zaro("virtualizarr://https://example.com/dataset.parq")
+
+# byterefs: a SQLite table, or the flat Parquet export
+store <- zaro("byterefs:///path/to/store.sqlite")
+store <- zaro("flatrefs://https://example.com/store", target = "public")
 
 # then explore
 zaro_list(store)

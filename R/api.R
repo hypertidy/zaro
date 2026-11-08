@@ -11,9 +11,12 @@
 #' Connects to a Zarr store at the given path or URI. Dispatches to the
 #' appropriate backend based on the URI scheme:
 #' \itemize{
-#'   \item Local paths: Arrow LocalFileSystem
-#'   \item \code{s3://}: Arrow S3FileSystem (with automatic region detection)
-#'   \item \code{gs://}: Arrow GcsFileSystem
+#'   \item Local paths: base R (no arrow or GDAL needed)
+#'   \item \code{s3://}, \code{gs://}: listed and read through Arrow when
+#'     arrow is installed, else through GDAL's \code{/vsis3/} or
+#'     \code{/vsigs/} (gdalraster). When access is known (anonymous, or S3
+#'     keys in the environment) chunks are fetched as HTTPS through the curl
+#'     pool instead, see [zaro_fetch()]
 #'   \item \code{http://}, \code{https://}: curl (no GDAL); chunk reads are
 #'     batched through one connection pool, see [zaro_fetch()]. An HTTP
 #'     store can't be listed, so it needs consolidated metadata (or array
@@ -45,16 +48,20 @@
 #' anonymously by default. For other public stores, pass
 #' \code{anonymous = TRUE}.
 #'
-#' Validation of the store may be done by setting `validate = TRUE`, but this is otherwise
-#' avoided at open time by default (`source` is checked for being character, non- empty string).
+#' Opening reads nothing from the store by default (`source` is only checked
+#' to be a non-empty character string); set `validate = TRUE` to read the
+#' root metadata at open.
 #' @param source character. Path, URI, or reference store locator.
 #' @param verbose logical. Emit progress and diagnostic messages. Default
 #'   `getOption("zaro.verbose", TRUE)`; set `options(zaro.verbose = FALSE)` to
 #'   silence zaro everywhere.
-#'   Suppress with \code{suppressMessages()}.
-#' @param ... additional arguments passed to Arrow filesystem constructors
-#'   (e.g. \code{anonymous = TRUE}, \code{endpoint_override}, \code{region}).
-#' @param validate should the store be checked for valid metadata, `FALSE` is default
+#' @param ... store options: for \code{s3://} and \code{gs://}, arguments for
+#'   the Arrow filesystem constructors (e.g. \code{anonymous = TRUE},
+#'   \code{region}, \code{endpoint_override}), also used for curl-pool
+#'   access; for \code{byterefs://} and \code{flatrefs://}, \code{target}
+#'   (the path remap to apply).
+#' @param validate logical. Read the root metadata at open, warning if that
+#'   fails. Default `FALSE`.
 #' @returns A store object (internal class) for use with other zaro functions.
 #'
 #' @export
@@ -72,6 +79,10 @@
 #'
 #' # VirtualiZarr Parquet reference
 #' store <- zaro("virtualizarr://https://example.com/dataset.parq")
+#'
+#' # byterefs: a SQLite table, or the flat Parquet export
+#' store <- zaro("byterefs:///path/to/store.sqlite")
+#' store <- zaro("flatrefs://https://example.com/store", target = "public")
 #'
 #' # then explore
 #' zaro_list(store)
@@ -392,7 +403,9 @@ zaro_meta <- function(store, path = "", consolidated = TRUE, verbose = zaro_verb
 #' Read data from a Zarr array
 #'
 #' Reads a hyperslab from a Zarr array, fetching and decoding the necessary
-#' chunks and assembling them into an R array. Supports both Zarr V2 and V3.
+#' chunks and assembling them into an R array. Supports Zarr V2 and V3,
+#' including sharded V3 arrays, and every store [zaro()] opens. The chunks
+#' are planned with [zaro_plan()] and fetched together with [zaro_fetch()].
 #'
 #' @param store a store object from [zaro()], or a [zaro_dataset()] (then
 #'   `path` is an array's name in the dataset)
@@ -406,16 +419,21 @@ zaro_meta <- function(store, path = "", consolidated = TRUE, verbose = zaro_verb
 #'   metadata is read from the store. Can also be the root group metadata
 #'   from \code{zaro_meta(store)} - the array will be looked up by path
 #'   in the consolidated entries.
-#' @param parallel logical. If \code{TRUE}, fetch and decode chunks in
-#'   parallel using \code{future.apply::future_lapply()}. Requires the
-#'   \code{future.apply} package and a \code{future::plan()} to be set.
-#'   Recommended backend: \code{future::plan(future.mirai::mirai_multisession)}.
-#'   Skipped automatically for reads of fewer than 4 chunks. Default FALSE.
+#' @param parallel logical. If \code{TRUE}, decode chunks in parallel using
+#'   \code{future.apply::future_lapply()}. Fetching is always one pooled
+#'   [zaro_fetch()] (concurrent for HTTP), so this helps only when decoding
+#'   is the cost. Requires the \code{future.apply} package and a
+#'   \code{future::plan()}, e.g.
+#'   \code{future::plan(future.mirai::mirai_multisession)}. Skipped for reads
+#'   of fewer than 4 chunks. Default \code{FALSE}.
 #' @param verbose logical. Emit diagnostic messages. Default
 #'   `getOption("zaro.verbose", TRUE)`.
-#' @param assemble logical. If `TRUE`return a full array (the default), else the raw list
-#'  of decoded chunks.
-#' @returns An R array with dimensions matching \code{count}.
+#' @param assemble logical. If `TRUE` (the default) return the assembled
+#'   array, else the list of decoded chunks.
+#' @returns An R array with dimensions matching \code{count}, in Zarr
+#'   dimension order and named by the array's dimension names (the
+#'   transpose of [zaro_array()] for C-order arrays). String arrays read as
+#'   character.
 #'
 #' @export
 zaro_read <- function(store, path = "", start = NULL, count = NULL, meta = NULL,

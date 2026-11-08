@@ -19,6 +19,7 @@ these reference stores directly:
 | kerchunk Parquet | `reference+parquet:///path/refs.parquet` |
 | VirtualiZarr Parquet manifests | `virtualizarr://https://.../dataset.parq` |
 | byterefs SQLite tables | `byterefs:///path/store.sqlite` |
+| byterefs flat Parquet export | `flatrefs://https://.../store` |
 
 Once opened, a virtual store behaves like any other: `zaro_dataset()`,
 `zaro_read()` and `zaro_array()` work the same.
@@ -88,14 +89,24 @@ That's the default, up to 8 connections per host (`options(zaro.max_con)`).
 this kind of table: one row per chunk with its file, offset and size, plus
 what a reader needs to decode it.
 [raad.virtualize](https://github.com/mdsumner/raad.virtualize) produces
-byterefs stores as SQLite files. zaro reads them with `byterefs://` and
-applies the store's default path remapping (`meta.default_target`), so a
-table scanned on a local mirror reads from its public copy:
+byterefs stores as SQLite files, and publishes them as a flat Parquet
+export (a directory with `arrays.json` and one `refs_<array>.parquet` per
+array). zaro reads the first with `byterefs://` and the second with
+`flatrefs://`, and applies the store's default path remapping
+(`meta.default_target`), so a table scanned on a local mirror reads from
+its public copy:
 
 ```r
 store <- zaro("byterefs:///path/to/store.sqlite")                  # default target
 store <- zaro("byterefs:///path/to/store.sqlite", target = "public") # another target
+store <- zaro("flatrefs://https://host/path/to/store")              # flat Parquet export
 ```
 
-The specification is still moving (the published Parquet layout is not
-settled), so this part of zaro will follow it.
+A flat refs table can be large (BRAN2023's `temp` is 37.5M rows, 324 MB),
+so zaro never reads it whole for a selection. It reads the Parquet footer
+with one range request, then only the row groups whose `dim_k` statistics
+can hold the chunks a plan needs: a one-day surface plan reads one 9 MB
+row group. A point series over every day reads the table one row group at
+a time.
+
+The specification is still moving, so this part of zaro will follow it.

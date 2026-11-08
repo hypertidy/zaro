@@ -38,7 +38,8 @@
 #' types up to 32 bits give an integer array (`uint32` and 64-bit integers
 #' give double, as in [zaro_read()]), floats give double, `bool` gives
 #' logical. No CF packing (`scale_factor`, `add_offset`, `_FillValue`) is
-#' applied unless `cf = TRUE`.
+#' applied unless `cf = TRUE`. String arrays are refused (a lazy array is
+#' numeric or logical); read them with [zaro_read()].
 #'
 #' @section CF decoding:
 #' With `cf = TRUE`, values equal to the array's `fill_value` or to the

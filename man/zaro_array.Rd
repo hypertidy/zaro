@@ -66,7 +66,8 @@ Chunks absent from the store read as the array's \code{fill_value}. Integer
 types up to 32 bits give an integer array (\code{uint32} and 64-bit integers
 give double, as in \code{\link[=zaro_read]{zaro_read()}}), floats give double, \code{bool} gives
 logical. No CF packing (\code{scale_factor}, \code{add_offset}, \verb{_FillValue}) is
-applied unless \code{cf = TRUE}.
+applied unless \code{cf = TRUE}. String arrays are refused (a lazy array is
+numeric or logical); read them with \code{\link[=zaro_read]{zaro_read()}}.
 }
 
 \section{CF decoding}{

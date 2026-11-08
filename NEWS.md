@@ -1,5 +1,13 @@
 # zaro (development version)
 
+* Documentation refresh: the README and pkgdown home page show the current
+  package (plan and fetch, virtual and byterefs stores, sharding, groups,
+  lazy arrays, options); `zaro_groups()` and `zaro_read_arrays()` are in
+  the reference index, which fixes the pkgdown build (the site had not
+  deployed since they were added); the DESCRIPTION and help pages no
+  longer say local and cloud stores go through Arrow; the virtual stores
+  article covers `flatrefs://`.
+
 * `flatrefs://` reads a byterefs flat refs store, the Parquet export that
   raad.virtualize publishes (`arrays.json` plus one `refs_<array>.parquet`
   per array): synthesised Zarr V2 metadata, codec refusal, coordinates and
@@ -287,7 +295,7 @@
   consolidated-metadata round-trip degrades `null` to an empty object `{}`,
   and the V3 path, which previously did not coerce `fill_value` at all.
 
-* Add chunk facilites `zaro_chunk()`, `zaro_chunks()`, `zaro_chunk_apply()`, `zarr_chunk_info()`. 
+* Add chunk facilities `zaro_chunk()`, `zaro_chunks()`, `zaro_chunk_apply()`, `zaro_chunk_info()`.
 
 * Fix problem with Arrow decompression (logic was incorrect and hidden in a try/catch). 
 
