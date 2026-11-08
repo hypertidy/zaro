@@ -29,7 +29,12 @@ class H(http.server.BaseHTTPRequestHandler):
                 self.send_response(404); self.send_header("Content-Length", "0"); self.end_headers(); return
             data = open(p, "rb").read()
             m = re.match(r"bytes=(\\d+)-(\\d+)", self.headers.get("Range", ""))
-            if m:
+            sfx = re.match(r"bytes=-(\\d+)$", self.headers.get("Range", ""))
+            if sfx and "nosuffix" not in self.path:
+                n = min(int(sfx.group(1)), len(data)); s, e = len(data) - n, len(data) - 1
+                body = data[s:]; self.send_response(206)
+                self.send_header("Content-Range", "bytes %d-%d/%d" % (s, e, len(data)))
+            elif m:
                 s, e = int(m.group(1)), min(int(m.group(2)), len(data) - 1)
                 body = data[s:e + 1]; self.send_response(206)
                 self.send_header("Content-Range", "bytes %d-%d/%d" % (s, e, len(data)))
