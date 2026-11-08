@@ -76,9 +76,11 @@ zaro_fetch <- function(store, plan, max_con = getOption("zaro.max_con", 8L),
 #' whole object is an absent chunk (NULL), not an error.
 #' @noRd
 http_fetch <- function(url, offset, length, max_con = 8L, merge_gap = 0,
-                       retries = 2L, max_merge = 16 * 1024^2) {
+                       retries = 2L, max_merge = 16 * 1024^2,
+                       absent_ok = is.na(length)) {
   t0 <- Sys.time()
   reqs <- http_requests(url, offset, length, merge_gap, max_merge)
+  for (q in seq_along(reqs)) reqs[[q]]$absent_ok <- all(absent_ok[reqs[[q]]$rows])
   res <- vector("list", length(url))
   n_req <- 0L
   n_bytes <- 0
@@ -94,7 +96,9 @@ http_fetch <- function(url, offset, length, max_con = 8L, merge_gap = 0,
       local({
         rq <- reqs[[q]]
         h <- curl::new_handle()
-        if (!is.na(rq$start)) {
+        if (isTRUE(rq$suffix)) {
+          curl::handle_setheaders(h, Range = sprintf("bytes=-%.0f", rq$len))
+        } else if (!is.na(rq$start)) {
           curl::handle_setheaders(h, Range = sprintf("bytes=%.0f-%.0f",
                                                      rq$start, rq$end))
         }
@@ -102,8 +106,8 @@ http_fetch <- function(url, offset, length, max_con = 8L, merge_gap = 0,
           done = function(r) {
             body <- http_body(r, rq)
             if (is.null(body)) {
-              if (is.na(rq$start) && r$status_code %in% c(403L, 404L)) {
-                return(invisible())                  # absent chunk
+              if (rq$absent_ok && r$status_code %in% c(403L, 404L, 416L)) {
+                return(invisible())                  # absent object
               }
               failed <<- c(failed, q)
               errs <<- c(errs, sprintf("HTTP %d for %s", r$status_code, rq$url))
@@ -111,7 +115,7 @@ http_fetch <- function(url, offset, length, max_con = 8L, merge_gap = 0,
             }
             n_bytes <<- n_bytes + base::length(r$content)
             for (m in seq_along(rq$rows)) {
-              res[[rq$rows[m]]] <<- if (is.na(rq$start)) body else
+              res[[rq$rows[m]]] <<- if (is.na(rq$start) || isTRUE(rq$suffix)) body else
                 body[seq.int(rq$rel[m] + 1, length.out = rq$len[m])]
             }
           },
@@ -143,6 +147,12 @@ http_fetch <- function(url, offset, length, max_con = 8L, merge_gap = 0,
 #' @noRd
 http_body <- function(r, rq) {
   body <- r$content
+  if (isTRUE(rq$suffix)) {                     # the last rq$len bytes
+    n <- base::length(body)
+    if (r$status_code == 206L && n == rq$len) return(body)
+    if (r$status_code == 200L && n >= rq$len) return(body[seq.int(n - rq$len + 1, n)])
+    return(NULL)
+  }
   if (is.na(rq$start)) {
     return(if (r$status_code == 200L) body else NULL)
   }
@@ -170,7 +180,13 @@ http_requests <- function(url, offset, length, merge_gap = 0,
                                             end = NA_real_, rows = i,
                                             rel = 0, len = NA_real_)
   }
-  ranged <- setdiff(seq_along(url), whole)
+  suffix <- setdiff(which(offset < 0), whole)
+  for (i in suffix) {
+    reqs[[base::length(reqs) + 1L]] <- list(url = url[i], start = NA_real_,
+                                            end = NA_real_, rows = i, rel = 0,
+                                            len = length[i], suffix = TRUE)
+  }
+  ranged <- setdiff(seq_along(url), c(whole, suffix))
   for (u in unique(url[ranged])) {
     w <- ranged[url[ranged] == u]
     w <- w[order(offset[w])]

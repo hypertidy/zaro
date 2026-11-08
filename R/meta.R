@@ -57,9 +57,39 @@ parse_zarr_json <- function(raw_bytes) {
   chunk_shape <- as.integer(unlist(chunk_grid[["configuration"]][["chunk_shape"]]))
 
   chunk_key_enc <- meta[["chunk_key_encoding"]]
-  chunk_key_sep <- chunk_key_enc[["configuration"]][["separator"]] %||% "/"
+  # default separator: "/" for the "default" encoding, "." for "v2"
+  chunk_key_sep <- chunk_key_enc[["configuration"]][["separator"]] %||%
+    if (identical(chunk_key_enc[["name"]], "v2")) "." else "/"
 
   codecs <- parse_codecs(meta[["codecs"]])
+
+  # sharding_indexed: present the inner chunks as the array's chunks (shape
+  # and codecs), and keep the shard layout as attribute "shard" for planning
+  shard <- NULL
+  is_shard <- vapply(codecs, function(c) identical(c$name, "sharding_indexed"),
+                     logical(1))
+  if (any(is_shard)) {
+    if (!is_shard[1L]) {
+      stop("sharding_indexed after other codecs is not supported", call. = FALSE)
+    }
+    cfg <- codecs[[1L]]$configuration
+    inner_codecs <- parse_codecs(cfg[["codecs"]])
+    if (any(vapply(inner_codecs, function(c) identical(c$name, "sharding_indexed"),
+                   logical(1)))) {
+      stop("nested sharding is not supported", call. = FALSE)
+    }
+    inner <- as.integer(unlist(cfg[["chunk_shape"]]))
+    if (any(chunk_shape %% inner != 0L)) {
+      stop("shard shape [", paste(chunk_shape, collapse = ", "),
+           "] is not a multiple of the inner chunk shape [",
+           paste(inner, collapse = ", "), "]", call. = FALSE)
+    }
+    shard <- list(shape = chunk_shape,
+                  index_codecs = parse_codecs(cfg[["index_codecs"]]),
+                  index_location = cfg[["index_location"]] %||% "end")
+    chunk_shape <- inner
+    codecs <- inner_codecs
+  }
 
   dim_names <- meta[["dimension_names"]]
   if (!is.null(dim_names)) {
@@ -67,7 +97,7 @@ parse_zarr_json <- function(raw_bytes) {
     if (all(dim_names == "")) dim_names <- NULL
   }
 
-  ZaroMeta(
+  out <- ZaroMeta(
     zarr_format = zarr_format,
     node_type = "array",
     shape = shape,
@@ -80,6 +110,8 @@ parse_zarr_json <- function(raw_bytes) {
     chunk_key_sep = chunk_key_sep,
     raw_meta = as.list(meta)
   )
+  if (!is.null(shard)) attr(out, "shard") <- shard
+  out
 }
 
 
@@ -118,11 +150,12 @@ parse_codecs <- function(codec_list) {
 #' @returns character key suffix e.g. "c/0/1/2" (V3) or "0.1.2" (V2)
 #' @noRd
 chunk_key <- function(meta, idx) {
-  if (meta@zarr_format == 2L) {
-    paste(idx, collapse = meta@chunk_key_sep)
-  } else {
-    paste0("c/", paste(idx, collapse = meta@chunk_key_sep))
-  }
+  sep <- meta@chunk_key_sep
+  if (meta@zarr_format == 2L) return(paste(idx, collapse = sep))
+  enc <- meta@raw_meta[["chunk_key_encoding"]][["name"]] %||% "default"
+  if (identical(enc, "v2")) return(paste(idx, collapse = sep))
+  # V3 default encoding: "c" then the indices, all joined by the separator
+  paste(c("c", idx), collapse = sep)
 }
 
 

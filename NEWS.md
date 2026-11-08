@@ -1,5 +1,24 @@
 # zaro (development version)
 
+* Read sharded Zarr V3 arrays (`sharding_indexed`). A shard is planned as
+  one more level of byte references: `zaro_plan()` reads the index of each
+  shard a selection touches (one small ranged read per shard, fetched
+  together; a suffix range when the index is at the end) and turns every
+  inner chunk into a byte range of its shard object. Empty inner chunks and
+  missing shards read as `fill_value`. The index's `crc32c` is stripped, not
+  verified. Sharded arrays present their inner chunk shape as the array's
+  chunks, so `zaro_read()`, `zaro_array()` and `zaro_chunk()` work
+  unchanged; `print()` of the metadata shows the shard shape. Checked
+  against arrays written by zarr-python 3 (zstd and gzip inner codecs,
+  index at end and start, partially written arrays).
+
+* A `crc32c` codec on ordinary chunks is stripped (not verified); it was
+  passed through as an unknown codec.
+
+* Fix V3 chunk keys: the `"v2"` chunk key encoding (no `c` prefix, default
+  separator `"."`) and the `"."` separator of the default encoding
+  (`c.0.1`) were written as `c/...`.
+
 * New `zaro_fetch(store, plan)` executes a plan: HTTP references go through
   one curl connection pool (`options(zaro.max_con)`, default 8, per host
   and in total), byte ranges that touch on the same URL are merged into one
