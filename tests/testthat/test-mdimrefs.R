@@ -1,6 +1,7 @@
 ## a byterefs SQLite store over a local source file; the source is recorded
 ## as /old/<file> and the 'local' remap target points at the real file
-make_byterefs <- function(format = "byterefs/0.1", default_target = NULL) {
+make_byterefs <- function(format = "byterefs/0.1", default_target = NULL,
+                          codec = '{"compressor":{"id":"zlib","level":1},"filters":null}') {
 
   ## source file: 7 junk bytes, then two zlib chunks of a 2 x 4 int32 array
   ## chunked (2, 2); C order chunk (0,0) = 1,2,5,6 and (0,1) = 3,4,7,8
@@ -27,8 +28,10 @@ make_byterefs <- function(format = "byterefs/0.1", default_target = NULL) {
     dims TEXT, shape TEXT, chunks TEXT, dtype TEXT, fill TEXT, codec TEXT, attrs TEXT,
     affine TEXT, "values" BLOB)')
   DBI::dbExecute(con, "INSERT INTO arrays VALUES('v', 'data', 'referenced', '[\"y\",\"x\"]',
-    '[2,6]', '[2,2]', '<i4', '-1', '{\"compressor\":{\"id\":\"zlib\",\"level\":1},\"filters\":null}',
-    '{\"units\":\"m\"}', NULL, NULL)")
+    '[2,6]', '[2,2]', '<i4', '-1', ?, '{\"units\":\"m\"}', NULL, NULL)", params = list(codec))
+  DBI::dbExecute(con, "CREATE TABLE placements(array TEXT, source_id INTEGER, source_array TEXT,
+    src_offset TEXT, count TEXT, dest TEXT)")
+  DBI::dbExecute(con, "INSERT INTO placements VALUES('v', 1, 'v', '[0,0]', '[2,6]', '[0,0]')")
   DBI::dbExecute(con, "INSERT INTO arrays VALUES('x', 'coord', 'affine', '[\"x\"]',
     '[6]', '[6]', '<f8', NULL, NULL, NULL, '{\"start\":10,\"step\":0.5}', NULL)")
   DBI::dbExecute(con, 'CREATE TABLE v(source_id INTEGER, dim_0 INTEGER, dim_1 INTEGER,
@@ -101,4 +104,91 @@ test_that("meta.default_target is applied when no target is given (decision 0004
   ## a target with no rules warns
   expect_warning(zaro(paste0("byterefs://", db), target = "nope", verbose = FALSE),
                  "no remap rules for target 'nope'")
+})
+
+
+## decision 0007: arrays.codec as a Zarr V3 codec chain, or the V2 form
+V3_ZLIB <- '[{"name":"bytes","configuration":{"endian":"little"}},
+             {"name":"numcodecs.zlib","configuration":{"level":1}}]'
+
+test_that("a V3 codec chain in arrays.codec reads as the V2 form does", {
+  skip_if_not_installed("DBI")
+  skip_if_not_installed("RSQLite")
+  st <- zaro(paste0("byterefs://", make_byterefs(codec = V3_ZLIB)), target = "local",
+             verbose = FALSE)
+  v <- zaro_read(st, "v", verbose = FALSE)
+  expect_equal(as.vector(t(matrix(v, 2))), c(1:4, -1L, -1L, 5:8, -1L, -1L))
+})
+
+test_that("V3 chains map to V2 compressor and filters in decode order", {
+  ch <- function(...) jsonlite::toJSON(list(...), auto_unbox = TRUE)
+  bytes <- list(name = "bytes", configuration = list(endian = "little"))
+  delta <- list(name = "HorizontalDeltaCodec", configuration = list(axis = -1, dist = 1))
+  x <- mdimrefs_codec(ch(delta, bytes, list(name = "numcodecs.shuffle"),
+                         list(name = "zstd", configuration = list(level = 3))), "<u2")
+  expect_identical(x$compressor, list(id = "zstd", level = 3L))
+  expect_identical(vapply(x$filters, `[[`, "", "id"), c("imagecodecs_delta", "shuffle"))
+  expect_identical(x$filters[[2]]$elementsize, 2L)       # item size of <u2
+  ## no bytes-to-bytes codec: no compressor
+  x <- mdimrefs_codec(ch(bytes), "<i2")
+  expect_null(x$compressor); expect_null(x$filters)
+  ## a trailing crc32c is the last codec applied, so the first undone
+  x <- mdimrefs_codec(ch(bytes, list(name = "gzip"), list(name = "crc32c")), "<f4")
+  expect_identical(x$compressor$id, "crc32c")
+  expect_identical(x$filters[[1]]$id, "gzip")
+  ## a one-byte dtype may leave endian out
+  expect_silent(mdimrefs_codec(ch(list(name = "bytes")), "|u1"))
+  ## the V2 form is an object
+  x <- mdimrefs_codec('{"compressor":{"id":"zlib","level":1},"filters":null}', "<i2")
+  expect_identical(x$compressor$id, "zlib")
+})
+
+test_that("chains zaro cannot read are refused clearly", {
+  ch <- function(...) jsonlite::toJSON(list(...), auto_unbox = TRUE)
+  bytes <- list(name = "bytes", configuration = list(endian = "little"))
+  expect_error(mdimrefs_codec(ch(bytes, list(name = "lzma")), "<i2"),
+               "unknown codec 'lzma'")
+  expect_error(mdimrefs_codec(ch(list(name = "sharding_indexed")), "<i2"),
+               "sharding_indexed is not allowed in arrays.codec")
+  expect_error(mdimrefs_codec(ch(list(name = "numcodecs.zlib"), bytes), "<i2"),
+               "then one array-to-bytes codec")
+  expect_error(mdimrefs_codec(ch(list(name = "gzip")), "<i2"),
+               "then one array-to-bytes codec")
+  expect_error(mdimrefs_codec(ch(list(name = "bytes", configuration = list(endian = "big"))), "<i2"),
+               "endian 'big' disagrees with dtype '<i2'")
+  expect_error(mdimrefs_codec(ch(list(name = "bytes")), "<i2"), "no endian")
+  expect_error(mdimrefs_codec('{"compressor":{"id":"lzma"},"filters":null}', "<i2"),
+               "unknown codec 'lzma'")
+})
+
+test_that("an array with an unknown codec is refused; the others still read", {
+  skip_if_not_installed("DBI")
+  skip_if_not_installed("RSQLite")
+  db <- make_byterefs(codec = '[{"name":"bytes","configuration":{"endian":"little"}},
+                                {"name":"lzma"}]')
+  expect_warning(st <- zaro(paste0("byterefs://", db), target = "local", verbose = FALSE),
+                 "cannot read 1 array.*v: unknown codec 'lzma'")
+  expect_error(zaro_read(st, "v", verbose = FALSE), "cannot read array 'v': unknown codec")
+  expect_equal(as.vector(zaro_read(st, "x", verbose = FALSE)), 10 + 0.5 * 0:5)
+})
+
+test_that("a whole-object row (offset 0, size NULL) fetches the whole object", {
+  skip_if_not_installed("DBI")
+  skip_if_not_installed("RSQLite")
+  db <- make_byterefs()
+  ## chunk (0,2) becomes a whole object: a file holding only that chunk
+  obj <- tempfile(fileext = ".bin")
+  writeBin(memCompress(writeBin(c(9L, 10L, 11L, 12L), raw(), size = 4L,
+                                endian = "little"), "gzip"), obj)
+  con <- DBI::dbConnect(RSQLite::SQLite(), db)
+  DBI::dbExecute(con, "INSERT INTO sources VALUES(2, ?)", params = list(obj))
+  DBI::dbExecute(con, "INSERT INTO placements VALUES('v', 2, 'v', '[0,0]', '[2,2]', '[0,4]')")
+  DBI::dbExecute(con, 'DELETE FROM v WHERE dim_1 = 2')
+  DBI::dbExecute(con, 'INSERT INTO v VALUES(2, 0, 0, 1, 0, NULL, NULL, NULL)')
+  DBI::dbDisconnect(con)
+  st <- zaro(paste0("byterefs://", db), target = "local", verbose = FALSE)
+  p <- zaro_plan(st, "v", verbose = FALSE)
+  expect_identical(c(p$offset[3], p$size[3]), c(0, NA))
+  v <- zaro_read(st, "v", verbose = FALSE)
+  expect_equal(as.vector(t(matrix(v, 2))), c(1:4, 9:10, 5:8, 11:12))
 })
