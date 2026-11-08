@@ -29,9 +29,9 @@ jobs:
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       _R_CHECK_FORCE_SUGGESTS_: false
-      # arrow: fetch a prebuilt libarrow instead of compiling it from source
-      NOT_CRAN: true
-      LIBARROW_BINARY: true
+      # compile in parallel: the image installs from source CRAN, and arrow's
+      # R bindings (against the image's libarrow) are the long build
+      MAKEFLAGS: -j4
 
     steps:
       - uses: actions/checkout@v4

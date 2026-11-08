@@ -20,9 +20,9 @@ jobs:
       group: pkgdown-${{ github.event_name != 'pull_request' || github.run_id }}
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
-      # arrow: fetch a prebuilt libarrow instead of compiling it from source
-      NOT_CRAN: true
-      LIBARROW_BINARY: true
+      # compile in parallel: the image installs from source CRAN, and arrow's
+      # R bindings (against the image's libarrow) are the long build
+      MAKEFLAGS: -j4
     permissions:
       contents: write
     container:
