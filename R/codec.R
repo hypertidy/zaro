@@ -5,7 +5,8 @@
 # codec lists by v2_codecs() in meta.R.
 # We walk the chain in reverse to decode a stored chunk.
 #
-# Arrow provides: zstd, gzip, lz4, brotli, snappy, bz2
+# base R decodes zstd, gzip, bz2 (memDecompress); arrow (Suggests) lz4,
+# brotli, snappy
 # Blosc requires the blosc package (optional)
 # The "bytes" codec handles endianness (serialization)
 # The "transpose" codec reorders array dimensions
@@ -27,10 +28,65 @@ decode_chunk <- function(raw_bytes, meta) {
   # reinterpret bytes as typed R vector
   n <- prod(meta@chunk_shape)
 
+  if (is_string_dtype(meta@data_type)) return(decode_strings(buf, meta, n))
+
   # determine endianness from the "bytes" codec if present
   endian <- chunk_endian(meta@codecs)
 
   read_typed(buf, meta@data_type, n, endian)
+}
+
+
+#' Decode a chunk of strings to a character vector
+#'
+#' - fixed_length_utf32 (numpy `U`): code points, NUL padded
+#' - null_terminated_bytes (numpy `S`): bytes, NUL padded
+#' - string (vlen-utf8): a uint32 count, then per item a uint32 byte length
+#'   and the UTF-8 bytes
+#' @noRd
+decode_strings <- function(buf, meta, n) {
+  sp <- string_spec(meta)
+  if (sp$kind == "vlen") {
+    if (!any(vapply(meta@codecs, function(c) identical(c$name, "vlen-utf8"),
+                    logical(1)))) {
+      stop("variable-length strings need the vlen-utf8 codec (codecs: ",
+           paste(vapply(meta@codecs, function(c) c$name %||% "?", ""),
+                 collapse = ", "), ")", call. = FALSE)
+    }
+    return(decode_vlen_utf8(buf, n))
+  }
+  lb <- sp$length_bytes
+  m <- min(n, length(buf) %/% max(lb, 1L))
+  if (lb == 0L) return(rep("", n))
+  if (sp$kind == "utf32") {
+    cp <- readBin(buf, "integer", n = m * lb %/% 4L, size = 4L,
+                  endian = sp$endian)
+    cp <- matrix(cp, nrow = lb %/% 4L)
+    out <- apply(cp, 2L, function(x) intToUtf8(x[x != 0L]))
+  } else {
+    b <- matrix(buf[seq_len(m * lb)], nrow = lb)
+    out <- apply(b, 2L, function(x) rawToChar(x[x != as.raw(0L)]))
+  }
+  out <- as.character(out)
+  Encoding(out) <- if (sp$kind == "utf32") "UTF-8" else "unknown"
+  out
+}
+
+#' numcodecs / Zarr V3 vlen-utf8 encoding to a character vector
+#' @noRd
+decode_vlen_utf8 <- function(buf, n) {
+  count <- readBin(buf[1:4], "integer", size = 4L, endian = "little")
+  out <- character(count)
+  pos <- 5L
+  for (i in seq_len(count)) {
+    len <- readBin(buf[pos:(pos + 3L)], "integer", size = 4L,
+                   endian = "little")
+    pos <- pos + 4L
+    out[i] <- if (len > 0L) rawToChar(buf[pos:(pos + len - 1L)]) else ""
+    pos <- pos + len
+  }
+  Encoding(out) <- "UTF-8"
+  out
 }
 
 
@@ -147,6 +203,8 @@ decode_one <- function(buf, codec, meta) {
          # -- array-to-bytes codecs --
          "bytes"  = buf,  # endian handling done at readBin stage
          "endian" = buf,  # alias
+         # variable-length strings: parsed in decode_strings()
+         "vlen-utf8" = buf,
 
          # -- array-to-array codecs --
          "transpose" = buf,  # handled post-readBin via dim permutation

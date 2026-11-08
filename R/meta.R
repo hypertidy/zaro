@@ -53,7 +53,11 @@ parse_zarr_json <- function(raw_bytes) {
   # array metadata
   shape <- as.integer(unlist(meta[["shape"]]))
   # a V3 data_type may be an object {"name": ..., "configuration": ...}
-  if (is.list(meta[["data_type"]])) meta[["data_type"]] <- meta[["data_type"]][["name"]]
+  if (is.list(meta[["data_type"]])) {
+    meta[["data_type_configuration"]] <- meta[["data_type"]][["configuration"]]
+    meta[["data_type"]] <- meta[["data_type"]][["name"]]
+  }
+  meta[["data_type"]] <- normalise_string_dtype(meta[["data_type"]])
 
   chunk_grid <- meta[["chunk_grid"]]
   chunk_shape <- as.integer(unlist(chunk_grid[["configuration"]][["chunk_shape"]]))
@@ -219,8 +223,63 @@ dtype_info <- function(dtype) {
     "float16" = list(what = "double",  size = 2L, signed = TRUE),
     "float32" = list(what = "double",  size = 4L, signed = TRUE),
     "float64" = list(what = "double",  size = 8L, signed = TRUE),
+    # strings: the element size is in the metadata (see string_spec())
+    "fixed_length_utf32" = ,
+    "null_terminated_bytes" = ,
+    "string"  = list(what = "character", size = NA_integer_, signed = FALSE),
     stop("unsupported dtype: ", dtype, call. = FALSE)
   )
+}
+
+#' Is a data_type one of the string types?
+#' @noRd
+is_string_dtype <- function(dtype) {
+  dtype %in% c("fixed_length_utf32", "null_terminated_bytes", "string")
+}
+
+#' V3 string data_type names (and aliases) as zaro's three
+#'
+#' `fixed_length_utf32` (numpy `U`), `null_terminated_bytes` (numpy `S`;
+#' `fixed_length_ascii` is an older name), and `string` for variable-length
+#' UTF-8 (`variable_length_utf8` is another name).
+#' @noRd
+normalise_string_dtype <- function(dtype) {
+  if (!is.character(dtype) || length(dtype) != 1L) return(dtype)
+  switch(dtype,
+    fixed_length_ascii = "null_terminated_bytes",
+    variable_length_utf8 = , str = "string",
+    dtype)
+}
+
+#' How the strings of an array are stored
+#'
+#' @returns list(kind, length_bytes, endian): `kind` is "utf32", "bytes" or
+#'   "vlen"; `length_bytes` the fixed element size (NA for vlen).
+#' @noRd
+string_spec <- function(meta) {
+  dt <- meta@data_type
+  rm <- meta@raw_meta
+  kind <- switch(dt, fixed_length_utf32 = "utf32",
+                 null_terminated_bytes = "bytes", string = "vlen")
+  if (kind == "vlen") {
+    return(list(kind = kind, length_bytes = NA_integer_, endian = "little"))
+  }
+  if (identical(meta@zarr_format, 2L)) {
+    # numpy dtype: "<U10" is 10 code points (40 bytes), "|S10" 10 bytes
+    d <- rm[["dtype"]]
+    n <- as.integer(sub("^[<>|=]?[US]", "", d))
+    endian <- if (startsWith(d, ">")) "big" else "little"
+    lb <- if (kind == "utf32") 4L * n else n
+  } else {
+    cfg <- rm[["data_type_configuration"]] %||% list()
+    lb <- cfg[["length_bytes"]] %||%
+      (if (!is.null(cfg[["length_bits"]])) cfg[["length_bits"]] %/% 8L)
+    endian <- chunk_endian(meta@codecs)
+  }
+  if (is.null(lb) || is.na(lb)) {
+    stop("no element length for string dtype ", dt, call. = FALSE)
+  }
+  list(kind = kind, length_bytes = as.integer(lb), endian = endian)
 }
 
 #' Number of bytes per element for a dtype
@@ -238,6 +297,11 @@ dtype_size <- function(dtype) {
 #' output array is a numeric array rather than a list-array.
 #' @noRd
 coerce_fill_value <- function(fv, data_type) {
+  if (is_string_dtype(normalise_string_dtype(data_type %||% ""))) {
+    # strings: a JSON string is the fill (often ""), anything else missing
+    if (is.character(fv) && length(fv) == 1L && !is.na(fv)) return(fv)
+    return(NA_character_)
+  }
   # null, empty, or a (degraded) list/object -> missing
   if (is.null(fv) || length(fv) == 0L || is.list(fv)) return(NA_real_)
   if (is.numeric(fv)) return(fv)
@@ -353,13 +417,16 @@ parse_numpy_dtype <- function(dtype_str) {
     stop("cannot parse dtype: ", dtype_str, call. = FALSE)
   }
 
-  # string types - recognise but flag as not yet readable
-  # <U59, |U100 = fixed-width Unicode
-  # |S10, |S100 = fixed-width byte strings
-  # |O = object (variable-length strings in V2)
-  if (grepl("^[<>|]?[USO]", dtype_str)) {
-    return(list(dtype = "string", size = NA_integer_,
-                what = "character", signed = TRUE, endian = "little"))
+  # string types
+  # <U59, |U100 = fixed-width Unicode (UTF-32 code units)
+  # |S10, |S100 = fixed-width byte strings (NUL padded)
+  # |O = object (variable-length strings in V2, with a vlen-utf8 filter)
+  if (grepl("^[<>|=]?[USO]", dtype_str)) {
+    code <- sub("^[<>|=]?", "", dtype_str)
+    dtype <- switch(substr(code, 1, 1), U = "fixed_length_utf32",
+                    S = "null_terminated_bytes", O = "string")
+    return(list(dtype = dtype,
+                endian = if (startsWith(dtype_str, ">")) "big" else "little"))
   }
   endian_char <- substr(dtype_str, 1, 1)
   type_code <- substr(dtype_str, 2, 2)

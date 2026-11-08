@@ -89,6 +89,10 @@ zaro_array <- function(store, path = "", meta = NULL, parallel = FALSE,
     store <- a$store; path <- a$path; meta <- a$meta
   }
   meta <- resolve_array_meta(store, path, meta, verbose)
+  if (is_string_dtype(meta@data_type)) {
+    stop("'", path, "' holds strings (", meta@data_type, "); lazy arrays are ",
+         "numeric or logical, so read it with zaro_read()", call. = FALSE)
+  }
   spec <- zaro_array_spec(meta)
   transform <- if (isTRUE(cf)) cf_transform(meta, spec$type) else NULL
   if (!is.null(transform) && isTRUE(attr(transform, "unpack"))) {
