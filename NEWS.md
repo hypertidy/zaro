@@ -1,5 +1,21 @@
 # zaro (development version)
 
+* New `zaro_plan()`: the byte references a selection needs, before any
+  read. One row per chunk with `url`, `offset`, `length` and `transport`
+  (whole object, byte range in a NetCDF/HDF5 file, inline, or absent), and a
+  printed cost summary (requests, bytes, hosts). Native stores plan with no
+  request; virtual stores read only the manifest they need.
+
+* Every store now answers `store_refs()`, and the virtual stores
+  (kerchunk, VirtualiZarr, mdim-refs) fetch through it, so native and
+  virtual reads share one path ("everything is a refs table").
+
+* Kerchunk inline chunks prefixed `base64:` are decoded; references with
+  only a URL read the whole object.
+
+* `byte_range_read()` reads local files with base R (no GDAL), and its
+  `s3://`/`gs://` branches return raw vectors (they returned Arrow Buffers).
+
 * Fix decoding of `int64`, `uint64`, `uint32` and `float16` arrays, which
   had never been read correctly: the 8- or 4-byte integers were
   reinterpreted as floating point (e.g. CMIP6 `time`, stored as int64 hours,
