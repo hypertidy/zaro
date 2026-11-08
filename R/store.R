@@ -57,7 +57,7 @@ method(store_get, ArrowStore) <- function(store, key) {
 }
 
 method(store_list, ArrowStore) <- function(store, prefix = "", recursive = FALSE) {
-  path <- paste0(store@root, prefix, collapse = "/")
+  path <- if (nzchar(prefix)) paste0(sub("/+$", "", store@root), "/", sub("^/+", "", prefix)) else store@root
   sel <- arrow::FileSelector$create(path, recursive = recursive)
   infos <- store@fs$GetFileInfo(sel)
   paths <- vapply(infos, function(i) i$path, character(1))

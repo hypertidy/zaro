@@ -53,8 +53,8 @@ zaro_plan <- function(store, path = "", start = NULL, count = NULL,
                       meta = NULL, chunks = NULL, verbose = zaro_verbose()) {
   if (path == ".") path <- ""
   if (inherits(store, "zaro_dataset")) {
-    if (is.null(meta)) meta <- store$arrays[[path]]
-    store <- store$store
+    a <- dataset_array(store, path, meta)
+    store <- a$store; path <- a$path; meta <- a$meta
   }
   meta <- resolve_array_meta(store, path, meta, verbose)
 

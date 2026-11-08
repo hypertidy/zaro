@@ -85,11 +85,8 @@ zaro_array <- function(store, path = "", meta = NULL, parallel = FALSE,
   }
   if (path == ".") path <- ""
   if (inherits(store, "zaro_dataset")) {
-    if (is.null(meta)) meta <- store$arrays[[path]]
-    if (is.null(meta)) {
-      stop("array '", path, "' is not in the dataset", call. = FALSE)
-    }
-    store <- store$store
+    a <- dataset_array(store, path, meta)
+    store <- a$store; path <- a$path; meta <- a$meta
   }
   meta <- resolve_array_meta(store, path, meta, verbose)
   spec <- zaro_array_spec(meta)

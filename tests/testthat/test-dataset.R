@@ -169,3 +169,81 @@ test_that("options(zaro.verbose = FALSE) silences zaro by default", {
   msgs <- capture_messages(zaro(path, verbose = TRUE))
   expect_true(any(grepl("[zaro]", msgs, fixed = TRUE)))
 })
+
+## a nested store: root array "lon", group meas (no arrays), group
+## meas/r10 with x, y and band (y, x)
+make_nested <- function(path, consolidate = FALSE) {
+  unlink(path, recursive = TRUE)
+  dir.create(file.path(path, "meas", "r10"), recursive = TRUE)
+  for (g in c("", "meas", "meas/r10")) {
+    writeLines('{"zarr_format": 2}', file.path(path, g, ".zgroup"))
+  }
+  writeLines('{"proj:code": "EPSG:32636"}', file.path(path, "meas/r10", ".zattrs"))
+  write_test_zarr(file.path(path, "lon"), array(1:3, 3), chunk = 3L,
+                  dim_names = "lon")
+  g <- file.path(path, "meas", "r10")
+  write_test_zarr(file.path(g, "x"), array(c(5, 15, 25, 35), 4), chunk = 4L,
+                  dim_names = "x")
+  write_test_zarr(file.path(g, "y"), array(c(95, 85, 75), 3), chunk = 3L,
+                  dim_names = "y")
+  band <- array(seq_len(12L), c(4L, 3L))
+  write_test_zarr(file.path(g, "band"), band, chunk = c(2L, 2L),
+                  dim_names = c("x", "y"))
+  if (consolidate) {
+    files <- list.files(path, pattern = "^\\.z", recursive = TRUE,
+                        all.files = TRUE)
+    entries <- vapply(files, function(f) {
+      sprintf('"%s": %s', f, paste(readLines(file.path(path, f)), collapse = ""))
+    }, character(1))
+    writeLines(sprintf('{"zarr_consolidated_format": 1, "metadata": {%s}}',
+                       paste(entries, collapse = ", ")),
+               file.path(path, ".zmetadata"))
+  }
+  list(path = path, band = band)
+}
+
+for (cons in c(FALSE, TRUE)) {
+  test_that(sprintf("zaro_dataset(group =) opens a nested group (consolidated = %s)", cons), {
+    s <- make_nested(file.path(tempdir(), paste0("ds-nested-", cons)), cons)
+    ds <- zaro_dataset(s$path, group = "meas/r10", verbose = FALSE)
+    expect_equal(ds$group, "meas/r10")
+    expect_setequal(names(ds$arrays), c("band", "x", "y"))
+    expect_equal(ds$paths[["band"]], "meas/r10/band")
+    expect_equal(ds$dims$band, c("x", "y"))
+    expect_equal(ds$attributes[["proj:code"]], "EPSG:32636")
+    expect_output(print(ds), "group 'meas/r10'")
+
+    ## leading/trailing slashes are ignored
+    expect_setequal(names(zaro_dataset(s$path, group = "/meas/r10/",
+                                       verbose = FALSE)$arrays),
+                    c("band", "x", "y"))
+    ## the root still sees only its own arrays
+    expect_equal(names(zaro_dataset(s$path, verbose = FALSE)$arrays), "lon")
+    expect_length(zaro_dataset(s$path, group = "meas", verbose = FALSE)$arrays, 0L)
+
+    ## readers take the dataset with in-group names
+    ## (zaro_read() is in Zarr order: (y, x))
+    expect_identical(as.vector(zaro_read(ds, "band", verbose = FALSE)),
+                     as.vector(t(s$band)))
+    expect_identical(as.vector(zaro_read(ds, "band", start = c(1, 1),
+                                         count = c(2, 2), verbose = FALSE)),
+                     as.vector(t(s$band[2:3, 2:3])))
+    p <- zaro_plan(ds, "band", verbose = FALSE)
+    expect_equal(attr(p, "array"), "meas/r10/band")
+    expect_equal(nrow(p), 4L)
+    if (requireNamespace("altarr", quietly = TRUE)) {
+      a <- zaro_array(ds, "band", verbose = FALSE)
+      expect_identical(a[seq_along(a)], as.vector(s$band))
+    }
+
+    gr <- zaro_groups(s$path, verbose = FALSE)
+    expect_equal(gr$group, c("", "meas", "meas/r10"))
+    expect_equal(gr$arrays, c(1L, 0L, 3L))
+  })
+}
+
+test_that("zaro_dataset(group =) refuses a group that isn't there", {
+  s <- make_nested(file.path(tempdir(), "ds-nested-bad"), consolidate = TRUE)
+  expect_error(zaro_dataset(s$path, group = "nope", verbose = FALSE),
+               "not in the store")
+})

@@ -4,14 +4,18 @@
 \alias{zaro_dataset}
 \title{Open a store as a dataset: every array, its dimensions, no data read}
 \usage{
-zaro_dataset(source, arrays = NULL, verbose = zaro_verbose(), ...)
+zaro_dataset(source, group = "", arrays = NULL, verbose = zaro_verbose(), ...)
 }
 \arguments{
 \item{source}{a store from \code{\link[=zaro]{zaro()}}, or a character source passed to
 \code{\link[=zaro]{zaro()}} along with \code{...}.}
 
-\item{arrays}{optional character vector of array names to include. With
-consolidated metadata it filters; without, it replaces the listing.}
+\item{group}{path of the group to open, e.g.
+\code{"measurements/reflectance/r10m"}. Default \code{""}, the root.}
+
+\item{arrays}{optional character vector of array names (within \code{group})
+to include. With consolidated metadata it filters; without, it replaces
+the listing.}
 
 \item{verbose}{logical. Emit diagnostic messages. Default
 \code{getOption("zaro.verbose", TRUE)}.}
@@ -19,13 +23,17 @@ consolidated metadata it filters; without, it replaces the listing.}
 \item{...}{passed to \code{\link[=zaro]{zaro()}} when \code{source} is character.}
 }
 \value{
-A \code{zaro_dataset}: a list with \code{store}, \code{attributes} (root group
-attributes), \code{arrays} (named list of array metadata), \code{dims} (named list
-of R-order dimension names per array) and \code{shape} (named list of R-order
-sizes per array).
+A \code{zaro_dataset}: a list with \code{store}, \code{group} (the group's
+path), \code{attributes} (the group's attributes), \code{arrays} (named list of
+array metadata), \code{paths} (named character vector: each array's path in
+the store), \code{dims} (named list of R-order dimension names per array) and
+\code{shape} (named list of R-order sizes per array). Arrays are named
+within the group; \code{\link[=zaro_array]{zaro_array()}}, \code{\link[=zaro_read]{zaro_read()}} and \code{\link[=zaro_plan]{zaro_plan()}} take
+the dataset with those names.
 }
 \description{
-Collects the metadata of every array at the root of a Zarr store and
+Collects the metadata of every array in one group of a Zarr store (the
+root by default) and
 reports each array's dimension names and sizes in R order (the order
 \code{\link[=zaro_array]{zaro_array()}} returns). Consolidated metadata (\code{.zmetadata} or a
 consolidated \code{zarr.json}) is used when present, which is one request for
@@ -40,7 +48,9 @@ array, or \code{\link[=zaro_read]{zaro_read()}} with \code{meta = ds$arrays[[nam
 Arrays with no dimension names (Zarr V2 without xarray's
 \verb{_ARRAY_DIMENSIONS}) get names \code{"<array>_dim<k>"}, with \code{k} the 0-based
 Zarr axis, so they never collide with another array's dimensions.
-Only arrays directly in the root group are included.
+Only arrays directly in \code{group} are included; use \code{\link[=zaro_groups]{zaro_groups()}} to see
+a nested store's groups (e.g. EOPF and GeoZarr products, which keep their
+arrays several groups down).
 }
 \examples{
 \dontrun{
@@ -49,5 +59,11 @@ ds <- zaro_dataset("s3://aodn-cloud-optimised/model_sea_level_anomaly_gridded_re
 ds
 ds$dims$GSLA                       # "LONGITUDE" "LATITUDE" "TIME"
 gsla <- zaro_array(ds, "GSLA", cf = TRUE)
+
+## a nested store: list the groups, open one
+eopf <- zaro("https://s3.explorer.eopf.copernicus.eu/esa-zarr-sentinel-explorer-fra/tests-output/sentinel-2-l2a/S2C_MSIL2A_20260120T084301_N0511_R064_T36UXA_20260120T122910.zarr")
+zaro_groups(eopf)
+r10m <- zaro_dataset(eopf, group = "measurements/reflectance/r10m")
+b04 <- zaro_array(r10m, "b04")
 }
 }
