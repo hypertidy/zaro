@@ -1,5 +1,15 @@
 # zaro (development version)
 
+* String data types are read, to character (#22): `fixed_length_utf32`
+  (numpy `U`, V2 `<U`/`>U`), `null_terminated_bytes` (numpy `S`, V2 `|S`;
+  alias `fixed_length_ascii`), and variable-length `string` with the
+  `vlen-utf8` codec (V2 `|O` with the `vlen-utf8` filter), including in
+  shards. String coordinates now load at open: EOPF Sentinel-2 L2A
+  `conditions/geometry` (`angle`, `band`, `detector`) opens, in zaro and
+  in ndr. `zaro_array()` refuses string arrays (lazy arrays are numeric
+  or logical) and points to `zaro_read()`. Tested on stores written by
+  zarr-python 3.2.1.
+
 * arrow moves from Imports to Suggests (#23). Local stores are read with
   base R (a new `LocalStore`), and zstd, gzip and bz2 chunks decode with
   `memDecompress()` (falling back to arrow if base R can't). arrow is

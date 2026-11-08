@@ -170,7 +170,9 @@ test_that("GDAL autotest sharded fixtures read as GDAL reads them", {
   ## unsupported layouts fail clearly
   expect_error(rd("transposed_sharding.zarr"), "not supported")
   expect_error(rd("nested_sharding.zarr"), "not supported")
-  expect_error(rd("sharded_null_terminated_bytes.zarr/ar"), "unsupported dtype")
+  ## strings in shards (#22): as zarr-python reads them
+  expect_identical(as.vector(rd("sharded_null_terminated_bytes.zarr/ar")),
+                   c("hi", "bye", "foo", "bar"))
   expect_error(rd("sharing_too_small_data_file/ar"), "shard index has")
 })
 
