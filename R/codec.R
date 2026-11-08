@@ -34,6 +34,28 @@ decode_chunk <- function(raw_bytes, meta) {
 }
 
 
+#' decode_chunk() with the chunk's plan row named in any error
+#'
+#' A virtual reference whose source file was rewritten after the references
+#' were made fetches the wrong bytes, which then fail to decompress with a
+#' bare codec error. Say which chunk and byte range, and that the
+#' references may be stale.
+#' @noRd
+decode_planned <- function(raw, meta, ref = NULL) {
+  if (is.null(ref)) return(decode_chunk(raw, meta))
+  tryCatch(decode_chunk(raw, meta), error = function(e) {
+    where <- if (!is.na(ref$size)) {
+      sprintf("%s [offset %.0f, %.0f bytes]", ref$path, ref$offset, ref$size)
+    } else ref$path
+    stop("decoding chunk '", ref$key, "' from ", where, " failed: ",
+         conditionMessage(e),
+         if (!is.na(ref$size)) paste0(
+           "\n  (for a virtual store this often means the source file changed ",
+           "after the references were made)"), call. = FALSE)
+  })
+}
+
+
 #' Reinterpret bytes as an R vector of a Zarr data type
 #'
 #' readBin() covers the types R holds natively. The rest are built here:
@@ -116,6 +138,10 @@ decode_one <- function(buf, codec, meta) {
          # V2 shuffle filter -- unshuffle bytes by element size
          "shuffle" = unshuffle(buf, config$elementsize %||% 1L),
 
+         # TIFF predictor 2: horizontal differencing (virtualized COG tiles)
+         "imagecodecs_delta" = ,
+         "horizontal_delta" = undo_horizontal_delta(buf, config, meta),
+
          # -- array-to-bytes codecs --
          "bytes"  = buf,  # endian handling done at readBin stage
          "endian" = buf,  # alias
@@ -133,6 +159,48 @@ decode_one <- function(buf, codec, meta) {
 }
 
 
+#' Undo horizontal differencing (TIFF predictor 2, imagecodecs `delta`)
+#'
+#' Each row along the last axis was stored as differences from the previous
+#' element, in the sample's integer type with wraparound. Decoding is a
+#' cumulative sum along that axis, wrapped back into the type's range. The
+#' filter's own `dtype` and `shape` are used when given (imagecodecs writes
+#' them), else the array's. Integer types up to 32 bits; `axis = -1`,
+#' `dist = 1` only (what TIFF predictor 2 is).
+#' @noRd
+undo_horizontal_delta <- function(buf, config, meta) {
+  axis <- as.integer(config[["axis"]] %||% -1L)
+  dist <- as.integer(config[["dist"]] %||% 1L)
+  shape <- as.integer(unlist(config[["shape"]] %||% meta@chunk_shape))
+  if (!(axis == -1L || axis == length(shape) - 1L) || dist != 1L) {
+    stop("horizontal delta: only axis = -1 and dist = 1 are supported (got axis ",
+         axis, ", dist ", dist, ")", call. = FALSE)
+  }
+  dt <- if (!is.null(config[["dtype"]])) parse_numpy_dtype(config[["dtype"]]) else
+    list(dtype = meta@data_type, endian = chunk_endian(meta@codecs))
+  bits <- switch(dt$dtype, int8 = 8L, uint8 = 8L, int16 = 16L, uint16 = 16L,
+                 int32 = 32L, uint32 = 32L,
+                 stop("horizontal delta: unsupported dtype '", dt$dtype,
+                      "' (integers up to 32 bits only; TIFF predictor 3 is not",
+                      " supported)", call. = FALSE))
+  signed <- startsWith(dt$dtype, "int")
+  n <- prod(shape)
+  v <- as.double(read_typed(buf, dt$dtype, n, dt$endian))
+  ncol <- shape[length(shape)]
+  m <- matrix(v, ncol = ncol, byrow = TRUE)          # one row per line
+  if (ncol > 1L) for (k in 2:ncol) m[, k] <- m[, k] + m[, k - 1L]
+  # wrap into the type's range (exact in double: |sum| < 2^53)
+  m <- if (signed) (m + 2^(bits - 1)) %% 2^bits - 2^(bits - 1) else m %% 2^bits
+  v <- as.vector(t(m))
+  # write back as the same bytes: signed representation for writeBin
+  if (!signed) v <- ifelse(v >= 2^(bits - 1), v - 2^bits, v)
+  w <- rep(NA_integer_, length(v))                   # NA_integer_ is 0x80000000
+  ok <- v != -2^31
+  w[ok] <- as.integer(v[ok])
+  writeBin(w, raw(), size = bits %/% 8L, endian = dt$endian)
+}
+
+
 #' Decompress using arrow::Codec
 #' @noRd
 arrow_decompress <- function(buf, type, config) {
@@ -141,13 +209,17 @@ arrow_decompress <- function(buf, type, config) {
   reader <- arrow::BufferReader$create(raw_buf)
   stream <- arrow::CompressedInputStream$create(reader, codec)
 
-  # overestimate is fine - Read() returns only what's available
-  out_size <- config[["decompressed_size"]]
-  if (is.null(out_size)) {
-    out_size <- length(buf) * 20L
+  # read until the stream is exhausted: a fixed guess at the output size
+  # (it was 20x the input) truncates chunks that compress better than that,
+  # such as constant or all-fill chunks
+  step <- max(length(buf) * 20, 1024^2)
+  parts <- list()
+  repeat {
+    b <- as.raw(stream$Read(step))
+    if (!length(b)) break
+    parts[[length(parts) + 1L]] <- b
   }
-
-  as.raw(stream$Read(out_size))
+  if (!length(parts)) raw() else do.call(c, parts)
 }
 
 

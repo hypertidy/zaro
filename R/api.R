@@ -441,7 +441,7 @@ zaro_read <- function(store, path = "", start = NULL, count = NULL, meta = NULL,
   raws <- zaro_fetch(store, plan, verbose = verbose)
   decode_one_chunk <- function(i) {
     if (is.null(raws[[i]])) return(NULL)
-    list(cidx = chunk_indices[[i]], values = decode_chunk(raws[[i]], meta))
+    list(cidx = chunk_indices[[i]], values = decode_planned(raws[[i]], meta, plan[i, ]))
   }
 
   if (use_parallel) {
