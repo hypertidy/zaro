@@ -29,6 +29,9 @@ jobs:
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       _R_CHECK_FORCE_SUGGESTS_: false
+      # arrow: fetch a prebuilt libarrow instead of compiling it from source
+      NOT_CRAN: true
+      LIBARROW_BINARY: true
 
     steps:
       - uses: actions/checkout@v4

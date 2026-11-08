@@ -20,6 +20,9 @@ jobs:
       group: pkgdown-${{ github.event_name != 'pull_request' || github.run_id }}
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      # arrow: fetch a prebuilt libarrow instead of compiling it from source
+      NOT_CRAN: true
+      LIBARROW_BINARY: true
     permissions:
       contents: write
     container:
