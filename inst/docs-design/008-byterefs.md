@@ -59,7 +59,7 @@ size. That is a question for byterefs, below.
    and integer `dim_i` columns in place of `index`. Keep `key` and
    `transport` as extras.
 3. **Read byterefs natively.** Today a byterefs store is served through
-   synthesised Zarr V2 keys and one view query per key. Instead,
+   synthesized Zarr V2 keys and one view query per key. Instead,
    `store_refs()` takes all of a plan's keys in one query, and uses the
    placement-first lookup the spec describes ("One chunk by global key"),
    not a filter on the view, which the spec measures at 0.9 to 1.9 s per
