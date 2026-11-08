@@ -2,6 +2,32 @@
 
 ## zaro (development version)
 
+- byterefs stores: chunk keys are looked up placement first, many at a
+  time (byterefs spec “One chunk by global key”, ported from
+  raad.virtualize `mr_chunks()`): the array’s placements are read once
+  and kept, matched to the keys, and the chunk rows fetched by primary
+  key. Filtering the `refs_<array>` view computed every row of the array
+  for each key. At 180k chunk rows one key takes about 3 ms instead of
+  0.2 s, and 2000 keys about 0.2 s. Results equal the view’s for every
+  key of a test store (absent and inline chunks, non-zero `src_offset`,
+  a remap target, side-by-side tiles). A store without a `placements`
+  table falls back to the view.
+
+- byterefs stores: `arrays.codec` may be a Zarr V3 codec chain (a JSON
+  array, encode order) or the V2 `{compressor, filters}` form (decision
+  0007). The chain is checked (known names, array-to-array then one
+  `bytes` then bytes-to-bytes, `bytes` endian agreeing with `dtype`, no
+  `sharding_indexed`). An array with a codec zaro does not know is
+  refused: a warning at open, an error on read; the store’s other arrays
+  still read.
+
+- byterefs stores: a row with `offset` 0 and `size` NULL is the whole
+  object at `path`, and is fetched whole; `size` NULL with any other
+  offset is an error naming the key (decision 0008).
+
+- byterefs stores: the Zarr metadata is built once, at open, not for
+  every key.
+
 - Fix decompression truncating chunks that compress better than 20:1
   (zstd, gzip, lz4, brotli, snappy, bz2 through Arrow). The output size
   was guessed as 20 times the input; constant and all-fill chunks, and
