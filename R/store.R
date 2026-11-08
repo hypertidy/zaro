@@ -10,7 +10,8 @@
 #
 # Backends:
 #   ArrowStore     - arrow::FileSystem (local, S3, GCS)
-#   VSIStore       - gdalraster VSI (HTTP, Azure, any GDAL vfs)
+#   HttpStore      - plain HTTP(S) via curl
+#   VSIStore       - gdalraster VSI (Azure, any GDAL vfs; S3 region fallback)
 #   ReferenceStore - Kerchunk JSON or Parquet virtual references
 
 # -- abstract store ---------------------------------------------------------
@@ -70,6 +71,53 @@ method(store_exists, ArrowStore) <- function(store, key) {
     info <- store@fs$GetFileInfo(path)
     info$type != 0L  # 0 = NotFound
   }, error = function(e) FALSE)
+}
+
+
+# -- HTTP store (curl) ------------------------------------------------------
+
+# Plain HTTP(S) Zarr, GDAL-free. Metadata keys are cached; chunks are
+# planned as whole-object "http" refs so zaro_fetch() batches them.
+HttpStore <- new_class("HttpStore", parent = ZaroStore, properties = list(
+  cache = class_any   # environment: metadata key -> raw
+))
+
+method(store_get, HttpStore) <- function(store, key) {
+  meta_key <- is_metadata_key(key)
+  if (meta_key && !is.null(hit <- store@cache[[key]])) return(hit)
+  raw <- http_get(paste0(store@root, "/", key))
+  if (meta_key && !is.null(raw)) assign(key, raw, envir = store@cache)
+  raw
+}
+
+method(store_list, HttpStore) <- function(store, prefix = "") {
+  stop("an HTTP store can't be listed; it needs consolidated metadata, ",
+       "or name the arrays (zaro_dataset(arrays = ))", call. = FALSE)
+}
+
+method(store_exists, HttpStore) <- function(store, key) {
+  h <- curl::new_handle(nobody = TRUE)
+  r <- tryCatch(curl::curl_fetch_memory(paste0(store@root, "/", key), handle = h),
+                error = function(e) NULL)
+  !is.null(r) && r$status_code == 200L
+}
+
+method(store_refs, HttpStore) <- function(store, keys) {
+  refs_frame(keys, url = paste0(store@root, "/", keys), offset = 0,
+             transport = "http")
+}
+
+#' GET a URL: raw on 200, NULL when it does not exist (404/403/410),
+#' an error otherwise (so network trouble is not mistaken for "absent")
+#' @noRd
+http_get <- function(url) {
+  r <- tryCatch(curl::curl_fetch_memory(url), error = function(e) {
+    stop("HTTP request failed for ", url, ": ", conditionMessage(e),
+         call. = FALSE)
+  })
+  if (r$status_code == 200L) return(r$content)
+  if (r$status_code %in% c(403L, 404L, 410L)) return(NULL)
+  stop("HTTP ", r$status_code, " for ", url, call. = FALSE)
 }
 
 

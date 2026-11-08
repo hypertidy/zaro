@@ -1,5 +1,22 @@
 # zaro (development version)
 
+* New `zaro_fetch(store, plan)` executes a plan: HTTP references go through
+  one curl connection pool (`options(zaro.max_con)`, default 8, per host
+  and in total), byte ranges that touch on the same URL are merged into one
+  request (`options(zaro.merge_gap)` widens that), and failed or short
+  responses are retried with backoff. `zaro_read()` and `zaro_array()` read
+  through plan + fetch, so every altarr batch is one pooled fetch. The
+  BRAN2023 30-point track reads in 0.9 s (4.8 s one connection at a time);
+  a 60-chunk BRAN2023 surface slice is 2 requests.
+
+* `http://` and `https://` stores are read with curl (`HttpStore`), not
+  gdalraster: GDAL-free, metadata cached, chunks fetched through the pool.
+  An HTTP store can't be listed, so it needs consolidated metadata (or
+  `zaro_dataset(arrays = )`). HTTP errors other than not-found are errors,
+  not silently absent chunks. Any `/vsi...` path opens a gdalraster
+  `VSIStore`, e.g. `zaro("/vsicurl/https://...")` to keep GDAL's HTTP
+  handling.
+
 * New `zaro_plan()`: the byte references a selection needs, before any
   read. One row per chunk with `url`, `offset`, `length` and `transport`
   (whole object, byte range in a NetCDF/HDF5 file, inline, or absent), and a
