@@ -129,7 +129,8 @@ test_that("sharded arrays written by zarr-python read exactly", {
   skip_if(status != 0L, "zarr-python fixture script failed")
   cases <- list(f32_end_zstd = list("double", 4L, TRUE),
                 u16_start_gzip = list("integer", 2L, FALSE),
-                i32_partial = list("integer", 4L, TRUE))
+                i32_partial = list("integer", 4L, TRUE),
+                i32_whole_shard_zstd = list("integer", 4L, TRUE))
   for (nm in names(cases)) {
     k <- cases[[nm]]
     store <- zaro(file.path(out, paste0(nm, ".zarr")), verbose = FALSE)
@@ -145,4 +146,53 @@ test_that("sharded arrays written by zarr-python read exactly", {
   p <- zaro_plan(zaro(file.path(out, "i32_partial.zarr"), verbose = FALSE),
                  verbose = FALSE)
   expect_equal(sum(p$transport == "absent"), 52L)
+  ## a compressed whole shard is fetched and decoded at plan time: inline rows
+  pw <- zaro_plan(zaro(file.path(out, "i32_whole_shard_zstd.zarr"), verbose = FALSE),
+                  verbose = FALSE)
+  expect_true(all(pw$transport == "inline"))
+})
+
+test_that("GDAL autotest sharded fixtures read as GDAL reads them", {
+  ## optional: point ZARO_GDAL_AUTOTEST at gdal/autotest/gdrivers/data/zarr/v3
+  base <- Sys.getenv("ZARO_GDAL_AUTOTEST",
+                     path.expand("~/gdal/autotest/gdrivers/data/zarr/v3"))
+  skip_if(!dir.exists(file.path(base, "sharding_big_endian.zarr")),
+          "GDAL autotest Zarr v3 data not found")
+  rd <- function(s) zaro_read(zaro(file.path(base, s), verbose = FALSE), verbose = FALSE)
+  ref <- rd("sharding_big_endian.zarr")
+  ## crc32c after sharding_indexed (on the whole shard), with and without
+  ## crc32c on inner chunks too: same values as the plain big-endian store
+  for (s in c("sharding_big_endian_then_byte_byte_codec.zarr",
+              "sharding_little_endian_then_byte_byte_codec.zarr",
+              "sharding_with_crc32_then_byte_byte_codec.zarr")) {
+    expect_equal(rd(s), ref, label = s)
+  }
+  ## unsupported layouts fail clearly
+  expect_error(rd("transposed_sharding.zarr"), "not supported")
+  expect_error(rd("nested_sharding.zarr"), "not supported")
+  expect_error(rd("sharded_null_terminated_bytes.zarr/ar"), "unsupported dtype")
+  expect_error(rd("sharing_too_small_data_file/ar"), "shard index has")
+})
+
+test_that("a published sharded GeoZarr (EOPF Sentinel-2 L2A) reads as zarr-python reads it", {
+  skip_on_cran()
+  skip_if_offline("s3.explorer.eopf.copernicus.eu")
+  old <- options(zaro.verbose = FALSE)
+  on.exit(options(old), add = TRUE)
+  u <- paste0("https://s3.explorer.eopf.copernicus.eu/esa-zarr-sentinel-explorer-fra/",
+              "tests-output/sentinel-2-l2a/",
+              "S2C_MSIL2A_20260120T084301_N0511_R064_T36UXA_20260120T122910.zarr")
+  store <- zaro(u)
+  path <- "measurements/reflectance/r120m/b01"
+  meta <- zaro_meta(store, path)
+  expect_equal(attr(meta, "shard")$shape, c(915L, 915L))
+  expect_equal(meta@chunk_shape, c(183L, 183L))
+  b01 <- unname(unclass(zaro_read(store, path, meta = meta)))
+  ## reference values from zarr-python 3.2.1 reading the same store
+  ## (2026-11-08); exact, float32 values held as double
+  expect_identical(sum(b01), 471604.68843654916)
+  expect_identical(b01[1, 1], 0.23680000007152557)
+  expect_identical(b01[500, 700], 0.54120004177093506)
+  expect_identical(b01[184, 1], 0.51462501287460327)    # first row of chunk (1, 0)
+  expect_identical(b01[915, 915], 0.5285000205039978)   # padded edge chunk
 })

@@ -52,6 +52,8 @@ parse_zarr_json <- function(raw_bytes) {
 
   # array metadata
   shape <- as.integer(unlist(meta[["shape"]]))
+  # a V3 data_type may be an object {"name": ..., "configuration": ...}
+  if (is.list(meta[["data_type"]])) meta[["data_type"]] <- meta[["data_type"]][["name"]]
 
   chunk_grid <- meta[["chunk_grid"]]
   chunk_shape <- as.integer(unlist(chunk_grid[["configuration"]][["chunk_shape"]]))
@@ -84,9 +86,12 @@ parse_zarr_json <- function(raw_bytes) {
            "] is not a multiple of the inner chunk shape [",
            paste(inner, collapse = ", "), "]", call. = FALSE)
     }
+    # codecs after sharding_indexed apply to the whole shard object
+    # (bytes-to-bytes: crc32c, or a compressor)
     shard <- list(shape = chunk_shape,
                   index_codecs = parse_codecs(cfg[["index_codecs"]]),
-                  index_location = cfg[["index_location"]] %||% "end")
+                  index_location = cfg[["index_location"]] %||% "end",
+                  outer_codecs = codecs[-1L])
     chunk_shape <- inner
     codecs <- inner_codecs
   }

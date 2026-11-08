@@ -87,7 +87,10 @@ zaro_plan <- function(store, path = "", start = NULL, count = NULL,
 # A shard is one more level of byte references. Its object holds an index of
 # (offset, nbytes) per inner chunk in C order (uint64 pairs, all 0xFF for an
 # empty chunk), at the end or start of the object, encoded by index_codecs
-# (bytes, optionally crc32c: stripped, not verified). Planning reads the
+# (bytes, optionally crc32c: stripped, not verified). Codecs after
+# sharding_indexed apply to the whole shard object: a crc32c there is 4
+# trailing bytes (skipped); a compressor means whole shards are fetched and
+# decoded at plan time (their inner chunks become inline rows). Planning reads the
 # indexes of the shards a selection touches -- one small ranged read each,
 # fetched together -- and turns every inner chunk into a byte-range row of
 # its shard object. A missing shard leaves all its inner chunks absent.
@@ -106,6 +109,26 @@ plan_sharded <- function(store, path, meta, chunks, shard) {
 
   ushards <- unique(skeys)
   srefs <- store_refs(store, ushards)
+  if (!shard_ranged(shard)) {
+    # a compressor on the whole shard: no ranged reads, so fetch whole shards,
+    # decode them, and plan their inner chunks as inline bytes
+    whole <- srefs
+    whole$length[whole$transport != "inline"] <- NA_real_
+    whole$offset[whole$transport != "inline"] <- 0
+    raws <- zaro_fetch(store, whole, verbose = FALSE)
+    for (i in seq_along(raws)) {
+      if (is.null(raws[[i]])) {
+        srefs$transport[i] <- "absent"
+        next
+      }
+      b <- raws[[i]]
+      for (codec in rev(shard$outer_codecs)) b <- decode_one(b, codec, meta)
+      srefs$inline[[i]] <- b
+      srefs$transport[i] <- "inline"
+      srefs$url[i] <- NA_character_
+    }
+    shard$outer_codecs <- list()
+  }
   tabs <- shard_indexes(store, srefs, n_inner, shard)
 
   plan <- refs_frame(skeys, transport = "absent")
@@ -130,6 +153,14 @@ plan_sharded <- function(store, path, meta, chunks, shard) {
   plan
 }
 
+#' Can a shard be read by byte ranges? Only if nothing but crc32c follows
+#' sharding_indexed (a checksum appended to the shard object).
+#' @noRd
+shard_ranged <- function(shard) {
+  all(vapply(shard$outer_codecs %||% list(),
+             function(c) identical(c$name, "crc32c"), logical(1)))
+}
+
 #' Read and decode the index of each shard (NULL for a missing shard)
 #' @noRd
 shard_indexes <- function(store, srefs, n_inner, shard) {
@@ -137,6 +168,9 @@ shard_indexes <- function(store, srefs, n_inner, shard) {
                     logical(1)))
   size <- 16 * n_inner + 4 * crc
   at_end <- !identical(shard$index_location, "start")
+  # crc32c on the whole shard: 4 bytes after the index (end) or the data
+  tail <- 4 * length(shard$outer_codecs %||% list())
+  if (at_end) size <- size + tail
 
   # where each index is: within a known byte range, or relative to the object
   rows <- srefs
@@ -160,6 +194,9 @@ shard_indexes <- function(store, srefs, n_inner, shard) {
     } else {
       raw[i] <- list(fetch_ref(store, r))
     }
+  }
+  if (at_end && tail > 0) {
+    raw <- lapply(raw, function(b) if (is.null(b)) NULL else b[seq_len(length(b) - tail)])
   }
   lapply(raw, decode_shard_index, n_inner = n_inner, shard = shard)
 }

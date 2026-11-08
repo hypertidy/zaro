@@ -5,6 +5,24 @@
   decision 0003), as well as the legacy `mdim-refs/0.2`. Such stores were
   refused with "not an mdim-refs store".
 
+* Sharded arrays with codecs after `sharding_indexed` (applied to the whole
+  shard object) now read. A trailing `crc32c` is skipped and the shard is
+  still read by byte ranges; a compressor means whole shards are fetched and
+  decoded at plan time, and their inner chunks become inline plan rows.
+  These codecs were previously dropped, so such stores failed with
+  length errors. `transpose` before sharding and nested sharding remain
+  unsupported, with clear errors.
+
+* A V3 `data_type` given as an object (`{"name": ...}`) keeps its name, so
+  unsupported types fail with "unsupported dtype" rather than a class
+  validation error.
+
+* Acceptance: the EOPF Sentinel-2 L2A sharded GeoZarr on
+  s3.explorer.eopf.copernicus.eu (blosc/zstd inner chunks, index at the end
+  with crc32c) reads identically to zarr-python 3.2.1 and GDAL 3.14; the
+  seven readable sharded fixtures in GDAL's autotest read as GDAL reads
+  them (tests run when `ZARO_GDAL_AUTOTEST` or `~/gdal/autotest` is found).
+
 * Read sharded Zarr V3 arrays (`sharding_indexed`). A shard is planned as
   one more level of byte references: `zaro_plan()` reads the index of each
   shard a selection touches (one small ranged read per shard, fetched
