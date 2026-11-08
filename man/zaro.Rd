@@ -44,6 +44,12 @@ SQLite byte-reference table (\url{https://github.com/byterefs/spec}),
 are remapped for the store's \code{meta.default_target}; pass
 \code{target = "public"} for another target, or \code{target = ""} for
 the verbatim sources
+\item \code{flatrefs://}: a byterefs flat refs store, the Parquet export
+(a directory, local or remote, with \code{arrays.json} and one
+\code{refs_<array>.parquet} per array, as raad.virtualize publishes).
+Chunk references are read by row group, only those whose dim
+statistics can hold the selection, so a table of tens of millions of
+rows is never read whole. \code{target} as for \code{byterefs://}
 }
 }
 \details{

@@ -1,6 +1,6 @@
 Package: zaro
 Title: Zarr via Arrow
-Version: 0.0.1.9035
+Version: 0.0.1.9036
 Authors@R: c(person("Michael", "Sumner", email = "mdsumner@gmail.com",
                   role = c("aut", "cre"), comment = c(ORCID = "0000-0002-2471-7511")), 
              person("Hugo", "Gruson", , , role = c("ctb"),
@@ -57,4 +57,6 @@ Collate:
     'read-arrays.R'
     'virtualizarr.R'
     'mdimrefs.R'
+    'parquet-ranged.R'
+    'flatrefs.R'
 Config/roxygen2/version: 8.1.1

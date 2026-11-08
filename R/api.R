@@ -29,6 +29,12 @@
 #'     are remapped for the store's \code{meta.default_target}; pass
 #'     \code{target = "public"} for another target, or \code{target = ""} for
 #'     the verbatim sources
+#'   \item \code{flatrefs://}: a byterefs flat refs store, the Parquet export
+#'     (a directory, local or remote, with \code{arrays.json} and one
+#'     \code{refs_<array>.parquet} per array, as raad.virtualize publishes).
+#'     Chunk references are read by row group, only those whose dim
+#'     statistics can hold the selection, so a table of tens of millions of
+#'     rows is never read whole. \code{target} as for \code{byterefs://}
 #' }
 #'
 #' For S3 stores, if Arrow returns a 301 redirect (wrong region), zaro will
@@ -105,6 +111,11 @@ zaro <- function(source, verbose = zaro_verbose(), ..., validate = FALSE) {
   } else if (grepl("^(byterefs|mdimrefs)://", source)) {
     # byterefs byte-reference table (SQLite), served as a Zarr V2 store
     store <- open_mdimrefs(sub("^(byterefs|mdimrefs)://", "", source),
+                           target = dots[["target"]], verbose = verbose)
+  } else if (grepl("^flatrefs://", source)) {
+    # byterefs flat refs store: arrays.json + refs_<array>.parquet, read by
+    # row group
+    store <- open_flatrefs(sub("^flatrefs://", "", source),
                            target = dots[["target"]], verbose = verbose)
   } else if (grepl("^virtualizarr://", source)) {
     # VirtualiZarr Parquet reference store (directory with manifests)

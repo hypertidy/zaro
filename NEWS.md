@@ -1,5 +1,22 @@
 # zaro (development version)
 
+* `flatrefs://` reads a byterefs flat refs store, the Parquet export that
+  raad.virtualize publishes (`arrays.json` plus one `refs_<array>.parquet`
+  per array): synthesised Zarr V2 metadata, codec refusal, coordinates and
+  remap targets as for `byterefs://`. Chunk references are looked up by
+  reading only the row groups whose `dim_k` statistics can hold the
+  selection, fetched by byte range through the curl pool and decoded by
+  nanoparquet; the latest `getOption("zaro.flat_cache_row_groups", 4)`
+  are kept. The Bluelink BRAN2023 `temp` table (324 MB, 37.5M rows, 36 row
+  groups): the footer in one request (1.2 s), a one-day surface plan reads
+  one 9 MB row group (3.0 s), a point series over every day reads the
+  whole table one batch at a time (33 s, peak 556 MB).
+* Internals for that: `parquet-ranged.R` reads a Parquet footer by a
+  suffix range request and rewrites it (Thrift compact protocol, top level
+  only) to list some row groups, which then read from a sparse local file.
+  Metadata is read with the file's `num_rows` set to 0: nanoparquet 0.5.1
+  allocates in proportion to it (2.7 GB for 37.5M rows, otherwise).
+
 * S3 and GCS objects are fetched through the curl pool (#23), as HTTPS,
   when their access is known: anonymous (`anonymous = TRUE`, a known
   public bucket, `AWS_NO_SIGN_REQUEST=YES`, `options(zaro.cloud_anonymous
