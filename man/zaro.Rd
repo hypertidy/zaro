@@ -38,8 +38,12 @@ names, see \code{\link[=zaro_dataset]{zaro_dataset()}})
 \item \code{reference+json://}: Kerchunk JSON reference store
 \item \code{reference+parquet://}: Kerchunk Parquet reference store
 \item \code{virtualizarr://}: VirtualiZarr Parquet manifest store
-\item \code{mdimrefs://}: mdim-refs SQLite byte-reference table; pass
-\code{target = "public"} to apply that remap target to source paths
+\item \code{byterefs://} (or the older \code{mdimrefs://}): a byterefs
+SQLite byte-reference table (\url{https://github.com/byterefs/spec}),
+\code{byterefs/0.1} or the legacy \code{mdim-refs/0.2}. Source paths
+are remapped for the store's \code{meta.default_target}; pass
+\code{target = "public"} for another target, or \code{target = ""} for
+the verbatim sources
 }
 }
 \details{

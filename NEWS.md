@@ -1,9 +1,12 @@
 # zaro (development version)
 
-* `mdimrefs://` accepts stores stamped `byterefs/0.1`, the identifier
-  raad.virtualize writes since the format was renamed (byterefs/spec
-  decision 0003), as well as the legacy `mdim-refs/0.2`. Such stores were
-  refused with "not an mdim-refs store".
+* byterefs stores: with no `target`, `zaro()` applies the store's
+  `meta.default_target` (byterefs/spec decision 0004); `target = ""` reads
+  the verbatim sources, and a target with no remap rules warns. Only the
+  identifiers a byterefs/0.1 reader takes are accepted, `byterefs/0.1` and
+  (until byterefs/0.2) `mdim-refs/0.2` (decision 0003); another `byterefs/`
+  version warns and is read as 0.1. New scheme `byterefs://`, with
+  `mdimrefs://` kept as an alias.
 
 * Sharded arrays with codecs after `sharding_indexed` (applied to the whole
   shard object) now read. A trailing `crc32c` is skipped and the shard is
@@ -22,6 +25,11 @@
   with crc32c) reads identically to zarr-python 3.2.1 and GDAL 3.14; the
   seven readable sharded fixtures in GDAL's autotest read as GDAL reads
   them (tests run when `ZARO_GDAL_AUTOTEST` or `~/gdal/autotest` is found).
+
+* `mdimrefs://` accepts stores stamped `byterefs/0.1`, the identifier
+  raad.virtualize writes since the format was renamed (byterefs/spec
+  decision 0003), as well as the legacy `mdim-refs/0.2`. Such stores were
+  refused with "not an mdim-refs store".
 
 * Read sharded Zarr V3 arrays (`sharding_indexed`). A shard is planned as
   one more level of byte references: `zaro_plan()` reads the index of each
