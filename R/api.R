@@ -14,7 +14,12 @@
 #'   \item Local paths: Arrow LocalFileSystem
 #'   \item \code{s3://}: Arrow S3FileSystem (with automatic region detection)
 #'   \item \code{gs://}: Arrow GcsFileSystem
-#'   \item \code{http://}, \code{https://}: gdalraster VSI (\code{/vsicurl/})
+#'   \item \code{http://}, \code{https://}: curl (no GDAL); chunk reads are
+#'     batched through one connection pool, see [zaro_fetch()]. An HTTP
+#'     store can't be listed, so it needs consolidated metadata (or array
+#'     names, see [zaro_dataset()])
+#'   \item \code{/vsi...}: any GDAL virtual file system path, through gdalraster
+#'     (e.g. \code{/vsicurl/https://...} to keep GDAL's HTTP handling)
 #'   \item \code{reference+json://}: Kerchunk JSON reference store
 #'   \item \code{reference+parquet://}: Kerchunk Parquet reference store
 #'   \item \code{virtualizarr://}: VirtualiZarr Parquet manifest store
@@ -154,11 +159,13 @@ zaro <- function(source, verbose = zaro_verbose(), ..., validate = FALSE) {
       stop(e)
     })
   } else if (grepl("^https?://", source)) {
-
-  # HTTP/HTTPS - use gdalraster VSI
-    vsi_root <- paste0("/vsicurl/", source)
-    vmsg("opening HTTP store via gdalraster VSI: ", vsi_root, verbose = verbose)
-    store <- VSIStore(root = vsi_root)
+    # HTTP/HTTPS - curl, batched chunk reads, no GDAL
+    vmsg("opening HTTP store: ", source, verbose = verbose)
+    store <- HttpStore(root = source, cache = new.env(parent = emptyenv()))
+  } else if (grepl("^/vsi", source)) {
+    # any GDAL virtual file system path, read through gdalraster
+    vmsg("opening gdalraster VSI store: ", source, verbose = verbose)
+    store <- VSIStore(root = source)
   } else {
 
    # local filesystem
@@ -399,29 +406,9 @@ zaro_read <- function(store, path = "", start = NULL, count = NULL, meta = NULL,
   }
 
   ndim <- length(meta@shape)
-
-  # default to full extent
-  if (is.null(start)) start <- rep(0L, ndim)
-  if (is.null(count)) count <- rep(NA_integer_, ndim)
-
-
-  start <- as.integer(start)
-  count <- as.integer(count)
-
-  # NA in count means "rest of axis from start"
-  na_idx <- is.na(count)
-  count[na_idx] <- meta@shape[na_idx] - start[na_idx]
-
-  if (length(start) != ndim || length(count) != ndim) {
-    stop("start and count must have length ", ndim, call. = FALSE)
-  }
-
-  if (any(start + count > meta@shape)) {
-    over <- which(start + count > meta@shape)
-    warning("request exceeds array extent on dimension(s) ",
-            paste(over, collapse = ", "), "; clamping", call. = FALSE)
-    count <- pmin(count, meta@shape - start)
-  }
+  sel <- resolve_selection(meta, start, count)
+  start <- sel$start
+  count <- sel$count
 
   # compute which chunks we need
   chunk_ranges <- chunk_coverage(start, count, meta@chunk_shape)
@@ -444,17 +431,19 @@ zaro_read <- function(store, path = "", start = NULL, count = NULL, meta = NULL,
     vmsg("fetching chunks in parallel via future.apply", verbose = verbose)
   }
 
-  # -- phase 1: fetch + decode (parallelizable) --
-  fetch_and_decode <- function(cidx) {
-    chunk_raw <- fetch_chunk(store, path, cidx, meta)
-    if (is.null(chunk_raw)) return(NULL)
-    list(cidx = cidx, values = decode_chunk(chunk_raw, meta))
+  # -- phase 1: plan + fetch (HTTP batched), then decode (parallelizable) --
+  plan <- zaro_plan(store, path, meta = meta,
+                    chunks = do.call(rbind, chunk_indices), verbose = FALSE)
+  raws <- zaro_fetch(store, plan, verbose = verbose)
+  decode_one_chunk <- function(i) {
+    if (is.null(raws[[i]])) return(NULL)
+    list(cidx = chunk_indices[[i]], values = decode_chunk(raws[[i]], meta))
   }
 
   if (use_parallel) {
-    decoded <- future.apply::future_lapply(chunk_indices, fetch_and_decode)
+    decoded <- future.apply::future_lapply(seq_along(raws), decode_one_chunk)
   } else {
-    decoded <- lapply(chunk_indices, fetch_and_decode)
+    decoded <- lapply(seq_along(raws), decode_one_chunk)
   }
 
   if (!assemble) {
@@ -551,9 +540,10 @@ report_meta <- function(meta, verbose) {
 #' Fetch a single chunk's raw bytes from the store
 #' @noRd
 fetch_chunk <- function(store, path, chunk_idx, meta) {
-  ck <- chunk_key(meta, chunk_idx)
-  key <- if (nzchar(path)) paste0(path, "/", ck) else ck
-  store_get(store, key)
+  plan <- zaro_plan(store, path, meta = meta,
+                    chunks = matrix(as.integer(chunk_idx), nrow = 1L),
+                    verbose = FALSE)
+  zaro_fetch(store, plan, verbose = FALSE)[[1L]]
 }
 
 

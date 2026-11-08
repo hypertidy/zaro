@@ -1,5 +1,13 @@
 # Track extraction from the BRAN2023 virtual Zarr
 
+Note (2026-11-08): the batched, connection-capped fetch built by hand here
+is now in the package: `zaro_array()` and `zaro_read()` plan each batch
+with `zaro_plan()` and fetch it with `zaro_fetch()` (one curl pool,
+`options(zaro.max_con)`, adjacent byte ranges merged). The same 30-point
+track through `zaro_array(store, "temp", cf = TRUE)[cbind(i, j, k, l)]`
+takes 0.9 s with 8 connections and 4.8 s with 1. This example is kept as
+the origin of that design.
+
 Files:
 
 - track_extract.R: helpers. zaro opens the VirtualiZarr Parquet store and

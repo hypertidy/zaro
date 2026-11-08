@@ -1,5 +1,57 @@
 # zaro (development version)
 
+* Read sharded Zarr V3 arrays (`sharding_indexed`). A shard is planned as
+  one more level of byte references: `zaro_plan()` reads the index of each
+  shard a selection touches (one small ranged read per shard, fetched
+  together; a suffix range when the index is at the end) and turns every
+  inner chunk into a byte range of its shard object. Empty inner chunks and
+  missing shards read as `fill_value`. The index's `crc32c` is stripped, not
+  verified. Sharded arrays present their inner chunk shape as the array's
+  chunks, so `zaro_read()`, `zaro_array()` and `zaro_chunk()` work
+  unchanged; `print()` of the metadata shows the shard shape. Checked
+  against arrays written by zarr-python 3 (zstd and gzip inner codecs,
+  index at end and start, partially written arrays).
+
+* A `crc32c` codec on ordinary chunks is stripped (not verified); it was
+  passed through as an unknown codec.
+
+* Fix V3 chunk keys: the `"v2"` chunk key encoding (no `c` prefix, default
+  separator `"."`) and the `"."` separator of the default encoding
+  (`c.0.1`) were written as `c/...`.
+
+* New `zaro_fetch(store, plan)` executes a plan: HTTP references go through
+  one curl connection pool (`options(zaro.max_con)`, default 8, per host
+  and in total), byte ranges that touch on the same URL are merged into one
+  request (`options(zaro.merge_gap)` widens that), and failed or short
+  responses are retried with backoff. `zaro_read()` and `zaro_array()` read
+  through plan + fetch, so every altarr batch is one pooled fetch. The
+  BRAN2023 30-point track reads in 0.9 s (4.8 s one connection at a time);
+  a 60-chunk BRAN2023 surface slice is 2 requests.
+
+* `http://` and `https://` stores are read with curl (`HttpStore`), not
+  gdalraster: GDAL-free, metadata cached, chunks fetched through the pool.
+  An HTTP store can't be listed, so it needs consolidated metadata (or
+  `zaro_dataset(arrays = )`). HTTP errors other than not-found are errors,
+  not silently absent chunks. Any `/vsi...` path opens a gdalraster
+  `VSIStore`, e.g. `zaro("/vsicurl/https://...")` to keep GDAL's HTTP
+  handling.
+
+* New `zaro_plan()`: the byte references a selection needs, before any
+  read. One row per chunk with `url`, `offset`, `length` and `transport`
+  (whole object, byte range in a NetCDF/HDF5 file, inline, or absent), and a
+  printed cost summary (requests, bytes, hosts). Native stores plan with no
+  request; virtual stores read only the manifest they need.
+
+* Every store now answers `store_refs()`, and the virtual stores
+  (kerchunk, VirtualiZarr, mdim-refs) fetch through it, so native and
+  virtual reads share one path ("everything is a refs table").
+
+* Kerchunk inline chunks prefixed `base64:` are decoded; references with
+  only a URL read the whole object.
+
+* `byte_range_read()` reads local files with base R (no GDAL), and its
+  `s3://`/`gs://` branches return raw vectors (they returned Arrow Buffers).
+
 * Fix decoding of `int64`, `uint64`, `uint32` and `float16` arrays, which
   had never been read correctly: the 8- or 4-byte integers were
   reinterpreted as floating point (e.g. CMIP6 `time`, stored as int64 hours,

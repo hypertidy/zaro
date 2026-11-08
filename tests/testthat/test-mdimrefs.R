@@ -1,7 +1,6 @@
 test_that("mdimrefs:// reads chunks through the refs_ view", {
   skip_if_not_installed("DBI")
   skip_if_not_installed("RSQLite")
-  skip_if_not_installed("gdalraster")
 
   ## source file: 7 junk bytes, then two zlib chunks of a 2 x 4 int32 array
   ## chunked (2, 2); C order chunk (0,0) = 1,2,5,6 and (0,1) = 3,4,7,8

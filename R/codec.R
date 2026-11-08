@@ -110,6 +110,9 @@ decode_one <- function(buf, codec, meta) {
 
          "blosc"  = blosc_decompress(buf),
 
+         # V3 crc32c: a 4-byte checksum appended; stripped, not verified
+         "crc32c" = buf[seq_len(max(0L, length(buf) - 4L))],
+
          # V2 shuffle filter -- unshuffle bytes by element size
          "shuffle" = unshuffle(buf, config$elementsize %||% 1L),
 

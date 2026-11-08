@@ -157,23 +157,27 @@ zaro_fetch_factory <- function(store, path, meta, spec, parallel = FALSE,
     cast(coerce_fill_value(meta@fill_value, meta@data_type))[1L])
   post <- if (is.null(transform)) identity else transform
 
-  one <- function(cc) {
+  decode_one_chunk <- function(cc, raw) {
     st <- cc * cs + 1L
     ext <- as.integer(pmin(cs, d - st + 1L))
-    zidx <- if (spec$rev_c) rev(cc) else cc
-    raw <- fetch_chunk(store, path, as.integer(zidx), meta)
     if (is.null(raw)) return(post(rep(fill, prod(ext))))
     v <- cast(decode_chunk(raw, meta))
     post(clip_chunk(v, cs, ext))
   }
 
+  # one batch of chunks = one plan + one fetch (HTTP pooled), then decode
   function(chunks) {
-    rows <- lapply(seq_len(nrow(chunks)), function(r) chunks[r, ])
+    chunks <- matrix(as.integer(chunks), ncol = length(d))
+    zidx <- if (spec$rev_c) chunks[, rev(seq_len(ncol(chunks))), drop = FALSE] else chunks
+    plan <- zaro_plan(store, path, meta = meta, chunks = zidx, verbose = FALSE)
+    raws <- zaro_fetch(store, plan, verbose = FALSE)
+    rows <- seq_len(nrow(chunks))
+    dec <- function(r) decode_one_chunk(chunks[r, ], raws[[r]])
     if (isTRUE(parallel) && length(rows) >= 4L &&
         requireNamespace("future.apply", quietly = TRUE)) {
-      future.apply::future_lapply(rows, one)
+      future.apply::future_lapply(rows, dec)
     } else {
-      lapply(rows, one)
+      lapply(rows, dec)
     }
   }
 }

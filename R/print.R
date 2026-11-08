@@ -25,6 +25,10 @@ local(method(print, ZaroMeta) <- function(x, ...) {
     cat(sprintf("  dtype:  %s\n", x@data_type))
     cat(sprintf("  shape:  [%s]\n", shape_str))
     cat(sprintf("  chunks: [%s]\n", chunk_str))
+    if (!is.null(sh <- attr(x, "shard"))) {
+      cat(sprintf("  shards: [%s] (index at %s)\n",
+                  paste(sh$shape, collapse = " x "), sh$index_location))
+    }
 
     if (!is.null(x@dimension_names)) {
       cat(sprintf("  dims:   %s\n", paste(x@dimension_names, collapse = ", ")))

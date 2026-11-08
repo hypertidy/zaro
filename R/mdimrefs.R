@@ -99,21 +99,44 @@ method(store_get, MdimRefsStore) <- function(store, key) {
   if (key %in% names(md))
     return(charToRaw(to_json_exact(md[[key]])))
 
-  arr <- sub("/[^/]*$", "", key); ck <- sub("^.*/", "", key)
-  a <- store@arrays[store@arrays$array == arr, , drop = FALSE]
-  if (!nrow(a) || !grepl("^[0-9]+(\\.[0-9]+)*$", ck)) return(NULL)
-  idx <- as.integer(strsplit(ck, ".", fixed = TRUE)[[1]])
+  fetch_ref(store, store_refs(store, key))
+}
 
-  if (a$storage != "referenced") return(if (all(idx == 0L)) mdimrefs_coord_raw(a))
-
-  where <- paste(sprintf("dim_%d = %d", seq_along(idx) - 1L, idx), collapse = " AND ")
-  r <- DBI::dbGetQuery(store@con, sprintf(
-    'SELECT present, path, "offset", size, data FROM %s WHERE %s',
-    DBI::dbQuoteIdentifier(store@con, paste0("refs_", arr)), where))
-  if (!nrow(r) || r$present[1] == 0L) return(NULL)        # absent: fill value
-  if (is.na(r$path[1])) return(as.raw(r$data[[1]]))        # inline chunk
-  byte_range_read(mdimrefs_path(store, r$path[1]), as.numeric(r$offset[1]),
-                  as.numeric(r$size[1]))
+# A chunk key is one lookup in refs_<array>: present with a path is a byte
+# range (remapped), present without one is inline data, missing or not
+# present is absent. Coordinates held inline or as start/step are one
+# whole-array chunk.
+method(store_refs, MdimRefsStore) <- function(store, keys) {
+  out <- refs_frame(keys, transport = "absent")
+  for (i in seq_along(keys)) {
+    key <- keys[i]
+    arr <- sub("/[^/]*$", "", key); ck <- sub("^.*/", "", key)
+    a <- store@arrays[store@arrays$array == arr, , drop = FALSE]
+    if (!nrow(a) || !grepl("^[0-9]+(\\.[0-9]+)*$", ck)) next
+    idx <- as.integer(strsplit(ck, ".", fixed = TRUE)[[1]])
+    if (a$storage != "referenced") {
+      if (all(idx == 0L)) {
+        out$inline[[i]] <- mdimrefs_coord_raw(a)
+        out$transport[i] <- "inline"
+      }
+      next
+    }
+    where <- paste(sprintf("dim_%d = %d", seq_along(idx) - 1L, idx), collapse = " AND ")
+    r <- DBI::dbGetQuery(store@con, sprintf(
+      'SELECT present, path, "offset", size, data FROM %s WHERE %s',
+      DBI::dbQuoteIdentifier(store@con, paste0("refs_", arr)), where))
+    if (!nrow(r) || r$present[1] == 0L) next                 # absent: fill value
+    if (is.na(r$path[1])) {                                     # inline chunk
+      out$inline[[i]] <- as.raw(r$data[[1]])
+      out$transport[i] <- "inline"
+      next
+    }
+    out$url[i] <- mdimrefs_path(store, r$path[1])
+    out$offset[i] <- as.numeric(r$offset[1])
+    out$length[i] <- as.numeric(r$size[1])
+    out$transport[i] <- url_transport(out$url[i])
+  }
+  out
 }
 
 method(store_list, MdimRefsStore) <- function(store, prefix = "") {
