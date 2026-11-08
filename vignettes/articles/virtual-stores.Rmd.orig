@@ -1,0 +1,101 @@
+---
+title: "Virtual stores"
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.path = "figures/vs-",
+                      fig.width = 7, fig.height = 4.5, dpi = 96)
+options(width = 90)
+```
+
+A virtual Zarr store holds no array data. It holds references: for each
+chunk, which file holds its bytes and at what offset. The files are the
+original NetCDF, HDF5 or GeoTIFF archives, served as they are. zaro reads
+these reference stores directly:
+
+| Source | Address |
+|---|---|
+| kerchunk JSON | `reference+json:///path/refs.json` |
+| kerchunk Parquet | `reference+parquet:///path/refs.parquet` |
+| VirtualiZarr Parquet manifests | `virtualizarr://https://.../dataset.parq` |
+| byterefs SQLite tables | `byterefs:///path/store.sqlite` |
+
+Once opened, a virtual store behaves like any other: `zaro_dataset()`,
+`zaro_read()` and `zaro_array()` work the same.
+
+## BRAN2023 ocean temperature
+
+BRAN2023 is CSIRO's ocean reanalysis: daily temperature at 51 depths on a
+0.1 degree grid, 2010 to 2024, about 11 TB as NetCDF on NCI's THREDDS
+server. This VirtualiZarr reference store, kept on GitHub, points into
+those NetCDF files.
+
+```{r bran}
+library(zaro)
+options(zaro.verbose = FALSE)
+
+bran <- zaro("virtualizarr://https://raw.githubusercontent.com/mdsumner/virtualized/refs/heads/main/remote/ocean_temp_2023.parq")
+ds <- zaro_dataset(bran)
+ds
+```
+
+`temp` is packed as 16-bit integers; its attributes say how to unpack it:
+
+```{r packing}
+ds$arrays$temp@attributes[c("scale_factor", "add_offset", "_FillValue", "units")]
+```
+
+## Extract a track
+
+A lazy array with `cf = TRUE` unpacks values and masks the fill. Here is a
+made-up 30-day track off eastern Tasmania, diving from 5 to 200 m: one
+value per day, from 30 different chunks in 30 different NetCDF files.
+
+```{r track}
+temp <- zaro_array(ds, "temp", cf = TRUE)     # xt_ocean, yt_ocean, st_ocean, Time
+dim(temp)
+
+coord <- function(nm) as.vector(zaro_read(bran, nm, meta = ds$arrays[[nm]]))
+xt <- coord("xt_ocean"); yt <- coord("yt_ocean"); st <- coord("st_ocean")
+units <- ds$arrays$Time@attributes$units; units
+## time steps are at midday (x.5 days): floor them to their calendar day
+time <- as.Date(sub("^days since ", "", units)) + floor(coord("Time"))
+
+track <- data.frame(date = as.Date("2023-03-01") + 0:29,
+                    lon = seq(147.8, 152.5, length.out = 30),
+                    lat = seq(-43.5, -39.0, length.out = 30),
+                    depth = round(5 + 195 * (1 - cos(seq(0, pi, length.out = 30))) / 2))
+near <- function(coord, v) vapply(v, function(z) which.min(abs(coord - z)), 1L)
+idx <- cbind(near(xt, track$lon), near(yt, track$lat), near(st, track$depth),
+             near(as.numeric(time), as.numeric(track$date)))
+
+system.time(track$temp <- temp[idx])
+head(track)
+
+```
+
+```{r plot-track}
+plot(track$date, track$temp, type = "b", pch = 19, xlab = "", ylab = "temperature (degC)",
+     main = "BRAN2023 along a made-up track")
+```
+
+All 30 byte ranges are fetched concurrently through one connection pool.
+That's the default, up to 8 connections per host (`options(zaro.max_con)`).
+
+## byterefs tables
+
+[byterefs](https://github.com/byterefs/spec) is a specification for exactly
+this kind of table: one row per chunk with its file, offset and size, plus
+what a reader needs to decode it.
+[raad.virtualize](https://github.com/mdsumner/raad.virtualize) produces
+byterefs stores as SQLite files. zaro reads them with `byterefs://` and
+applies the store's default path remapping (`meta.default_target`), so a
+table scanned on a local mirror reads from its public copy:
+
+```r
+store <- zaro("byterefs:///path/to/store.sqlite")                  # default target
+store <- zaro("byterefs:///path/to/store.sqlite", target = "public") # another target
+```
+
+The specification is still moving (the published Parquet layout is not
+settled), so this part of zaro will follow it.

@@ -1,0 +1,46 @@
+url: https://hypertidy.github.io/zaro/
+template:
+  bootstrap: 5
+
+navbar:
+  structure:
+    left: [intro, reference, articles, news]
+    right: [search, github]
+
+articles:
+- title: Articles
+  navbar: ~
+  contents:
+  - articles/getting-started
+  - articles/virtual-stores
+  - articles/plan-fetch-shard
+  - articles/zaro-and-ndr
+
+reference:
+- title: Open and explore
+  desc: Connect to a store and see what is in it, without reading data.
+  contents:
+  - zaro
+  - zaro_dataset
+  - zaro_list
+  - zaro_meta
+- title: Read
+  desc: Hyperslabs as R arrays, or lazy arrays that read on demand.
+  contents:
+  - zaro_read
+  - zaro_array
+- title: Plan and fetch
+  desc: Which bytes a read needs (a byterefs-shaped table), and fetching them.
+  contents:
+  - zaro_plan
+  - zaro_fetch
+- title: Chunks
+  desc: Work with individual chunks.
+  contents:
+  - zaro_chunk
+  - zaro_chunks
+  - zaro_chunk_info
+  - zaro_chunk_apply
+- title: Package
+  contents:
+  - zaro-package

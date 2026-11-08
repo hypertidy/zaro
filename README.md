@@ -7,6 +7,12 @@ Arrow Zarr in R. A low-level Zarr reader for R built on Arrow's
 filesystem and codec infrastructure. Supports V2 and V3 stores with
 automatic version detection and consolidated metadata.
 
+Documentation and articles: <https://hypertidy.github.io/zaro/>
+([getting started](https://hypertidy.github.io/zaro/articles/getting-started.html),
+[virtual stores](https://hypertidy.github.io/zaro/articles/virtual-stores.html),
+[planning, fetching and sharding](https://hypertidy.github.io/zaro/articles/plan-fetch-shard.html),
+[zaro as an ndr engine](https://hypertidy.github.io/zaro/articles/zaro-and-ndr.html)).
+
 ## Status
 
 Experimental but functional. Reads real-world cloud Zarr stores

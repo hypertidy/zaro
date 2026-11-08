@@ -1,0 +1,73 @@
+# R CMD check in the hypertidy/gdal-r-ci images (GDAL, PROJ and GEOS built
+# from source; :latest = releases, :dev = GDAL HEAD), as for ndr. zaro needs
+# GDAL only for its optional gdalraster paths; the image gives one
+# environment across the hypertidy packages. GITHUB_PAT lets remotes install
+# the GitHub Remotes (altarr). Online tests skip here (skip_on_cran).
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  schedule:
+    - cron: '0 3 * * 0'
+  workflow_dispatch:
+
+name: R-CMD-check.yaml
+
+permissions: read-all
+
+jobs:
+  check:
+    name: R CMD check (GDAL ${{ matrix.gdal-variant }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        gdal-variant: [latest, dev]
+    container:
+      image: ghcr.io/hypertidy/gdal-r-full:${{ matrix.gdal-variant }}
+      options: --user root
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      _R_CHECK_FORCE_SUGGESTS_: false
+      # compile in parallel: the image installs from source CRAN
+      MAKEFLAGS: -j4
+      # arrow links the image's libarrow, not a downloaded one
+      LIBARROW_BINARY: false
+      ARROW_USE_PKG_CONFIG: true
+      # pak must not apt-install Ubuntu's GDAL over the image's own
+      PKG_SYSREQS: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Print environment
+        run: |
+          echo "=== GDAL variant: ${{ matrix.gdal-variant }} ==="
+          gdal-config --version
+          R --version | head -1
+
+      # Interim, until gdal-r-full has arrow: Arrow 26 split S3 into its own
+      # package, and without arrow-s3.pc the R arrow build links no libarrow
+      - name: Install libarrow-s3-dev
+        run: apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq libarrow-s3-dev
+
+      # pak: Suggests at the top level only. remotes::install_deps() with
+      # Suggests in a character vector applies it at every level (1189 packages)
+      - name: Install package dependencies
+        run: Rscript -e 'pak::local_install_dev_deps(upgrade = FALSE, dependencies = TRUE, ask = FALSE)'
+
+      - name: Build
+        run: R CMD build --no-build-vignettes .
+
+      - name: Check
+        run: |
+          tarball=$(ls -1 *.tar.gz | head -1)
+          R CMD check --no-manual --no-build-vignettes "$tarball"
+
+      - name: Show logs on failure
+        if: failure()
+        run: |
+          for f in *.Rcheck/00check.log *.Rcheck/00install.out *.Rcheck/tests/testthat.Rout.fail; do
+            [ -f "$f" ] && echo "=== $f ===" && cat "$f"
+          done
+          true
