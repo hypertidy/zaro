@@ -30,12 +30,16 @@
 #'   row per chunk, Zarr dimension order), instead of `start`/`count`.
 #' @param verbose logical. Emit diagnostic messages. Default
 #'   `getOption("zaro.verbose", TRUE)`.
-#' @returns A `zaro_plan` data frame, one row per chunk: `key`, `url`,
-#'   `offset`, `length` (`NA` for a whole object of unknown size), `transport`
+#' @returns A `zaro_plan` data frame, one row per chunk, in the shape of a
+#'   byterefs view (\url{https://github.com/byterefs/spec}):
+#'   `dim_0`, ..., `dim_{n-1}` (the chunk's 0-based grid index, Zarr
+#'   dimension order), `present` (`FALSE` for an absent chunk, read as
+#'   `fill_value`), `path` (where the bytes are), `offset`, `size` (`NA` for
+#'   a whole object of unknown size), `data` (list of raw, for inline
+#'   chunks), then zaro's own columns: `key` (the Zarr key) and `transport`
 #'   (`"store"`, `"http"`, `"s3"`, `"gs"`, `"vsi"`, `"local"`, `"inline"` or
-#'   `"absent"`), `inline` (list of raw) and `index` (list of the chunk's
-#'   0-based grid index). Attributes `path` and `meta` record what was
-#'   planned.
+#'   `"absent"`: how the bytes are fetched). Attributes `array` (the array's
+#'   path in the store) and `meta` record what was planned.
 #'
 #' @export
 #' @examples
@@ -74,10 +78,14 @@ zaro_plan <- function(store, path = "", start = NULL, count = NULL,
   } else {
     plan <- plan_sharded(store, path, meta, chunks, shard)
   }
-  plan$index <- lapply(seq_len(nrow(chunks)), function(r) chunks[r, ])
+  dims <- as.data.frame(chunks)
+  names(dims) <- paste0("dim_", seq_len(ncol(chunks)) - 1L)
+  plan$present <- plan$transport != "absent"
+  plan <- cbind(dims, plan[c("present", "path", "offset", "size")],
+                plan["data"], plan[c("key", "transport")])
   vmsg("planned ", nrow(plan), " chunk(s) for path '", path, "'",
        verbose = verbose)
-  structure(plan, class = c("zaro_plan", "data.frame"), path = path,
+  structure(plan, class = c("zaro_plan", "data.frame"), array = path,
             meta = meta)
 }
 
@@ -113,7 +121,7 @@ plan_sharded <- function(store, path, meta, chunks, shard) {
     # a compressor on the whole shard: no ranged reads, so fetch whole shards,
     # decode them, and plan their inner chunks as inline bytes
     whole <- srefs
-    whole$length[whole$transport != "inline"] <- NA_real_
+    whole$size[whole$transport != "inline"] <- NA_real_
     whole$offset[whole$transport != "inline"] <- 0
     raws <- zaro_fetch(store, whole, verbose = FALSE)
     for (i in seq_along(raws)) {
@@ -123,9 +131,9 @@ plan_sharded <- function(store, path, meta, chunks, shard) {
       }
       b <- raws[[i]]
       for (codec in rev(shard$outer_codecs)) b <- decode_one(b, codec, meta)
-      srefs$inline[[i]] <- b
+      srefs$data[[i]] <- b
       srefs$transport[i] <- "inline"
-      srefs$url[i] <- NA_character_
+      srefs$path[i] <- NA_character_
     }
     shard$outer_codecs <- list()
   }
@@ -139,15 +147,15 @@ plan_sharded <- function(store, path, meta, chunks, shard) {
     o <- tab$offset[lin[i]]
     n <- tab$nbytes[lin[i]]
     ref <- srefs[m, , drop = FALSE]
-    base <- if (!is.na(ref$length)) ref$offset else 0
+    base <- if (!is.na(ref$size)) ref$offset else 0
     if (ref$transport == "inline") {
-      plan$inline[[i]] <- ref$inline[[1L]][seq.int(o + 1, length.out = n)]
+      plan$data[[i]] <- ref$data[[1L]][seq.int(o + 1, length.out = n)]
       plan$transport[i] <- "inline"
       next
     }
-    plan$url[i] <- ref$url
+    plan$path[i] <- ref$path
     plan$offset[i] <- base + o
-    plan$length[i] <- n
+    plan$size[i] <- n
     plan$transport[i] <- ref$transport
   }
   plan
@@ -174,22 +182,22 @@ shard_indexes <- function(store, srefs, n_inner, shard) {
 
   # where each index is: within a known byte range, or relative to the object
   rows <- srefs
-  known <- !is.na(srefs$length)
-  rows$offset <- ifelse(known, if (at_end) srefs$offset + srefs$length - size
+  known <- !is.na(srefs$size)
+  rows$offset <- ifelse(known, if (at_end) srefs$offset + srefs$size - size
                                   else srefs$offset,
                         if (at_end) -1 else 0)
-  rows$length <- size
+  rows$size <- size
   raw <- vector("list", nrow(rows))
   http <- which(rows$transport == "http")
   if (length(http)) {
-    raw[http] <- http_fetch(rows$url[http], rows$offset[http], rows$length[http],
+    raw[http] <- http_fetch(rows$path[http], rows$offset[http], rows$size[http],
                             max_con = getOption("zaro.max_con", 8L),
                             absent_ok = rep(TRUE, length(http)))
   }
   for (i in setdiff(seq_len(nrow(rows)), http)) {
     r <- rows[i, , drop = FALSE]
     if (r$transport == "inline") {
-      b <- r$inline[[1L]]
+      b <- r$data[[1L]]
       raw[[i]] <- if (at_end) b[seq.int(length(b) - size + 1, length(b))] else b[seq_len(size)]
     } else {
       raw[i] <- list(fetch_ref(store, r))
@@ -225,7 +233,7 @@ decode_shard_index <- function(raw, n_inner, shard) {
 print.zaro_plan <- function(x, ...) {
   s <- plan_summary(x)
   cat(sprintf("<zaro_plan> '%s': %d chunk(s), %d request(s)\n",
-              attr(x, "path"), s$chunks, s$requests))
+              attr(x, "array"), s$chunks, s$requests))
   by <- paste(sprintf("%s %d", names(s$transport), s$transport), collapse = ", ")
   cat("  transport: ", by, "\n", sep = "")
   if (s$requests) {
@@ -239,10 +247,10 @@ print.zaro_plan <- function(x, ...) {
     }
   }
   show <- utils::head(as.data.frame(x)[c("key", "transport", "offset",
-                                         "length", "url")], 6L)
-  long <- !is.na(show$url) & nchar(show$url) > 36L
-  show$url[long] <- paste0("...", substring(show$url[long],
-                                            nchar(show$url[long]) - 32L))
+                                         "size", "path")], 6L)
+  long <- !is.na(show$path) & nchar(show$path) > 36L
+  show$path[long] <- paste0("...", substring(show$path[long],
+                                            nchar(show$path[long]) - 32L))
   print(show, row.names = FALSE)
   if (nrow(x) > 6L) cat("  ... ", nrow(x) - 6L, " more\n", sep = "")
   invisible(x)
@@ -253,8 +261,8 @@ print.zaro_plan <- function(x, ...) {
 #' @noRd
 plan_summary <- function(plan) {
   fetch <- !plan$transport %in% c("inline", "absent")
-  len <- plan$length[fetch]
-  url <- plan$url[fetch]
+  len <- plan$size[fetch]
+  url <- plan$path[fetch]
   host <- ifelse(grepl("^[a-z0-9+]+://", url),
                  sub("^[a-z0-9+]+://([^/]+).*$", "\\1", url), NA_character_)
   list(chunks = nrow(plan), requests = sum(fetch),

@@ -37,7 +37,7 @@ method(store_range, ZaroStore) <- function(store, key, offset, length) {
 
 # Any store: fetch each key through store_get() ("store" transport)
 method(store_refs, ZaroStore) <- function(store, keys) {
-  refs_frame(keys, url = keys, transport = "store")
+  refs_frame(keys, path = keys, transport = "store")
 }
 
 # -- Arrow filesystem store -------------------------------------------------
@@ -80,7 +80,7 @@ method(store_range, ArrowStore) <- function(store, key, offset, length) {
 method(store_refs, ArrowStore) <- function(store, keys) {
   scheme <- switch(class(store@fs)[1], S3FileSystem = "s3://",
                    GcsFileSystem = "gs://", "")
-  refs_frame(keys, url = paste0(scheme, store@root, "/", keys),
+  refs_frame(keys, path = paste0(scheme, store@root, "/", keys),
              offset = 0, transport = if (nzchar(scheme)) "store" else "local")
 }
 
@@ -122,7 +122,7 @@ method(store_exists, HttpStore) <- function(store, key) {
 }
 
 method(store_refs, HttpStore) <- function(store, keys) {
-  refs_frame(keys, url = paste0(store@root, "/", keys), offset = 0,
+  refs_frame(keys, path = paste0(store@root, "/", keys), offset = 0,
              transport = "http")
 }
 
@@ -178,7 +178,7 @@ method(store_refs, VSIStore) <- function(store, keys) {
   url <- paste0(store@root, "/", keys)
   http <- startsWith(store@root, "/vsicurl/")
   if (http) url <- sub("^/vsicurl/", "", url)
-  refs_frame(keys, url = url, offset = 0,
+  refs_frame(keys, path = url, offset = 0,
              transport = if (http) "http" else "vsi")
 }
 
@@ -211,7 +211,7 @@ method(store_refs, ReferenceStore) <- function(store, keys) {
     ref <- store@refs[[keys[i]]]
     if (is.null(ref)) next
     if (is.character(ref) && length(ref) == 1L) {
-      out$inline[[i]] <- if (startsWith(ref, "base64:")) {
+      out$data[[i]] <- if (startsWith(ref, "base64:")) {
         jsonlite::base64_dec(substring(ref, 8L))
       } else {
         charToRaw(ref)
@@ -220,10 +220,10 @@ method(store_refs, ReferenceStore) <- function(store, keys) {
       next
     }
     ref <- as.list(ref)
-    out$url[i] <- expand_template(as.character(ref[[1]]), store@templates)
+    out$path[i] <- expand_template(as.character(ref[[1]]), store@templates)
     out$offset[i] <- if (length(ref) >= 3L) as.numeric(ref[[2]]) else 0
-    out$length[i] <- if (length(ref) >= 3L) as.numeric(ref[[3]]) else NA_real_
-    out$transport[i] <- url_transport(out$url[i])
+    out$size[i] <- if (length(ref) >= 3L) as.numeric(ref[[3]]) else NA_real_
+    out$transport[i] <- url_transport(out$path[i])
   }
   out
 }

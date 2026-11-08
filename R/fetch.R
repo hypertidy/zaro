@@ -52,7 +52,7 @@ zaro_fetch <- function(store, plan, max_con = getOption("zaro.max_con", 8L),
 
   http <- which(plan$transport == "http")
   if (length(http)) {
-    got <- http_fetch(plan$url[http], plan$offset[http], plan$length[http],
+    got <- http_fetch(plan$path[http], plan$offset[http], plan$size[http],
                       max_con = max_con, merge_gap = merge_gap,
                       retries = retries)
     out[http] <- got
@@ -72,7 +72,7 @@ zaro_fetch <- function(store, plan, max_con = getOption("zaro.max_con", 8L),
 
 #' Many HTTP GETs through one capped curl pool
 #'
-#' `length` NA means the whole object (no Range header); a 404 or 403 for a
+#' `length` NA means the whole object (no Range header; a plan's `size`); a 404 or 403 for a
 #' whole object is an absent chunk (NULL), not an error.
 #' @noRd
 http_fetch <- function(url, offset, length, max_con = 8L, merge_gap = 0,

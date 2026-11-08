@@ -1,5 +1,11 @@
 # zaro (development version)
 
+* `zaro_plan()` columns follow the byterefs view: `dim_0`, ...,
+  `dim_{n-1}`, `present`, `path`, `offset`, `size`, `data`, then zaro's
+  `key` and `transport`. They were `url`, `length`, `inline` and a list
+  column `index`. The plan's attribute for the array path is now `array`
+  (was `path`, which clashed with the column).
+
 * byterefs stores: with no `target`, `zaro()` applies the store's
   `meta.default_target` (byterefs/spec decision 0004); `target = ""` reads
   the verbatim sources, and a target with no remap rules warns. Only the

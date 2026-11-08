@@ -32,9 +32,14 @@ test_that("zaro_plan() on a kerchunk store gives byte ranges, inline, absent", {
   expect_equal(p$key, c("v/0.0", "v/0.1", "v/0.2", "v/0.3"))
   expect_equal(p$transport, c("local", "local", "inline", "absent"))
   expect_equal(p$offset[1:2], c(7, 7 + k$sizes[1]))
-  expect_equal(p$length[1:2], k$sizes)
-  expect_equal(p$url[1], k$src)
-  expect_equal(p$index[[3]], c(0L, 2L))
+  expect_equal(p$size[1:2], k$sizes)
+  expect_equal(p$path[1], k$src)
+  expect_equal(c(p$dim_0[3], p$dim_1[3]), c(0L, 2L))
+  ## byterefs view columns first, then zaro's own
+  expect_equal(names(p), c("dim_0", "dim_1", "present", "path", "offset", "size",
+                           "data", "key", "transport"))
+  expect_equal(p$present, c(TRUE, TRUE, TRUE, FALSE))
+  expect_equal(attr(p, "array"), "v")
 
   ## every row fetches the same bytes store_get() gives
   for (i in seq_len(nrow(p))) {
@@ -71,8 +76,8 @@ test_that("zaro_plan() on a native local store: whole objects, no request", {
   p <- zaro_plan(store, verbose = FALSE)
   expect_equal(nrow(p), 6L)
   expect_true(all(p$transport == "local"))
-  expect_true(all(is.na(p$length)))
-  expect_equal(p$url, file.path(path, p$key))
+  expect_true(all(is.na(p$size)))
+  expect_equal(p$path, file.path(path, p$key))
   ## the skipped chunk is planned (existence is unknown until fetched)
   ## and fetches as NULL, like store_get()
   for (i in seq_len(nrow(p))) {

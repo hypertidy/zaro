@@ -87,7 +87,7 @@ method(store_refs, VirtualiZarrStore) <- function(store, keys) {
   out <- refs_frame(keys, transport = "absent")
   meta_key <- is_metadata_key(keys)
   out$transport[meta_key] <- "store"
-  out$url[meta_key] <- keys[meta_key]
+  out$path[meta_key] <- keys[meta_key]
 
   parts <- lapply(keys, function(k) if (is_metadata_key(k)) NULL else parse_chunk_key(k))
   vars <- vapply(parts, function(p) if (is.null(p)) NA_character_ else p$variable,
@@ -130,15 +130,15 @@ method(store_refs, VirtualiZarrStore) <- function(store, keys) {
         if (r > nrow(shard)) next
         inline <- if ("raw" %in% names(shard)) shard$raw[[r]] else NULL
         if (!is.null(inline) && length(inline) > 0L) {
-          out$inline[[k]] <- as.raw(inline)
+          out$data[[k]] <- as.raw(inline)
           out$transport[k] <- "inline"
           next
         }
         path <- shard$path[r]
         if (is.na(path) || !nzchar(path)) next
-        out$url[k] <- path
+        out$path[k] <- path
         out$offset[k] <- shard$offset[r]
-        out$length[k] <- shard$size[r]
+        out$size[k] <- shard$size[r]
         out$transport[k] <- url_transport(path)
       }
     }

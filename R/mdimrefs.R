@@ -156,7 +156,7 @@ method(store_refs, MdimRefsStore) <- function(store, keys) {
     idx <- as.integer(strsplit(ck, ".", fixed = TRUE)[[1]])
     if (a$storage != "referenced") {
       if (all(idx == 0L)) {
-        out$inline[[i]] <- mdimrefs_coord_raw(a)
+        out$data[[i]] <- mdimrefs_coord_raw(a)
         out$transport[i] <- "inline"
       }
       next
@@ -167,14 +167,14 @@ method(store_refs, MdimRefsStore) <- function(store, keys) {
       DBI::dbQuoteIdentifier(store@con, paste0("refs_", arr)), where))
     if (!nrow(r) || r$present[1] == 0L) next                 # absent: fill value
     if (is.na(r$path[1])) {                                     # inline chunk
-      out$inline[[i]] <- as.raw(r$data[[1]])
+      out$data[[i]] <- as.raw(r$data[[1]])
       out$transport[i] <- "inline"
       next
     }
-    out$url[i] <- mdimrefs_path(store, r$path[1])
+    out$path[i] <- mdimrefs_path(store, r$path[1])
     out$offset[i] <- as.numeric(r$offset[1])
-    out$length[i] <- as.numeric(r$size[1])
-    out$transport[i] <- url_transport(out$url[i])
+    out$size[i] <- as.numeric(r$size[1])
+    out$transport[i] <- url_transport(out$path[i])
   }
   out
 }
