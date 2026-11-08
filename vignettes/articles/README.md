@@ -15,6 +15,9 @@ for (f in list.files(pattern = "[.]Rmd[.]orig$")) {
 }
 ```
 
+`connecting.Rmd` runs no code (its examples are shown, not run), so it
+has no `.orig`; edit it directly.
+
 Then check the knitted files for errors (`grep "#> Error" *.Rmd`) and
 commit the `.Rmd.orig`, the `.Rmd` and `figures/`. This directory is
 build-ignored, so `R CMD check` doesn't see it.
