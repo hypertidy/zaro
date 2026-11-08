@@ -16,6 +16,9 @@
   only) to list some row groups, which then read from a sparse local file.
   Metadata is read with the file's `num_rows` set to 0: nanoparquet 0.5.1
   allocates in proportion to it (2.7 GB for 37.5M rows, otherwise).
+* Imports `nanoparquet (>= 0.5.2)`: 0.5.2 fixes missing values read with
+  `col_select` (r-lib/nanoparquet#170), which the flat refs reader relies
+  on (missing `path`/`offset`/`size` mark inline and absent chunks).
 
 * S3 and GCS objects are fetched through the curl pool (#23), as HTTPS,
   when their access is known: anonymous (`anonymous = TRUE`, a known

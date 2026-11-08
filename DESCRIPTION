@@ -21,7 +21,7 @@ Imports:
     curl,
     jsonlite,
     methods,
-    nanoparquet,
+    nanoparquet (>= 0.5.2),
     S7,
     utils
 Suggests:
