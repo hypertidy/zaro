@@ -29,9 +29,13 @@ jobs:
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       _R_CHECK_FORCE_SUGGESTS_: false
-      # compile in parallel: the image installs from source CRAN, and arrow's
-      # R bindings (against the image's libarrow) are the long build
+      # compile in parallel: the image installs from source CRAN
       MAKEFLAGS: -j4
+      # arrow links the image's libarrow, not a downloaded one
+      LIBARROW_BINARY: false
+      ARROW_USE_PKG_CONFIG: true
+      # pak must not apt-install Ubuntu's GDAL over the image's own
+      PKG_SYSREQS: false
 
     steps:
       - uses: actions/checkout@v4
@@ -42,14 +46,15 @@ jobs:
           gdal-config --version
           R --version | head -1
 
+      # Interim, until gdal-r-full has arrow: Arrow 26 split S3 into its own
+      # package, and without arrow-s3.pc the R arrow build links no libarrow
+      - name: Install libarrow-s3-dev
+        run: apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq libarrow-s3-dev
+
+      # pak: Suggests at the top level only. remotes::install_deps() with
+      # Suggests in a character vector applies it at every level (1189 packages)
       - name: Install package dependencies
-        run: |
-          Rscript -e '
-            remotes::install_deps(
-              dependencies = c("Depends", "Imports", "LinkingTo", "Suggests"),
-              upgrade = "never"
-            )
-          '
+        run: Rscript -e 'pak::local_install_dev_deps(upgrade = FALSE, dependencies = TRUE, ask = FALSE)'
 
       - name: Build
         run: R CMD build --no-build-vignettes .
