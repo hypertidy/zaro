@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">zaro</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.1.9027</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.1.9028</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -41,7 +41,11 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="zaro-development-version">zaro (development version)<a class="anchor" aria-label="anchor" href="#zaro-development-version"></a></h2>
-<ul><li><p>pkgdown site at <a href="https://hypertidy.github.io/zaro/" class="uri">https://hypertidy.github.io/zaro/</a>, with four articles: getting started (AODN sea level), virtual stores (BRAN2023 via VirtualiZarr, byterefs), planning, fetching and sharding (EOPF Sentinel-2 sharded GeoZarr), and zaro as an ndr engine. The articles are knitted locally from <code>vignettes/articles/*.Rmd.orig</code> so the site builds without network access to the data servers.</p></li>
+<ul><li><p>Fix decompression truncating chunks that compress better than 20:1 (zstd, gzip, lz4, brotli, snappy, bz2 through Arrow). The output size was guessed as 20 times the input; constant and all-fill chunks, and mostly-land tiles, compress far beyond that. The stream is now read to the end.</p></li>
+<li><p>New filter <code>imagecodecs_delta</code> (alias <code>horizontal_delta</code>): TIFF predictor 2, horizontal differencing along the last axis with wraparound in the sample’s integer type, as in virtualized COG tiles. Integers up to 32 bits; floating-point predictor 3 is refused clearly. Checked identical to GDAL reading GHRSST MUR COGs through a virtual index.</p></li>
+<li><p>A chunk that fails to decode names its key and byte range, and notes that for a virtual store the source file may have changed after the references were made (they are stale).</p></li>
+<li><p>New exploratory example <code>inst/examples/ghrsst-scratch</code>: GHRSST MUR SST through a draft kerchunk index on source.coop (overview levels as arrays, a full-resolution window checked against GDAL reading the COG).</p></li>
+<li><p>pkgdown site at <a href="https://hypertidy.github.io/zaro/" class="uri">https://hypertidy.github.io/zaro/</a>, with four articles: getting started (AODN sea level), virtual stores (BRAN2023 via VirtualiZarr, byterefs), planning, fetching and sharding (EOPF Sentinel-2 sharded GeoZarr), and zaro as an ndr engine. The articles are knitted locally from <code>vignettes/articles/*.Rmd.orig</code> so the site builds without network access to the data servers.</p></li>
 <li><p><code>R CMD check</code> runs on GitHub Actions in the hypertidy/gdal-r-ci images (GDAL release and GDAL HEAD), as for ndr.</p></li>
 <li><p><code><a href="../reference/zaro_plan.html">zaro_plan()</a></code> columns follow the byterefs view: <code>dim_0</code>, …, <code>dim_{n-1}</code>, <code>present</code>, <code>path</code>, <code>offset</code>, <code>size</code>, <code>data</code>, then zaro’s <code>key</code> and <code>transport</code>. They were <code>url</code>, <code>length</code>, <code>inline</code> and a list column <code>index</code>. The plan’s attribute for the array path is now <code>array</code> (was <code>path</code>, which clashed with the column).</p></li>
 <li><p>byterefs stores: with no <code>target</code>, <code><a href="../reference/zaro.html">zaro()</a></code> applies the store’s <code>meta.default_target</code> (byterefs/spec decision 0004); <code>target = ""</code> reads the verbatim sources, and a target with no remap rules warns. Only the identifiers a byterefs/0.1 reader takes are accepted, <code>byterefs/0.1</code> and (until byterefs/0.2) <code>mdim-refs/0.2</code> (decision 0003); another <code>byterefs/</code> version warns and is read as 0.1. New scheme <code>byterefs://</code>, with <code>mdimrefs://</code> kept as an alias.</p></li>

@@ -2,6 +2,28 @@
 
 ## zaro (development version)
 
+- Fix decompression truncating chunks that compress better than 20:1
+  (zstd, gzip, lz4, brotli, snappy, bz2 through Arrow). The output size
+  was guessed as 20 times the input; constant and all-fill chunks, and
+  mostly-land tiles, compress far beyond that. The stream is now read to
+  the end.
+
+- New filter `imagecodecs_delta` (alias `horizontal_delta`): TIFF
+  predictor 2, horizontal differencing along the last axis with
+  wraparound in the sample’s integer type, as in virtualized COG tiles.
+  Integers up to 32 bits; floating-point predictor 3 is refused clearly.
+  Checked identical to GDAL reading GHRSST MUR COGs through a virtual
+  index.
+
+- A chunk that fails to decode names its key and byte range, and notes
+  that for a virtual store the source file may have changed after the
+  references were made (they are stale).
+
+- New exploratory example `inst/examples/ghrsst-scratch`: GHRSST MUR SST
+  through a draft kerchunk index on source.coop (overview levels as
+  arrays, a full-resolution window checked against GDAL reading the
+  COG).
+
 - pkgdown site at <https://hypertidy.github.io/zaro/>, with four
   articles: getting started (AODN sea level), virtual stores (BRAN2023
   via VirtualiZarr, byterefs), planning, fetching and sharding (EOPF
