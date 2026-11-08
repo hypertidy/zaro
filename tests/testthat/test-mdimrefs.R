@@ -13,7 +13,7 @@ test_that("mdimrefs:// reads chunks through the refs_ view", {
   db <- tempfile(fileext = ".sqlite")
   con <- DBI::dbConnect(RSQLite::SQLite(), db)
   DBI::dbExecute(con, "CREATE TABLE meta(key TEXT PRIMARY KEY, value TEXT)")
-  DBI::dbExecute(con, "INSERT INTO meta VALUES('format_version', 'mdim-refs/0.2')")
+  DBI::dbExecute(con, "INSERT INTO meta VALUES('format_version', 'byterefs/0.1')")
   DBI::dbExecute(con, "CREATE TABLE sources(source_id INTEGER PRIMARY KEY, source TEXT)")
   DBI::dbExecute(con, "INSERT INTO sources VALUES(1, ?)", params = list(paste0("/old/", basename(src))))
   DBI::dbExecute(con, "CREATE TABLE remap(target TEXT, prefix TEXT, replacement TEXT)")
@@ -42,4 +42,12 @@ test_that("mdimrefs:// reads chunks through the refs_ view", {
   v <- zaro_read(st, "v", verbose = FALSE)
   expect_equal(as.vector(t(matrix(v, 2))), c(1:4, -1L, -1L, 5:8, -1L, -1L))
   expect_equal(as.vector(zaro_read(st, "x", verbose = FALSE)), 10 + 0.5 * 0:5)
+})
+
+test_that("byterefs/0.1 and legacy mdim-refs/0.2 identifiers are accepted", {
+  expect_true(mdimrefs_format_ok("byterefs/0.1"))
+  expect_true(mdimrefs_format_ok("mdim-refs/0.2"))
+  expect_false(mdimrefs_format_ok("kerchunk/1"))
+  expect_false(mdimrefs_format_ok(character()))
+  expect_false(mdimrefs_format_ok(NA_character_))
 })
