@@ -210,6 +210,11 @@ method(store_refs, ReferenceStore) <- function(store, keys) {
   for (i in seq_along(keys)) {
     ref <- store@refs[[keys[i]]]
     if (is.null(ref)) next
+    if (is.raw(ref)) {
+      out$data[[i]] <- ref
+      out$transport[i] <- "inline"
+      next
+    }
     if (is.character(ref) && length(ref) == 1L) {
       out$data[[i]] <- if (startsWith(ref, "base64:")) {
         jsonlite::base64_dec(substring(ref, 8L))

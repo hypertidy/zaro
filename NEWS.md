@@ -1,5 +1,18 @@
 # zaro (development version)
 
+* Parquet reference manifests (VirtualiZarr shards, kerchunk Parquet) are
+  read with nanoparquet, not arrow: a virtual store such as BRAN2023 now
+  opens and reads without loading arrow (identical values). nanoparquet
+  reads whole files, which suits sharded manifests (only the shards a
+  selection needs are fetched); for large flat tables arrow's row-group
+  reads may come back as an option (#23). arrow is still imported for
+  S3/GCS and the Arrow codecs.
+
+* kerchunk Parquet (`reference+parquet://`): remote files are downloaded
+  with curl first, rows are classified one by one (a byte reference when the
+  row has a url, else inline data), inline binary values are kept as raw,
+  and the table is parsed without a per-row R loop.
+
 * New `zaro_read_arrays(store, paths)`: several whole arrays in one fetch.
   All the arrays' plans go to one `zaro_fetch()`, so their HTTP chunks share
   one connection pool and go out concurrently; each result is identical to
