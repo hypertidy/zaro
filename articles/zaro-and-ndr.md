@@ -1,6 +1,6 @@
 # zaro as an ndr engine
 
-zaro gets the bytes; [ndr](https://mdsumner.github.io/ndr/) does the
+zaro gets the bytes; [ndr](https://hypertidy.github.io/ndr/) does the
 meaning: named dimensions, coordinates, selection by value, broadcasting
 and reductions. `ndr::open_dataset()` reads through zaro for Zarr and
 virtual Zarr (and through GDAL for NetCDF, HDF5 and friends). The zaro

@@ -3,11 +3,13 @@
 Connects to a Zarr store at the given path or URI. Dispatches to the
 appropriate backend based on the URI scheme:
 
-- Local paths: Arrow LocalFileSystem
+- Local paths: base R (no arrow or GDAL needed)
 
-- `s3://`: Arrow S3FileSystem (with automatic region detection)
-
-- `gs://`: Arrow GcsFileSystem
+- `s3://`, `gs://`: listed and read through Arrow when arrow is
+  installed, else through GDAL's `/vsis3/` or `/vsigs/` (gdalraster).
+  When access is known (anonymous, or S3 keys in the environment) chunks
+  are fetched as HTTPS through the curl pool instead, see
+  [`zaro_fetch()`](https://hypertidy.github.io/zaro/reference/zaro_fetch.md)
 
 - `http://`, `https://`: curl (no GDAL); chunk reads are batched through
   one connection pool, see
@@ -32,6 +34,13 @@ appropriate backend based on the URI scheme:
   `target = "public"` for another target, or `target = ""` for the
   verbatim sources
 
+- `flatrefs://`: a byterefs flat refs store, the Parquet export (a
+  directory, local or remote, with `arrays.json` and one
+  `refs_<array>.parquet` per array, as raad.virtualize publishes). Chunk
+  references are read by row group, only those whose dim statistics can
+  hold the selection, so a table of tens of millions of rows is never
+  read whole. `target` as for `byterefs://`
+
 ## Usage
 
 ``` r
@@ -48,17 +57,19 @@ zaro(source, verbose = zaro_verbose(), ..., validate = FALSE)
 
   logical. Emit progress and diagnostic messages. Default
   `getOption("zaro.verbose", TRUE)`; set `options(zaro.verbose = FALSE)`
-  to silence zaro everywhere. Suppress with
-  [`suppressMessages()`](https://rdrr.io/r/base/message.html).
+  to silence zaro everywhere.
 
 - ...:
 
-  additional arguments passed to Arrow filesystem constructors (e.g.
-  `anonymous = TRUE`, `endpoint_override`, `region`).
+  store options: for `s3://` and `gs://`, arguments for the Arrow
+  filesystem constructors (e.g. `anonymous = TRUE`, `region`,
+  `endpoint_override`), also used for curl-pool access; for
+  `byterefs://` and `flatrefs://`, `target` (the path remap to apply).
 
 - validate:
 
-  should the store be checked for valid metadata, `FALSE` is default
+  logical. Read the root metadata at open, warning if that fails.
+  Default `FALSE`.
 
 ## Value
 
@@ -74,9 +85,9 @@ Known public buckets (e.g. cmip6, aodn-cloud-optimised) are accessed
 anonymously by default. For other public stores, pass
 `anonymous = TRUE`.
 
-Validation of the store may be done by setting `validate = TRUE`, but
-this is otherwise avoided at open time by default (`source` is checked
-for being character, non- empty string).
+Opening reads nothing from the store by default (`source` is only
+checked to be a non-empty character string); set `validate = TRUE` to
+read the root metadata at open.
 
 ## Examples
 
@@ -89,10 +100,15 @@ store <- zaro("/data/my_dataset.zarr")
 store <- zaro("s3://mur-sst/zarr-v1", anonymous = TRUE)
 
 # GCS - known public bucket, anonymous auto-detected
-store <- zaro("gs://cmip6/CMIP6/ScenarioMIP/NOAA-GFDL/GFDL-ESM4/ssp585/r1i1p1f1/Omon/zos/gn/v20180701")
+store <- zaro(paste0("gs://cmip6/CMIP6/ScenarioMIP/NOAA-GFDL/GFDL-ESM4/",
+                     "ssp585/r1i1p1f1/Omon/zos/gn/v20180701"))
 
 # VirtualiZarr Parquet reference
 store <- zaro("virtualizarr://https://example.com/dataset.parq")
+
+# byterefs: a SQLite table, or the flat Parquet export
+store <- zaro("byterefs:///path/to/store.sqlite")
+store <- zaro("flatrefs://https://example.com/store", target = "public")
 
 # then explore
 zaro_list(store)

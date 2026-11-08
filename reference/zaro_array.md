@@ -96,7 +96,9 @@ types up to 32 bits give an integer array (`uint32` and 64-bit integers
 give double, as in
 [`zaro_read()`](https://hypertidy.github.io/zaro/reference/zaro_read.md)),
 floats give double, `bool` gives logical. No CF packing (`scale_factor`,
-`add_offset`, `_FillValue`) is applied unless `cf = TRUE`.
+`add_offset`, `_FillValue`) is applied unless `cf = TRUE`. String arrays
+are refused (a lazy array is numeric or logical); read them with
+[`zaro_read()`](https://hypertidy.github.io/zaro/reference/zaro_read.md).
 
 ## CF decoding
 

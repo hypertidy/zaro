@@ -1,8 +1,13 @@
 # Read data from a Zarr array
 
 Reads a hyperslab from a Zarr array, fetching and decoding the necessary
-chunks and assembling them into an R array. Supports both Zarr V2 and
-V3.
+chunks and assembling them into an R array. Supports Zarr V2 and V3,
+including sharded V3 arrays, and every store
+[`zaro()`](https://hypertidy.github.io/zaro/reference/zaro.md) opens.
+The chunks are planned with
+[`zaro_plan()`](https://hypertidy.github.io/zaro/reference/zaro_plan.md)
+and fetched together with
+[`zaro_fetch()`](https://hypertidy.github.io/zaro/reference/zaro_fetch.md).
 
 ## Usage
 
@@ -24,7 +29,9 @@ zaro_read(
 - store:
 
   a store object from
-  [`zaro()`](https://hypertidy.github.io/zaro/reference/zaro.md)
+  [`zaro()`](https://hypertidy.github.io/zaro/reference/zaro.md), or a
+  [`zaro_dataset()`](https://hypertidy.github.io/zaro/reference/zaro_dataset.md)
+  (then `path` is an array's name in the dataset)
 
 - path:
 
@@ -50,13 +57,15 @@ zaro_read(
 
 - parallel:
 
-  logical. If `TRUE`, fetch and decode chunks in parallel using
+  logical. If `TRUE`, decode chunks in parallel using
   [`future.apply::future_lapply()`](https://future.apply.futureverse.org/reference/future_lapply.html).
+  Fetching is always one pooled
+  [`zaro_fetch()`](https://hypertidy.github.io/zaro/reference/zaro_fetch.md)
+  (concurrent for HTTP), so this helps only when decoding is the cost.
   Requires the `future.apply` package and a
-  [`future::plan()`](https://future.futureverse.org/reference/plan.html)
-  to be set. Recommended backend:
-  `future::plan(future.mirai::mirai_multisession)`. Skipped
-  automatically for reads of fewer than 4 chunks. Default FALSE.
+  [`future::plan()`](https://future.futureverse.org/reference/plan.html),
+  e.g. `future::plan(future.mirai::mirai_multisession)`. Skipped for
+  reads of fewer than 4 chunks. Default `FALSE`.
 
 - verbose:
 
@@ -65,9 +74,12 @@ zaro_read(
 
 - assemble:
 
-  logical. If `TRUE`return a full array (the default), else the raw list
-  of decoded chunks.
+  logical. If `TRUE` (the default) return the assembled array, else the
+  list of decoded chunks.
 
 ## Value
 
-An R array with dimensions matching `count`.
+An R array with dimensions matching `count`, in Zarr dimension order and
+named by the array's dimension names (the transpose of
+[`zaro_array()`](https://hypertidy.github.io/zaro/reference/zaro_array.md)
+for C-order arrays). String arrays read as character.

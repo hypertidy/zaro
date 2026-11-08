@@ -1,12 +1,25 @@
 # zaro: Zarr via Arrow
 
-Low-level Zarr interface (V2 and V3) built on Arrow filesystem and codec
-infrastructure. Provides direct access to Zarr stores on local
-filesystems, S3, and GCS via Arrow, with fallback to GDAL virtual
-filesystems for HTTP and other protocols via gdalraster. Supports
-Kerchunk JSON and Parquet reference stores for virtual Zarr access to
-existing archives. Automatically detects Zarr version and handles S3
-region redirects.
+A low-level reader for Zarr arrays (V2 and V3, including sharded V3),
+native or virtual, from local disk, HTTP(S), S3 and GCS. Virtual stores
+read the bytes of existing NetCDF, HDF5 and GeoTIFF archives in place,
+from Kerchunk JSON and Parquet references, VirtualiZarr manifests and
+byterefs tables (SQLite, or the flat Parquet export read by row group).
+Every read is a plan of byte references (one row per chunk) fetched
+through one curl connection pool, then decoded in R. Zarr arrays can
+also be opened as lazy R arrays (via altarr) with CF unpacking. Arrow
+and GDAL (via gdalraster) are optional, for S3 and GCS listing and
+credentials and for some codecs.
+
+## See also
+
+Useful links:
+
+- <https://hypertidy.github.io/zaro/>
+
+- <https://github.com/hypertidy/zaro>
+
+- Report bugs at <https://github.com/hypertidy/zaro/issues>
 
 ## Author
 

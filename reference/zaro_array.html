@@ -15,7 +15,7 @@ Nothing is read when the array is created beyond the metadata."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">zaro</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.1.9029</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.1.9036</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -31,6 +31,7 @@ Nothing is read when the array is created beyond the metadata."></head><body>
     <li><a class="dropdown-item" href="../articles/plan-fetch-shard.html">Planning, fetching and sharding</a></li>
     <li><a class="dropdown-item" href="../articles/zaro-and-ndr.html">zaro as an ndr engine</a></li>
   </ul></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/hypertidy/zaro/tree/main/inst/docs-design">Design notes</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
@@ -134,7 +135,8 @@ what <code><a href="zaro_read.html">zaro_read()</a></code> returns.</p>
 types up to 32 bits give an integer array (<code>uint32</code> and 64-bit integers
 give double, as in <code><a href="zaro_read.html">zaro_read()</a></code>), floats give double, <code>bool</code> gives
 logical. No CF packing (<code>scale_factor</code>, <code>add_offset</code>, <code>_FillValue</code>) is
-applied unless <code>cf = TRUE</code>.</p>
+applied unless <code>cf = TRUE</code>. String arrays are refused (a lazy array is
+numeric or logical); read them with <code><a href="zaro_read.html">zaro_read()</a></code>.</p>
     </div>
     <div class="section level2">
     <h2 id="cf-decoding">CF decoding<a class="anchor" aria-label="anchor" href="#cf-decoding"></a></h2>

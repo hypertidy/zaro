@@ -1,7 +1,13 @@
 # Read multiple chunks by index range
 
 Fetches and decodes a set of chunks identified by ranges along each
-dimension of the chunk grid. Supports parallel fetching.
+dimension of the chunk grid, one at a time or in parallel. For batched,
+pooled reads use
+[`zaro_plan()`](https://hypertidy.github.io/zaro/reference/zaro_plan.md)
+and
+[`zaro_fetch()`](https://hypertidy.github.io/zaro/reference/zaro_fetch.md),
+or
+[`zaro_read()`](https://hypertidy.github.io/zaro/reference/zaro_read.md).
 
 ## Usage
 

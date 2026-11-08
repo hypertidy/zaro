@@ -22,7 +22,7 @@ zaro_list(store, path = "", ...)
 - ...:
 
   arguments for methods (specifically 'recursive = FALSE' is default for
-  'ArrowStore')
+  local and Arrow stores)
 
 ## Value
 

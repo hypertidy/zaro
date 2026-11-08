@@ -13,13 +13,13 @@
 Source:
 [`DESCRIPTION`](https://github.com/hypertidy/zaro/blob/main/DESCRIPTION)
 
-Sumner M (2026). *zaro: Zarr via Arrow*. R package version 0.0.1.9029,
+Sumner M (2026). *zaro: Zarr via Arrow*. R package version 0.0.1.9036,
 <https://hypertidy.github.io/zaro/>.
 
     @Manual{,
       title = {zaro: Zarr via Arrow},
       author = {Michael Sumner},
       year = {2026},
-      note = {R package version 0.0.1.9029},
+      note = {R package version 0.0.1.9036},
       url = {https://hypertidy.github.io/zaro/},
     }

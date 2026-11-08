@@ -8,6 +8,8 @@ Connect to a store and see what is in it, without reading data.
   a Zarr store
 - [`zaro_dataset()`](https://hypertidy.github.io/zaro/reference/zaro_dataset.md)
   : Open a store as a dataset: every array, its dimensions, no data read
+- [`zaro_groups()`](https://hypertidy.github.io/zaro/reference/zaro_groups.md)
+  : The groups of a store
 - [`zaro_list()`](https://hypertidy.github.io/zaro/reference/zaro_list.md)
   : List contents of a Zarr store
 - [`zaro_meta()`](https://hypertidy.github.io/zaro/reference/zaro_meta.md)
@@ -15,16 +17,20 @@ Connect to a store and see what is in it, without reading data.
 
 ## Read
 
-Hyperslabs as R arrays, or lazy arrays that read on demand.
+Hyperslabs as R arrays, several whole arrays in one fetch, or lazy
+arrays that read on demand.
 
 - [`zaro_read()`](https://hypertidy.github.io/zaro/reference/zaro_read.md)
   : Read data from a Zarr array
+- [`zaro_read_arrays()`](https://hypertidy.github.io/zaro/reference/zaro_read_arrays.md)
+  : Read several whole arrays in one fetch
 - [`zaro_array()`](https://hypertidy.github.io/zaro/reference/zaro_array.md)
   : Open a Zarr array as a lazy R array
 
 ## Plan and fetch
 
-Which bytes a read needs (a byterefs-shaped table), and fetching them.
+Which bytes a read needs (a byterefs-shaped table), and fetching them
+through one connection pool.
 
 - [`zaro_plan()`](https://hypertidy.github.io/zaro/reference/zaro_plan.md)
   : Plan a read: the byte references a selection needs, without reading

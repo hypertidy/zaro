@@ -6,7 +6,14 @@ returns the raw (still encoded) bytes of every chunk, in plan order,
 `NULL` for chunks that are absent (they read as `fill_value`). HTTP
 references are fetched concurrently through one curl connection pool
 with a per-host cap, adjacent byte ranges are merged into single
-requests, and failures are retried.
+requests, and failures are retried. S3 and GCS objects join the same
+pool as HTTPS when their access is known: anonymous
+(`zaro(..., anonymous = TRUE)`, a known public bucket,
+`AWS_NO_SIGN_REQUEST=YES` or `options(zaro.cloud_anonymous = TRUE)`), or
+S3 signed with `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` (and
+`AWS_SESSION_TOKEN`) from the environment. Other credentials (profiles,
+instance roles, signed GCS) are read through Arrow or GDAL one object at
+a time.
 [`zaro_read()`](https://hypertidy.github.io/zaro/reference/zaro_read.md)
 and
 [`zaro_array()`](https://hypertidy.github.io/zaro/reference/zaro_array.md)

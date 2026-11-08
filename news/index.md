@@ -2,6 +2,134 @@
 
 ## zaro (development version)
 
+- Documentation refresh: the README and pkgdown home page show the
+  current package (plan and fetch, virtual and byterefs stores,
+  sharding, groups, lazy arrays, options);
+  [`zaro_groups()`](https://hypertidy.github.io/zaro/reference/zaro_groups.md)
+  and
+  [`zaro_read_arrays()`](https://hypertidy.github.io/zaro/reference/zaro_read_arrays.md)
+  are in the reference index, which fixes the pkgdown build (the site
+  had not deployed since they were added); the DESCRIPTION and help
+  pages no longer say local and cloud stores go through Arrow; the
+  virtual stores article covers `flatrefs://`.
+
+- `flatrefs://` reads a byterefs flat refs store, the Parquet export
+  that raad.virtualize publishes (`arrays.json` plus one
+  `refs_<array>.parquet` per array): synthesised Zarr V2 metadata, codec
+  refusal, coordinates and remap targets as for `byterefs://`. Chunk
+  references are looked up by reading only the row groups whose `dim_k`
+  statistics can hold the selection, fetched by byte range through the
+  curl pool and decoded by nanoparquet; the latest
+  `getOption("zaro.flat_cache_row_groups", 4)` are kept. The Bluelink
+  BRAN2023 `temp` table (324 MB, 37.5M rows, 36 row groups): the footer
+  in one request (1.2 s), a one-day surface plan reads one 9 MB row
+  group (3.0 s), a point series over every day reads the whole table one
+  batch at a time (33 s, peak 556 MB).
+
+- Internals for that: `parquet-ranged.R` reads a Parquet footer by a
+  suffix range request and rewrites it (Thrift compact protocol, top
+  level only) to list some row groups, which then read from a sparse
+  local file. Metadata is read with the file’s `num_rows` set to 0:
+  nanoparquet 0.5.1 allocates in proportion to it (2.7 GB for 37.5M
+  rows, otherwise).
+
+- S3 and GCS objects are fetched through the curl pool
+  ([\#23](https://github.com/hypertidy/zaro/issues/23)), as HTTPS, when
+  their access is known: anonymous (`anonymous = TRUE`, a known public
+  bucket, `AWS_NO_SIGN_REQUEST=YES`,
+  `options(zaro.cloud_anonymous = TRUE)`), or S3 signed by curl’s SigV4
+  with AWS keys from the environment. This covers native chunks of
+  `s3://`/`gs://` stores (Arrow or GDAL `/vsis3/` / `/vsigs/`) and
+  virtual references to `s3://` and `gs://` URLs. The bucket region is
+  read once from S3’s `x-amz-bucket-region` header; `endpoint_override`
+  / `AWS_ENDPOINT_URL` give path-style URLs. Other credentials still go
+  through Arrow or GDAL one object at a time. A signed 403 is an error,
+  not an absent chunk. AODN sea level coordinates over `s3://`: 3.65 s
+  to 0.65 s; CMIP6 GFDL `zos` coordinates over `gs://`: 8.37 s to 3.27
+  s; identical values.
+
+- The `strings-v3.zarr` test fixture has consistent dimension names.
+
+- String data types are read, to character
+  ([\#22](https://github.com/hypertidy/zaro/issues/22)):
+  `fixed_length_utf32` (numpy `U`, V2 `<U`/`>U`),
+  `null_terminated_bytes` (numpy `S`, V2 `|S`; alias
+  `fixed_length_ascii`), and variable-length `string` with the
+  `vlen-utf8` codec (V2 `|O` with the `vlen-utf8` filter), including in
+  shards. String coordinates now load at open: EOPF Sentinel-2 L2A
+  `conditions/geometry` (`angle`, `band`, `detector`) opens, in zaro and
+  in ndr.
+  [`zaro_array()`](https://hypertidy.github.io/zaro/reference/zaro_array.md)
+  refuses string arrays (lazy arrays are numeric or logical) and points
+  to
+  [`zaro_read()`](https://hypertidy.github.io/zaro/reference/zaro_read.md).
+  Tested on stores written by zarr-python 3.2.1.
+
+- arrow moves from Imports to Suggests
+  ([\#23](https://github.com/hypertidy/zaro/issues/23)). Local stores
+  are read with base R (a new `LocalStore`), and zstd, gzip and bz2
+  chunks decode with
+  [`memDecompress()`](https://rdrr.io/r/base/memCompress.html) (falling
+  back to arrow if base R can’t). arrow is still used when installed for
+  `s3://` and `gs://` stores and for the lz4, brotli and snappy codecs;
+  without it, `s3://` and `gs://` open through GDAL’s `/vsis3/` and
+  `/vsigs/` (gdalraster). Imports are now curl, jsonlite, methods,
+  nanoparquet, S7 and utils.
+
+- `future` is declared in Suggests (used by the parallel tests).
+
+- Parquet reference manifests (VirtualiZarr shards, kerchunk Parquet)
+  are read with nanoparquet, not arrow: a virtual store such as BRAN2023
+  now opens and reads without loading arrow (identical values).
+  nanoparquet reads whole files, which suits sharded manifests (only the
+  shards a selection needs are fetched); for large flat tables arrow’s
+  row-group reads may come back as an option
+  ([\#23](https://github.com/hypertidy/zaro/issues/23)). arrow is still
+  imported for S3/GCS and the Arrow codecs.
+
+- kerchunk Parquet (`reference+parquet://`): remote files are downloaded
+  with curl first, rows are classified one by one (a byte reference when
+  the row has a url, else inline data), inline binary values are kept as
+  raw, and the table is parsed without a per-row R loop.
+
+- New `zaro_read_arrays(store, paths)`: several whole arrays in one
+  fetch. All the arrays’ plans go to one
+  [`zaro_fetch()`](https://hypertidy.github.io/zaro/reference/zaro_fetch.md),
+  so their HTTP chunks share one connection pool and go out
+  concurrently; each result is identical to
+  [`zaro_read()`](https://hypertidy.github.io/zaro/reference/zaro_read.md).
+  Meant for a dataset’s coordinate arrays at open, where the cost is
+  round trips: two EOPF ECMWF coordinates read in 1.0 s (2.0 s one at a
+  time), AODN’s three in 0.40 s (0.57 s). `s3://`/`gs://` chunks are
+  still fetched one at a time through Arrow.
+
+- [`zaro_read()`](https://hypertidy.github.io/zaro/reference/zaro_read.md)’s
+  chunk assembly is factored out (`assemble_chunks()`), shared with
+  [`zaro_read_arrays()`](https://hypertidy.github.io/zaro/reference/zaro_read_arrays.md).
+
+- [`zaro_dataset()`](https://hypertidy.github.io/zaro/reference/zaro_dataset.md)
+  gains `group =`, to open the arrays of one group of a nested store,
+  e.g. `group = "measurements/reflectance/r10m"` of an EOPF Sentinel-2
+  product. Arrays are named within the group; the dataset records each
+  one’s store path in `paths`, and
+  [`zaro_array()`](https://hypertidy.github.io/zaro/reference/zaro_array.md),
+  [`zaro_read()`](https://hypertidy.github.io/zaro/reference/zaro_read.md)
+  (which now takes a dataset too) and
+  [`zaro_plan()`](https://hypertidy.github.io/zaro/reference/zaro_plan.md)
+  resolve names through it. The group’s attributes are the dataset’s
+  attributes. Works from consolidated metadata (one request) or by
+  listing.
+
+- New
+  [`zaro_groups()`](https://hypertidy.github.io/zaro/reference/zaro_groups.md):
+  every group of a store with the number of arrays directly in it.
+
+- V2 consolidated metadata (`.zmetadata`) now includes nested groups, as
+  V3 consolidated metadata already did.
+
+- Fix `store_list()` on Arrow (local, S3, GCS) stores with a non-empty
+  prefix: the root and prefix were joined without a `/`.
+
 - byterefs stores: chunk keys are looked up placement first, many at a
   time (byterefs spec “One chunk by global key”, ported from
   raad.virtualize `mr_chunks()`): the array’s placements are read once
@@ -227,11 +355,11 @@
   [`{}`](https://rdrr.io/r/base/Paren.html), and the V3 path, which
   previously did not coerce `fill_value` at all.
 
-- Add chunk facilites
+- Add chunk facilities
   [`zaro_chunk()`](https://hypertidy.github.io/zaro/reference/zaro_chunk.md),
   [`zaro_chunks()`](https://hypertidy.github.io/zaro/reference/zaro_chunks.md),
   [`zaro_chunk_apply()`](https://hypertidy.github.io/zaro/reference/zaro_chunk_apply.md),
-  `zarr_chunk_info()`.
+  [`zaro_chunk_info()`](https://hypertidy.github.io/zaro/reference/zaro_chunk_info.md).
 
 - Fix problem with Arrow decompression (logic was incorrect and hidden
   in a try/catch).

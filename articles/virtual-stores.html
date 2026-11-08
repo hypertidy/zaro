@@ -19,7 +19,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">zaro</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.1.9029</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.1.9036</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -38,6 +38,7 @@
     <li><a class="dropdown-item" href="../articles/zaro-and-ndr.html">zaro as an ndr engine</a></li>
   </ul>
 </li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/hypertidy/zaro/tree/main/inst/docs-design">Design notes</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul>
 <ul class="navbar-nav">
@@ -96,6 +97,10 @@ reads these reference stores directly:</p>
 <tr class="even">
 <td>byterefs SQLite tables</td>
 <td><code>byterefs:///path/store.sqlite</code></td>
+</tr>
+<tr class="odd">
+<td>byterefs flat Parquet export</td>
+<td><code>flatrefs://https://.../store</code></td>
 </tr>
 </tbody>
 </table>
@@ -199,15 +204,25 @@ pool. That’s the default, up to 8 connections per host
 <p><a href="https://github.com/byterefs/spec" class="external-link">byterefs</a> is a
 specification for exactly this kind of table: one row per chunk with its
 file, offset and size, plus what a reader needs to decode it. <a href="https://github.com/mdsumner/raad.virtualize" class="external-link">raad.virtualize</a>
-produces byterefs stores as SQLite files. zaro reads them with
-<code>byterefs://</code> and applies the store’s default path remapping
+produces byterefs stores as SQLite files, and publishes them as a flat
+Parquet export (a directory with <code>arrays.json</code> and one
+<code>refs_&lt;array&gt;.parquet</code> per array). zaro reads the first
+with <code>byterefs://</code> and the second with
+<code>flatrefs://</code>, and applies the store’s default path remapping
 (<code>meta.default_target</code>), so a table scanned on a local mirror
 reads from its public copy:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">store</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/zaro.html">zaro</a></span><span class="op">(</span><span class="st">"byterefs:///path/to/store.sqlite"</span><span class="op">)</span>                  <span class="co"># default target</span></span>
-<span><span class="va">store</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/zaro.html">zaro</a></span><span class="op">(</span><span class="st">"byterefs:///path/to/store.sqlite"</span>, target <span class="op">=</span> <span class="st">"public"</span><span class="op">)</span> <span class="co"># another target</span></span></code></pre></div>
-<p>The specification is still moving (the published Parquet layout is
-not settled), so this part of zaro will follow it.</p>
+<span><span class="va">store</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/zaro.html">zaro</a></span><span class="op">(</span><span class="st">"byterefs:///path/to/store.sqlite"</span>, target <span class="op">=</span> <span class="st">"public"</span><span class="op">)</span> <span class="co"># another target</span></span>
+<span><span class="va">store</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/zaro.html">zaro</a></span><span class="op">(</span><span class="st">"flatrefs://https://host/path/to/store"</span><span class="op">)</span>              <span class="co"># flat Parquet export</span></span></code></pre></div>
+<p>A flat refs table can be large (BRAN2023’s <code>temp</code> is 37.5M
+rows, 324 MB), so zaro never reads it whole for a selection. It reads
+the Parquet footer with one range request, then only the row groups
+whose <code>dim_k</code> statistics can hold the chunks a plan needs: a
+one-day surface plan reads one 9 MB row group. A point series over every
+day reads the table one row group at a time.</p>
+<p>The specification is still moving, so this part of zaro will follow
+it.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

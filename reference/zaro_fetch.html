@@ -3,12 +3,22 @@
 chunk, in plan order, NULL for chunks that are absent (they read as
 fill_value). HTTP references are fetched concurrently through one curl
 connection pool with a per-host cap, adjacent byte ranges are merged into
-single requests, and failures are retried. zaro_read() and
+single requests, and failures are retried. S3 and GCS objects join the
+same pool as HTTPS when their access is known: anonymous (zaro(..., anonymous = TRUE), a known public bucket, AWS_NO_SIGN_REQUEST=YES or
+options(zaro.cloud_anonymous = TRUE)), or S3 signed with
+AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY (and AWS_SESSION_TOKEN)
+from the environment. Other credentials (profiles, instance roles,
+signed GCS) are read through Arrow or GDAL one object at a time. zaro_read() and
 zaro_array() read through this, so they get the same batching."><meta property="og:description" content="Executes a zaro_plan(): returns the raw (still encoded) bytes of every
 chunk, in plan order, NULL for chunks that are absent (they read as
 fill_value). HTTP references are fetched concurrently through one curl
 connection pool with a per-host cap, adjacent byte ranges are merged into
-single requests, and failures are retried. zaro_read() and
+single requests, and failures are retried. S3 and GCS objects join the
+same pool as HTTPS when their access is known: anonymous (zaro(..., anonymous = TRUE), a known public bucket, AWS_NO_SIGN_REQUEST=YES or
+options(zaro.cloud_anonymous = TRUE)), or S3 signed with
+AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY (and AWS_SESSION_TOKEN)
+from the environment. Other credentials (profiles, instance roles,
+signed GCS) are read through Arrow or GDAL one object at a time. zaro_read() and
 zaro_array() read through this, so they get the same batching."></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
@@ -17,7 +27,7 @@ zaro_array() read through this, so they get the same batching."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">zaro</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.1.9029</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.1.9036</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -33,6 +43,7 @@ zaro_array() read through this, so they get the same batching."></head><body>
     <li><a class="dropdown-item" href="../articles/plan-fetch-shard.html">Planning, fetching and sharding</a></li>
     <li><a class="dropdown-item" href="../articles/zaro-and-ndr.html">zaro as an ndr engine</a></li>
   </ul></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/hypertidy/zaro/tree/main/inst/docs-design">Design notes</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
@@ -55,7 +66,12 @@ zaro_array() read through this, so they get the same batching."></head><body>
 chunk, in plan order, <code>NULL</code> for chunks that are absent (they read as
 <code>fill_value</code>). HTTP references are fetched concurrently through one curl
 connection pool with a per-host cap, adjacent byte ranges are merged into
-single requests, and failures are retried. <code><a href="zaro_read.html">zaro_read()</a></code> and
+single requests, and failures are retried. S3 and GCS objects join the
+same pool as HTTPS when their access is known: anonymous (<code>zaro(..., anonymous = TRUE)</code>, a known public bucket, <code>AWS_NO_SIGN_REQUEST=YES</code> or
+<code>options(zaro.cloud_anonymous = TRUE)</code>), or S3 signed with
+<code>AWS_ACCESS_KEY_ID</code> / <code>AWS_SECRET_ACCESS_KEY</code> (and <code>AWS_SESSION_TOKEN</code>)
+from the environment. Other credentials (profiles, instance roles,
+signed GCS) are read through Arrow or GDAL one object at a time. <code><a href="zaro_read.html">zaro_read()</a></code> and
 <code><a href="zaro_array.html">zaro_array()</a></code> read through this, so they get the same batching.</p>
     </div>
 
