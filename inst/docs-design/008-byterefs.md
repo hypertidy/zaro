@@ -73,32 +73,38 @@ size. That is a question for byterefs, below.
 
 ## Questions for byterefs
 
-From zaro's experience reading real stores (each to be raised as an issue
-on byterefs/spec):
+From zaro's experience reading real stores, raised on byterefs/spec on
+2026-11-08:
 
-1. **The fast chunk lookup is specified but not implemented.** The spec
+1. **The fast chunk lookup is specified but not implemented**
+   ([byterefs/spec#8](https://github.com/byterefs/spec/issues/8)). The spec
    names a placement-first `mr_chunk_sql()`; raad.virtualize has
    `mr_chunk()`, which filters the view (the slow path). Either implement
    it in the reference code or mark the text as proposed.
-2. **Codec description (brief question 1).** zaro, like wxy-refs, converts
+2. **Codec description (brief question 1)**
+   ([#9](https://github.com/byterefs/spec/issues/9)). zaro, like wxy-refs, converts
    Zarr V2 codec ids to a V3 codec chain on read. V3-only codecs (`crc32c`,
    V3 blosc configuration, byte order as the `bytes` codec) have no V2 id.
    Proposal: describe codecs as a V3 chain in encode order, with V2 ids
    accepted during 0.x.
-3. **Sharded Zarr as a source.** A sharded V3 array's inner chunks map one
+3. **Sharded Zarr as a source**
+   ([#10](https://github.com/byterefs/spec/issues/10)). A sharded V3 array's inner chunks map one
    to one onto rows (the shard object as `path`, the inner chunk's range as
    `offset`/`size`) when nothing but `crc32c` follows `sharding_indexed`.
    A compressor on the whole shard can't be virtualized; it belongs with
    brief question 13 (storage that is not chunked).
-4. **JSON numbers must round-trip doubles.** zaro (consolidated metadata)
+4. **JSON numbers must round-trip doubles**
+   ([#11](https://github.com/byterefs/spec/issues/11)). zaro (consolidated metadata)
    and raad.virtualize (the R-built BRAN index) both truncated BRAN's
    `scale_factor` 0.007782219909131527 to 0.0078 through jsonlite's default
    of 4 significant digits, independently. A rule (JSON numbers carry 17
    significant digits, or enough to round-trip) and a fixture with that
    value would catch it.
-5. **Unknown sizes.** Native Zarr chunks have no size without a request.
+5. **Unknown sizes**
+   ([#12](https://github.com/byterefs/spec/issues/12)). Native Zarr chunks have no size without a request.
    Either a byterefs row may leave `size` NULL for a whole object, or a
    producer must measure it. Worth deciding before zaro writes tables.
-6. **IMPLEMENTATIONS.md** says no implementation writes `byterefs/0.1`;
+6. **IMPLEMENTATIONS.md**
+   ([byterefs/spec#13](https://github.com/byterefs/spec/pull/13)) says no implementation writes `byterefs/0.1`;
    raad.virtualize does, and zaro now reads it (and applies the default
    target).
