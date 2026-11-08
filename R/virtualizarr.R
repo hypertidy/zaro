@@ -20,7 +20,7 @@
 # manifest files which contain (path, offset, length) references into
 # the original source files (NetCDF, HDF5, etc).
 #
-# This is GDAL-free: metadata via curl, manifests via arrow::read_parquet(),
+# This is GDAL-free: metadata via curl, manifests via nanoparquet,
 # chunk bytes via byte_range_read().
 
 
@@ -239,18 +239,14 @@ vz_fetch_shard <- function(store, var_name, shard_idx) {
   if (is.null(pq_file)) return(NULL)
   on.exit(if (grepl("^(/tmp|.*/Rtmp)", pq_file)) unlink(pq_file))
   tryCatch({
-    tbl <- arrow::read_parquet(pq_file)
+    tbl <- read_refs_parquet(pq_file)
     shard <- data.frame(
       path = as.character(tbl$path),
       offset = as.numeric(tbl$offset),
       size = as.integer(tbl$size),
       stringsAsFactors = FALSE
     )
-    if ("raw" %in% names(tbl)) {
-      tryCatch({
-        shard$raw <- as.list(tbl[["raw"]])
-      }, error = function(e) NULL)
-    }
+    if ("raw" %in% names(tbl)) shard$raw <- tbl[["raw"]]
     shard
   }, error = function(e) NULL)
 }
@@ -297,7 +293,7 @@ vz_http_get <- function(url) {
 }
 
 
-#' Fetch a Parquet file to a local path for arrow::read_parquet()
+#' Fetch a Parquet file to a local path for read_refs_parquet()
 #'
 #' Downloads HTTP resources to a tempfile. Returns file path or NULL.
 #' @noRd

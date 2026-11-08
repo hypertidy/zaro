@@ -58,7 +58,10 @@ parse_kerchunk_json <- function(source) {
 #' @returns ReferenceStore object
 #' @noRd
 parse_kerchunk_parquet <- function(source) {
-  tbl <- arrow::read_parquet(source)
+  file <- vz_fetch_parquet_raw(source)
+  if (is.null(file)) stop("cannot read Parquet reference file: ", source, call. = FALSE)
+  if (!identical(file, source)) on.exit(unlink(file), add = TRUE)
+  tbl <- read_refs_parquet(file)
 
   # normalise column names - different tools use different conventions
   nms <- tolower(names(tbl))
@@ -72,27 +75,51 @@ parse_kerchunk_parquet <- function(source) {
 
   if (is.na(key_col)) stop("cannot identify key column in parquet reference", call. = FALSE)
 
-  refs <- list()
-  for (i in seq_len(nrow(tbl))) {
-    k <- tbl[[key_col]][i]
-    if (!is.na(url_col) && !is.na(offset_col) && !is.na(length_col)) {
-      refs[[k]] <- list(tbl[[url_col]][i],
-                        tbl[[offset_col]][i],
-                        tbl[[length_col]][i])
-    } else {
-      # inline data (metadata rows may be stored as raw or character)
-      data_col <- setdiff(nms, c(key_col, url_col, offset_col, length_col))
-      if (length(data_col) > 0) {
-        refs[[k]] <- as.character(tbl[[data_col[1]]][i])
-      }
-    }
+  # per row: a byte reference when the row has a url, else inline data
+  # (raw bytes or text, e.g. metadata rows)
+  n <- nrow(tbl)
+  keys <- as.character(tbl[[key_col]])
+  is_ref <- if (!is.na(url_col) && !is.na(offset_col) && !is.na(length_col)) {
+    u <- tbl[[url_col]]
+    !is.na(u) & nzchar(u)
+  } else rep(FALSE, n)
+  refs <- vector("list", n)
+  if (any(is_ref)) {
+    refs[is_ref] <- Map(function(u, o, l) list(u, o, l),
+                        as.character(tbl[[url_col]][is_ref]),
+                        as.numeric(tbl[[offset_col]][is_ref]),
+                        as.numeric(tbl[[length_col]][is_ref]))
   }
+  data_col <- setdiff(nms, c(key_col, url_col, offset_col, length_col))
+  if (any(!is_ref) && length(data_col) > 0) {
+    d <- tbl[[data_col[1]]]
+    refs[!is_ref] <- if (is.list(d)) d[!is_ref] else as.list(as.character(d[!is_ref]))
+  }
+  keep <- !vapply(refs, is.null, logical(1))
+  refs <- stats::setNames(refs[keep], keys[keep])
 
   ReferenceStore(
     root = "",
     refs = refs,
     templates = list()
   )
+}
+
+
+#' Read a Parquet reference table (manifest) into a data frame
+#'
+#' nanoparquet reads the whole file, which suits reference manifests:
+#' VirtualiZarr and kerchunk shard them (e.g. 100k rows a file), and only
+#' the shards a selection needs are fetched. Binary columns become a plain
+#' list of raw vectors (NULL where missing); 64-bit integers become double
+#' (exact to 2^53).
+#' @noRd
+read_refs_parquet <- function(file) {
+  tbl <- nanoparquet::read_parquet(file)
+  for (nm in names(tbl)) {
+    if (inherits(tbl[[nm]], "blob")) tbl[[nm]] <- unclass(tbl[[nm]])
+  }
+  as.data.frame(tbl, stringsAsFactors = FALSE)
 }
 
 
