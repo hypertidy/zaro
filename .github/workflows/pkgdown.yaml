@@ -1,0 +1,69 @@
+# pkgdown site, as for ndr. The articles are precomputed (knitted locally
+# from vignettes/articles/*.Rmd.orig, see vignettes/articles/README.md), so
+# the build needs no network access to the data servers.
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+name: pkgdown.yaml
+
+permissions: read-all
+
+jobs:
+  pkgdown:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: pkgdown-${{ github.event_name != 'pull_request' || github.run_id }}
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      # compile in parallel: the image installs from source CRAN
+      MAKEFLAGS: -j4
+      # arrow links the image's libarrow, not a downloaded one
+      LIBARROW_BINARY: false
+      ARROW_USE_PKG_CONFIG: true
+      # pak must not apt-install Ubuntu's GDAL over the image's own
+      PKG_SYSREQS: false
+    permissions:
+      contents: write
+    container:
+      image: ghcr.io/hypertidy/gdal-r-full:latest
+      options: --user root
+    steps:
+      - name: Install git and rsync for checkout and deploy
+        run: |
+          apt-get update -qq
+          apt-get install -y --no-install-recommends git rsync
+
+      - uses: actions/checkout@v4
+
+      - name: Mark the workspace safe for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      # Interim, until gdal-r-full has arrow: Arrow 26 split S3 into its own
+      # package, and without arrow-s3.pc the R arrow build links no libarrow
+      - name: Install libarrow-s3-dev
+        run: apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq libarrow-s3-dev
+
+      # pak: Suggests at the top level only (see R-CMD-check.yaml)
+      - name: Install dependencies
+        run: |
+          Rscript -e '
+            pak::local_install_dev_deps(upgrade = FALSE, dependencies = TRUE, ask = FALSE)
+            pak::local_install(upgrade = FALSE, dependencies = FALSE, ask = FALSE)
+          '
+
+      - name: Build site
+        run: pkgdown::build_site_github_pages(new_process = FALSE, install = FALSE)
+        shell: Rscript {0}
+
+      - name: Deploy to GitHub pages
+        if: github.event_name != 'pull_request'
+        uses: JamesIves/github-pages-deploy-action@v4.5.0
+        with:
+          clean: false
+          branch: gh-pages
+          folder: docs

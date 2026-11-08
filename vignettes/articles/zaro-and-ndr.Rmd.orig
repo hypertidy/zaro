@@ -1,0 +1,58 @@
+---
+title: "zaro as an ndr engine"
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.path = "figures/ndr-",
+                      fig.width = 7, fig.height = 4.5, dpi = 96)
+options(width = 90)
+```
+
+zaro gets the bytes; [ndr](https://mdsumner.github.io/ndr/) does the
+meaning: named dimensions, coordinates, selection by value, broadcasting
+and reductions. `ndr::open_dataset()` reads through zaro for Zarr and
+virtual Zarr (and through GDAL for NetCDF, HDF5 and friends). The zaro
+engine is chosen for `s3://`, `gs://`, `virtualizarr://`, `byterefs://`
+and `.zarr` sources, or with `engine = "zaro"`.
+
+```{r open}
+library(ndr)
+options(zaro.verbose = FALSE)
+
+ds <- open_dataset("s3://aodn-cloud-optimised/model_sea_level_anomaly_gridded_realtime.zarr",
+                   vars = "GSLA", anonymous = TRUE, region = "ap-southeast-2")
+ds
+```
+
+Opening read only metadata and coordinates; `TIME` is already decoded to
+dates. Data variables are lazy: selecting stays lazy, and values are read
+(by zaro, chunk by chunk) only when needed.
+
+```{r select}
+gsla <- ds$GSLA
+day <- gsla |> sel(TIME = as.Date("2024-01-01"))
+day@variable@dims             # TIME selected away; still lazy
+ndr:::is_lazy(day@variable@data)
+```
+
+```{r plot-day}
+v <- collect(day)
+lon <- coord_values(ds@coords$LONGITUDE); lat <- coord_values(ds@coords$LATITUDE)
+z <- v@variable@data
+image(lon, lat, z, asp = 1, zlim = c(-1, 1) * max(abs(z), na.rm = TRUE),
+      col = hcl.colors(64, "Blue-Red 3"),
+      xlab = "longitude", ylab = "latitude", main = "GSLA (m), 2024-01-01")
+```
+
+A reduction streams the chunks it needs:
+
+```{r reduce}
+jan <- gsla |> sel(TIME = c(as.Date("2024-01-01"), as.Date("2024-01-31")))
+m <- nd_mean(jan, "TIME", na.rm = TRUE)
+range(collect(m)@variable@data, na.rm = TRUE)
+```
+
+The same code reads virtual stores: a VirtualiZarr or byterefs reference
+store opens with `open_dataset("virtualizarr://...")` or
+`open_dataset("byterefs://...")`, and its packed variables are unpacked as
+they are read.

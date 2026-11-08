@@ -19,6 +19,16 @@
   through a draft kerchunk index on source.coop (overview levels as
   arrays, a full-resolution window checked against GDAL reading the COG).
 
+* pkgdown site at <https://hypertidy.github.io/zaro/>, with four articles:
+  getting started (AODN sea level), virtual stores (BRAN2023 via
+  VirtualiZarr, byterefs), planning, fetching and sharding (EOPF Sentinel-2
+  sharded GeoZarr), and zaro as an ndr engine. The articles are knitted
+  locally from `vignettes/articles/*.Rmd.orig` so the site builds without
+  network access to the data servers.
+
+* `R CMD check` runs on GitHub Actions in the hypertidy/gdal-r-ci images
+  (GDAL release and GDAL HEAD), as for ndr.
+
 * `zaro_plan()` columns follow the byterefs view: `dim_0`, ...,
   `dim_{n-1}`, `present`, `path`, `offset`, `size`, `data`, then zaro's
   `key` and `transport`. They were `url`, `length`, `inline` and a list
