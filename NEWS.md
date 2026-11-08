@@ -1,5 +1,10 @@
 # zaro (development version)
 
+* `mdimrefs://` accepts stores stamped `byterefs/0.1`, the identifier
+  raad.virtualize writes since the format was renamed (byterefs/spec
+  decision 0003), as well as the legacy `mdim-refs/0.2`. Such stores were
+  refused with "not an mdim-refs store".
+
 * Sharded arrays with codecs after `sharding_indexed` (applied to the whole
   shard object) now read. A trailing `crc32c` is skipped and the shard is
   still read by byte ranges; a compressor means whole shards are fetched and
