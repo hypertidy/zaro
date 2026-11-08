@@ -191,6 +191,8 @@ zaro <- function(source, verbose = zaro_verbose(), ..., validate = FALSE) {
    vmsg("opening local store: ", source, verbose = verbose)
    store <- LocalStore(root = normalizePath(source, mustWork = FALSE))
   }
+  if (grepl("^(s3|gs)://", source)) store@cloud <- cloud_access(dots)
+
   # eagerly probe the store if requested
   if (validate) {
     vmsg("validating store...", verbose = verbose)

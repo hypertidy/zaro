@@ -9,8 +9,10 @@
 #   - byte ranges on the same URL that touch (or are within `merge_gap`
 #     bytes of each other) are merged into one request, then split
 #   - failed or short responses are retried with backoff
-# Other transports (Arrow S3/GCS with the store's credentials, local files,
-# VSI, inline, absent) are fetched row by row with fetch_ref().
+# S3 and GCS rows join the pool as HTTPS when their access is known
+# (anonymous, or AWS keys in the environment, signed by curl's SigV4; see
+# cloud.R). Other transports (S3/GCS with profile or role credentials,
+# local files, VSI, inline, absent) are fetched row by row with fetch_ref().
 
 
 #' Fetch the bytes of a plan
@@ -19,7 +21,13 @@
 #' chunk, in plan order, `NULL` for chunks that are absent (they read as
 #' `fill_value`). HTTP references are fetched concurrently through one curl
 #' connection pool with a per-host cap, adjacent byte ranges are merged into
-#' single requests, and failures are retried. [zaro_read()] and
+#' single requests, and failures are retried. S3 and GCS objects join the
+#' same pool as HTTPS when their access is known: anonymous (`zaro(...,
+#' anonymous = TRUE)`, a known public bucket, `AWS_NO_SIGN_REQUEST=YES` or
+#' `options(zaro.cloud_anonymous = TRUE)`), or S3 signed with
+#' `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` (and `AWS_SESSION_TOKEN`)
+#' from the environment. Other credentials (profiles, instance roles,
+#' signed GCS) are read through Arrow or GDAL one object at a time. [zaro_read()] and
 #' [zaro_array()] read through this, so they get the same batching.
 #'
 #' @param store the store the plan was made from.
@@ -50,11 +58,14 @@ zaro_fetch <- function(store, plan, max_con = getOption("zaro.max_con", 8L),
   out <- vector("list", n)
   stats <- list(requests = 0L, bytes = 0, seconds = 0)
 
+  # S3/GCS objects whose access is known go through the pool too, as HTTPS
+  plan <- plan_cloud_to_http(plan, store)
   http <- which(plan$transport == "http")
   if (length(http)) {
     got <- http_fetch(plan$path[http], plan$offset[http], plan$size[http],
                       max_con = max_con, merge_gap = merge_gap,
-                      retries = retries)
+                      retries = retries,
+                      opts = attr(plan, "curl_opts")[http])
     out[http] <- got
     stats <- attr(got, "stats")
     vmsg("fetched ", length(http), " chunk(s) in ", stats$requests,
@@ -77,7 +88,7 @@ zaro_fetch <- function(store, plan, max_con = getOption("zaro.max_con", 8L),
 #' @noRd
 http_fetch <- function(url, offset, length, max_con = 8L, merge_gap = 0,
                        retries = 2L, max_merge = 16 * 1024^2,
-                       absent_ok = is.na(length)) {
+                       absent_ok = is.na(length), opts = NULL) {
   t0 <- Sys.time()
   reqs <- http_requests(url, offset, length, merge_gap, max_merge)
   for (q in seq_along(reqs)) reqs[[q]]$absent_ok <- all(absent_ok[reqs[[q]]$rows])
@@ -96,17 +107,24 @@ http_fetch <- function(url, offset, length, max_con = 8L, merge_gap = 0,
       local({
         rq <- reqs[[q]]
         h <- curl::new_handle()
+        # signing options (S3 SigV4), the same for every row of one URL
+        o <- if (!is.null(opts)) opts[[rq$rows[1L]]]
+        hdrs <- o$headers
+        o$headers <- NULL
+        if (length(o)) curl::handle_setopt(h, .list = o)
         if (isTRUE(rq$suffix)) {
-          curl::handle_setheaders(h, Range = sprintf("bytes=-%.0f", rq$len))
+          hdrs <- c(hdrs, Range = sprintf("bytes=-%.0f", rq$len))
         } else if (!is.na(rq$start)) {
-          curl::handle_setheaders(h, Range = sprintf("bytes=%.0f-%.0f",
-                                                     rq$start, rq$end))
+          hdrs <- c(hdrs, Range = sprintf("bytes=%.0f-%.0f", rq$start, rq$end))
         }
+        if (length(hdrs)) curl::handle_setheaders(h, .list = as.list(hdrs))
+        # a signed 403 is a refusal, not a missing object
+        absent_codes <- if (length(o)) c(404L, 416L) else c(403L, 404L, 416L)
         curl::curl_fetch_multi(rq$url, handle = h, pool = pool,
           done = function(r) {
             body <- http_body(r, rq)
             if (is.null(body)) {
-              if (rq$absent_ok && r$status_code %in% c(403L, 404L, 416L)) {
+              if (rq$absent_ok && r$status_code %in% absent_codes) {
                 return(invisible())                  # absent object
               }
               failed <<- c(failed, q)
