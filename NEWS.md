@@ -1,5 +1,10 @@
 # zaro (development version)
 
+* `mdimrefs://` accepts stores stamped `byterefs/0.1`, the identifier
+  raad.virtualize writes since the format was renamed (byterefs/spec
+  decision 0003), as well as the legacy `mdim-refs/0.2`. Such stores were
+  refused with "not an mdim-refs store".
+
 * Read sharded Zarr V3 arrays (`sharding_indexed`). A shard is planned as
   one more level of byte references: `zaro_plan()` reads the index of each
   shard a selection touches (one small ranged read per shard, fetched

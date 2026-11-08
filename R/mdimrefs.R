@@ -1,6 +1,8 @@
 # mdimrefs.R -- read an mdim-refs byte-reference table as a Zarr V2 store
 #
-# An mdim-refs store (format "mdim-refs/0.2") is a SQLite database of chunk
+# A byterefs store (format "byterefs/0.1"; the legacy name "mdim-refs/0.2" is
+# the same layout and is read during the transition, byterefs/spec decision
+# 0003) is a SQLite database of chunk
 # byte references: per-source chunk tables, an `arrays` table of array
 # metadata, and one view per referenced array, `refs_<array>`, holding the
 # global chunk index in the block-info row shape:
@@ -36,14 +38,21 @@ open_mdimrefs <- function(source, target = NULL, verbose = zaro_verbose()) {
   }
   con <- DBI::dbConnect(RSQLite::SQLite(), source, flags = RSQLite::SQLITE_RO)
   fmt <- DBI::dbGetQuery(con, "SELECT value FROM meta WHERE key = 'format_version'")$value
-  if (!length(fmt) || !startsWith(fmt, "mdim-refs/"))
-    stop("not an mdim-refs store: ", source, call. = FALSE)
+  if (!mdimrefs_format_ok(fmt))
+    stop("not a byterefs (or mdim-refs) store: ", source, call. = FALSE)
   vmsg("opening ", fmt, " store: ", source, verbose = verbose)
   remap <- if (is.null(target)) data.frame(prefix = character(), replacement = character())
            else DBI::dbGetQuery(con, "SELECT prefix, replacement FROM remap WHERE target = ?
                                        ORDER BY length(prefix) DESC", params = list(target))
   MdimRefsStore(root = source, con = con, remap = remap,
                 arrays = DBI::dbGetQuery(con, "SELECT * FROM arrays"))
+}
+
+## format identifiers this reader takes: byterefs/0.x (what raad.virtualize
+## writes) and the legacy mdim-refs/0.x
+mdimrefs_format_ok <- function(fmt) {
+  length(fmt) == 1L && !is.na(fmt) &&
+    (startsWith(fmt, "byterefs/") || startsWith(fmt, "mdim-refs/"))
 }
 
 mdimrefs_json <- function(x) {
