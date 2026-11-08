@@ -425,11 +425,7 @@ zaro_read <- function(store, path = "", start = NULL, count = NULL, meta = NULL,
   vmsg("reading ", n_total, " chunk(s) for path '", path, "'",
        " (V", meta@zarr_format, ")", verbose = verbose)
 
-  # allocate output array filled with fill_value
-  out <- array(meta@fill_value, dim = count)
-
-  # fetch and decode each chunk, copy the relevant portion into out
-  slab_end <- start + count - 1L
+  # fetch and decode each chunk, then copy the relevant portion into the result
   chunk_indices <- chunk_index_iter(chunk_ranges)
 
   # skip parallel for small reads
@@ -458,59 +454,7 @@ zaro_read <- function(store, path = "", start = NULL, count = NULL, meta = NULL,
   if (!assemble) {
     return(decoded)
   }
-  # -- phase 2: assemble into output array (sequential) --
-  order <- meta@raw_meta[["order"]] %||% "C"
-
-  for (result in decoded) {
-    if (is.null(result)) next
-
-    cidx <- result$cidx
-    values <- result$values
-
-    # this chunk covers [chunk_start, chunk_end] in array coordinates
-    chunk_start <- cidx * meta@chunk_shape
-    chunk_end   <- pmin(chunk_start + meta@chunk_shape, meta@shape) - 1L
-
-    # region of overlap in array coordinates
-    ov_start <- pmax(chunk_start, start)
-    ov_end   <- pmin(chunk_end, slab_end)
-
-    # positions within the chunk (0-based) and output (1-based)
-    in_chunk_start <- ov_start - chunk_start
-    in_chunk_count <- ov_end - ov_start + 1L
-    in_out_start   <- ov_start - start + 1L
-
-    # reshape decoded values to actual chunk extent (edge chunks may be short)
-    actual_chunk_shape <- pmin(meta@chunk_shape, meta@shape - chunk_start)
-
-    # edge chunks may be full-size (padded) or truncated
-    if (length(values) == prod(meta@chunk_shape)) {
-      reshape_shape <- meta@chunk_shape
-    } else {
-      reshape_shape <- actual_chunk_shape
-    }
-    # C-order: last dimension varies fastest in memory; R is column-major
-    if (order == "C") {
-      dim(values) <- rev(reshape_shape)
-      values <- aperm(values)
-    } else {
-      dim(values) <- reshape_shape
-    }
-
-    # build index lists for source and destination
-    src_idx <- lapply(seq_len(ndim), function(d) {
-      seq.int(in_chunk_start[d] + 1L, in_chunk_start[d] + in_chunk_count[d])
-    })
-    dst_idx <- lapply(seq_len(ndim), function(d) {
-      seq.int(in_out_start[d], in_out_start[d] + in_chunk_count[d] - 1L)
-    })
-
-    # extract slice from chunk
-    chunk_slice <- do.call(`[`, c(list(values), src_idx, list(drop = FALSE)))
-
-    # insert into output - use abind-style positional assignment
-    out <- do.call(`[<-`, c(list(out), dst_idx, list(value = chunk_slice)))
-  }
+  out <- assemble_chunks(decoded, meta, start, count)
 
   # set dim names if available
   if (!is.null(meta@dimension_names)) {
@@ -579,4 +523,70 @@ chunk_coverage <- function(start, count, chunk_shape) {
 chunk_index_iter <- function(ranges) {
   grid <- expand.grid(ranges, KEEP.OUT.ATTRS = FALSE)
   lapply(seq_len(nrow(grid)), function(i) as.integer(grid[i, ]))
+}
+
+
+#' Copy decoded chunks into a `count`-shaped array starting at `start`
+#'
+#' @param decoded list of `list(cidx, values)` (NULL entries are absent
+#'   chunks, left as fill_value)
+#' @noRd
+assemble_chunks <- function(decoded, meta, start, count) {
+  ndim <- length(meta@shape)
+  out <- array(meta@fill_value, dim = count)
+  slab_end <- start + count - 1L
+  order <- meta@raw_meta[["order"]] %||% "C"
+
+  for (result in decoded) {
+    if (is.null(result)) next
+
+    cidx <- result$cidx
+    values <- result$values
+
+    # this chunk covers [chunk_start, chunk_end] in array coordinates
+    chunk_start <- cidx * meta@chunk_shape
+    chunk_end   <- pmin(chunk_start + meta@chunk_shape, meta@shape) - 1L
+
+    # region of overlap in array coordinates
+    ov_start <- pmax(chunk_start, start)
+    ov_end   <- pmin(chunk_end, slab_end)
+
+    # positions within the chunk (0-based) and output (1-based)
+    in_chunk_start <- ov_start - chunk_start
+    in_chunk_count <- ov_end - ov_start + 1L
+    in_out_start   <- ov_start - start + 1L
+
+    # reshape decoded values to actual chunk extent (edge chunks may be short)
+    actual_chunk_shape <- pmin(meta@chunk_shape, meta@shape - chunk_start)
+
+    # edge chunks may be full-size (padded) or truncated
+    if (length(values) == prod(meta@chunk_shape)) {
+      reshape_shape <- meta@chunk_shape
+    } else {
+      reshape_shape <- actual_chunk_shape
+    }
+    # C-order: last dimension varies fastest in memory; R is column-major
+    if (order == "C") {
+      dim(values) <- rev(reshape_shape)
+      values <- aperm(values)
+    } else {
+      dim(values) <- reshape_shape
+    }
+
+    # build index lists for source and destination
+    src_idx <- lapply(seq_len(ndim), function(d) {
+      seq.int(in_chunk_start[d] + 1L, in_chunk_start[d] + in_chunk_count[d])
+    })
+    dst_idx <- lapply(seq_len(ndim), function(d) {
+      seq.int(in_out_start[d], in_out_start[d] + in_chunk_count[d] - 1L)
+    })
+
+    # extract slice from chunk
+    chunk_slice <- do.call(`[`, c(list(values), src_idx, list(drop = FALSE)))
+
+    # insert into output - use abind-style positional assignment
+    out <- do.call(`[<-`, c(list(out), dst_idx, list(value = chunk_slice)))
+  }
+
+  out
 }

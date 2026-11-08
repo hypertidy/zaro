@@ -1,5 +1,16 @@
 # zaro (development version)
 
+* New `zaro_read_arrays(store, paths)`: several whole arrays in one fetch.
+  All the arrays' plans go to one `zaro_fetch()`, so their HTTP chunks share
+  one connection pool and go out concurrently; each result is identical to
+  `zaro_read()`. Meant for a dataset's coordinate arrays at open, where the
+  cost is round trips: two EOPF ECMWF coordinates read in 1.0 s (2.0 s one
+  at a time), AODN's three in 0.40 s (0.57 s). `s3://`/`gs://` chunks are
+  still fetched one at a time through Arrow.
+
+* `zaro_read()`'s chunk assembly is factored out (`assemble_chunks()`), shared
+  with `zaro_read_arrays()`.
+
 * `zaro_dataset()` gains `group =`, to open the arrays of one group of a
   nested store, e.g. `group = "measurements/reflectance/r10m"` of an EOPF
   Sentinel-2 product. Arrays are named within the group; the dataset

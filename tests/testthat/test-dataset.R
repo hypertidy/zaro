@@ -247,3 +247,38 @@ test_that("zaro_dataset(group =) refuses a group that isn't there", {
   expect_error(zaro_dataset(s$path, group = "nope", verbose = FALSE),
                "not in the store")
 })
+
+test_that("zaro_read_arrays reads several arrays in one fetch, as zaro_read", {
+  s <- make_store(file.path(tempdir(), "ds-read-arrays"), consolidate = TRUE)
+  ds <- zaro_dataset(s$path, verbose = FALSE)
+  got <- zaro_read_arrays(ds, c("lon", "lat", "temp", "mask"), verbose = FALSE)
+  expect_named(got, c("lon", "lat", "temp", "mask"))
+  for (nm in names(got)) {
+    expect_identical(got[[nm]], zaro_read(ds, nm, verbose = FALSE))
+  }
+  ## plain store and paths; nested dataset names resolve through paths
+  st <- zaro(s$path, verbose = FALSE)
+  expect_identical(zaro_read_arrays(st, "lon", verbose = FALSE)$lon,
+                   zaro_read(st, "lon", verbose = FALSE))
+  n <- make_nested(file.path(tempdir(), "ds-read-arrays-nested"), TRUE)
+  g <- zaro_dataset(n$path, group = "meas/r10", verbose = FALSE)
+  xy <- zaro_read_arrays(g, c("x", "y", "band"), verbose = FALSE)
+  expect_equal(as.vector(xy$x), c(5, 15, 25, 35))
+  expect_identical(as.vector(xy$band), as.vector(t(n$band)))
+  expect_length(zaro_read_arrays(ds, character(), verbose = FALSE), 0L)
+})
+
+test_that("zaro_read_arrays fetches the arrays' HTTP chunks concurrently", {
+  s <- make_store(file.path(tempdir(), "ds-read-arrays-http"), consolidate = TRUE)
+  srv <- local_range_server(s$path, delay = 0.3)
+  on.exit(srv$stop(), add = TRUE)
+  ds <- zaro_dataset(srv$url, verbose = FALSE)
+  t0 <- Sys.time()
+  got <- zaro_read_arrays(ds, c("lon", "lat", "time"), verbose = FALSE)
+  el <- as.numeric(Sys.time() - t0, units = "secs")
+  expect_equal(as.vector(got$lon), as.vector(s$lon))
+  expect_equal(attr(got, "stats")$requests, 3L)
+  ## one at a time would be >= 0.9 s; together, the three overlap
+  expect_gte(srv$stats()$max_active, 2L)
+  expect_lt(el, 0.85)
+})
