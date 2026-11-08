@@ -16,7 +16,8 @@ zaro_read(
 )
 }
 \arguments{
-\item{store}{a store object from \code{\link[=zaro]{zaro()}}}
+\item{store}{a store object from \code{\link[=zaro]{zaro()}}, or a \code{\link[=zaro_dataset]{zaro_dataset()}} (then
+\code{path} is an array's name in the dataset)}
 
 \item{path}{character. Path to the array within the store.}
 

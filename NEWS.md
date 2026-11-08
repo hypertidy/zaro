@@ -1,5 +1,22 @@
 # zaro (development version)
 
+* `zaro_dataset()` gains `group =`, to open the arrays of one group of a
+  nested store, e.g. `group = "measurements/reflectance/r10m"` of an EOPF
+  Sentinel-2 product. Arrays are named within the group; the dataset
+  records each one's store path in `paths`, and `zaro_array()`,
+  `zaro_read()` (which now takes a dataset too) and `zaro_plan()` resolve
+  names through it. The group's attributes are the dataset's attributes.
+  Works from consolidated metadata (one request) or by listing.
+
+* New `zaro_groups()`: every group of a store with the number of arrays
+  directly in it.
+
+* V2 consolidated metadata (`.zmetadata`) now includes nested groups, as
+  V3 consolidated metadata already did.
+
+* Fix `store_list()` on Arrow (local, S3, GCS) stores with a non-empty
+  prefix: the root and prefix were joined without a `/`.
+
 * byterefs stores: chunk keys are looked up placement first, many at a time
   (byterefs spec "One chunk by global key", ported from raad.virtualize
   `mr_chunks()`): the array's placements are read once and kept, matched to

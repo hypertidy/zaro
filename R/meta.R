@@ -456,8 +456,6 @@ parse_zmetadata <- function(raw_bytes) {
 
   doc <- jsonlite::fromJSON(txt, simplifyVector = FALSE)
 
-  doc <- jsonlite::fromJSON(txt, simplifyVector = FALSE)
-
   entries <- doc[["metadata"]]
   if (is.null(entries)) return(NULL)
 
@@ -480,6 +478,17 @@ parse_zmetadata <- function(raw_bytes) {
     }
 
     result[[var_path]] <- parse_zarray(charToRaw(zarray_json), zattrs_json)
+  }
+
+  # nested groups (the root's own .zgroup is read by zaro_meta())
+  for (key in grep("/\\.zgroup$", names(entries), value = TRUE)) {
+    grp_path <- sub("/\\.zgroup$", "", key)
+    zattrs_key <- paste0(grp_path, "/.zattrs")
+    zattrs_raw <- if (zattrs_key %in% names(entries)) {
+      charToRaw(to_json_exact(entries[[zattrs_key]]))
+    }
+    result[[grp_path]] <- parse_zgroup(charToRaw(to_json_exact(entries[[key]])),
+                                       zattrs_raw)
   }
 
   result

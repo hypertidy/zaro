@@ -366,7 +366,8 @@ zaro_meta <- function(store, path = "", consolidated = TRUE, verbose = zaro_verb
 #' Reads a hyperslab from a Zarr array, fetching and decoding the necessary
 #' chunks and assembling them into an R array. Supports both Zarr V2 and V3.
 #'
-#' @param store a store object from [zaro()]
+#' @param store a store object from [zaro()], or a [zaro_dataset()] (then
+#'   `path` is an array's name in the dataset)
 #' @param path character. Path to the array within the store.
 #' @param start integer vector. 0-based start indices for each dimension.
 #'   Defaults to the origin.
@@ -392,6 +393,10 @@ zaro_meta <- function(store, path = "", consolidated = TRUE, verbose = zaro_verb
 zaro_read <- function(store, path = "", start = NULL, count = NULL, meta = NULL,
                       parallel = FALSE, verbose = zaro_verbose(), assemble = TRUE) {
   if (path == ".") path <- ""
+  if (inherits(store, "zaro_dataset")) {
+    a <- dataset_array(store, path, meta)
+    store <- a$store; path <- a$path; meta <- a$meta
+  }
   if (is.null(meta)) {
     meta <- zaro_meta(store, path, consolidated = TRUE, verbose = verbose)
   }
