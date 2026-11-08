@@ -1,5 +1,19 @@
 # zaro (development version)
 
+* S3 and GCS objects are fetched through the curl pool (#23), as HTTPS,
+  when their access is known: anonymous (`anonymous = TRUE`, a known
+  public bucket, `AWS_NO_SIGN_REQUEST=YES`, `options(zaro.cloud_anonymous
+  = TRUE)`), or S3 signed by curl's SigV4 with AWS keys from the
+  environment. This covers native chunks of `s3://`/`gs://` stores (Arrow
+  or GDAL `/vsis3/` / `/vsigs/`) and virtual references to `s3://` and
+  `gs://` URLs. The bucket region is read once from S3's
+  `x-amz-bucket-region` header; `endpoint_override` / `AWS_ENDPOINT_URL`
+  give path-style URLs. Other credentials still go through Arrow or GDAL
+  one object at a time. A signed 403 is an error, not an absent chunk.
+  AODN sea level coordinates over `s3://`: 3.65 s to 0.65 s; CMIP6 GFDL
+  `zos` coordinates over `gs://`: 8.37 s to 3.27 s; identical values.
+* The `strings-v3.zarr` test fixture has consistent dimension names.
+
 * String data types are read, to character (#22): `fixed_length_utf32`
   (numpy `U`, V2 `<U`/`>U`), `null_terminated_bytes` (numpy `S`, V2 `|S`;
   alias `fixed_length_ascii`), and variable-length `string` with the

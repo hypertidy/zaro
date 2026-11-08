@@ -18,7 +18,10 @@
 # -- abstract store ---------------------------------------------------------
 
 ZaroStore <- new_class("ZaroStore", properties = list(
-  root = class_character
+  root = class_character,
+  # how an s3:// or gs:// store was opened (anonymous, region,
+  # endpoint_override): lets zaro_fetch() pool its objects over HTTPS
+  cloud = new_property(class_list, default = list())
 ))
 
 store_get <- new_generic("store_get", "store")

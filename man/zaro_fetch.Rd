@@ -39,7 +39,12 @@ Executes a \code{\link[=zaro_plan]{zaro_plan()}}: returns the raw (still encoded
 chunk, in plan order, \code{NULL} for chunks that are absent (they read as
 \code{fill_value}). HTTP references are fetched concurrently through one curl
 connection pool with a per-host cap, adjacent byte ranges are merged into
-single requests, and failures are retried. \code{\link[=zaro_read]{zaro_read()}} and
+single requests, and failures are retried. S3 and GCS objects join the
+same pool as HTTPS when their access is known: anonymous (\code{zaro(..., anonymous = TRUE)}, a known public bucket, \code{AWS_NO_SIGN_REQUEST=YES} or
+\code{options(zaro.cloud_anonymous = TRUE)}), or S3 signed with
+\code{AWS_ACCESS_KEY_ID} / \code{AWS_SECRET_ACCESS_KEY} (and \code{AWS_SESSION_TOKEN})
+from the environment. Other credentials (profiles, instance roles,
+signed GCS) are read through Arrow or GDAL one object at a time. \code{\link[=zaro_read]{zaro_read()}} and
 \code{\link[=zaro_array]{zaro_array()}} read through this, so they get the same batching.
 }
 \examples{
