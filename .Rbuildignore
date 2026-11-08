@@ -9,3 +9,7 @@
 ^DESIGN\.md$
 ^\.Rhistory$
 ^\.posit$
+^_pkgdown\.yml$
+^docs$
+^pkgdown$
+^vignettes/articles$

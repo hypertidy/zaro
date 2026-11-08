@@ -1,0 +1,60 @@
+# pkgdown site, as for ndr. The articles are precomputed (knitted locally
+# from vignettes/articles/*.Rmd.orig, see vignettes/articles/README.md), so
+# the build needs no network access to the data servers.
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+name: pkgdown.yaml
+
+permissions: read-all
+
+jobs:
+  pkgdown:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: pkgdown-${{ github.event_name != 'pull_request' || github.run_id }}
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+    permissions:
+      contents: write
+    container:
+      image: ghcr.io/hypertidy/gdal-r-full:latest
+      options: --user root
+    steps:
+      - name: Install git and rsync for checkout and deploy
+        run: |
+          apt-get update -qq
+          apt-get install -y --no-install-recommends git rsync
+
+      - uses: actions/checkout@v4
+
+      - name: Mark the workspace safe for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Install dependencies
+        run: |
+          Rscript -e '
+            remotes::install_deps(
+              dependencies = c("Depends", "Imports", "LinkingTo", "Suggests"),
+              upgrade = "never"
+            )
+            remotes::install_cran("pkgdown")
+            remotes::install_local(".", upgrade = "never", dependencies = FALSE)
+          '
+
+      - name: Build site
+        run: pkgdown::build_site_github_pages(new_process = FALSE, install = FALSE)
+        shell: Rscript {0}
+
+      - name: Deploy to GitHub pages
+        if: github.event_name != 'pull_request'
+        uses: JamesIves/github-pages-deploy-action@v4.5.0
+        with:
+          clean: false
+          branch: gh-pages
+          folder: docs
