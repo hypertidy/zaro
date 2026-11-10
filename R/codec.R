@@ -173,6 +173,13 @@ read_float16 <- function(buf, n, endian) {
 decode_one <- function(buf, codec, meta) {
   name <- codec$name
   config <- codec$configuration
+  # Zarr V3 names for numcodecs codecs (written by zarr-python and
+  # VirtualiZarr for netCDF-4/HDF5 sources, e.g. shuffle + zlib)
+  if (startsWith(name, "numcodecs.")) {
+    base <- substring(name, 11L)
+    if (base %in% c("zlib", "gzip", "zstd", "bz2", "lz4", "blosc",
+                    "shuffle", "crc32c")) name <- base
+  }
 
   switch(name,
          # -- bytes-to-bytes codecs (compression) --
@@ -194,7 +201,9 @@ decode_one <- function(buf, codec, meta) {
          "crc32c" = buf[seq_len(max(0L, length(buf) - 4L))],
 
          # V2 shuffle filter -- unshuffle bytes by element size
-         "shuffle" = unshuffle(buf, config$elementsize %||% 1L),
+         # (V3 numcodecs.shuffle may leave elementsize to the data type)
+         "shuffle" = unshuffle(buf, config$elementsize %||%
+                                 dtype_info(meta@data_type)$size %||% 1L),
 
          # TIFF predictor 2: horizontal differencing (virtualized COG tiles)
          "imagecodecs_delta" = ,

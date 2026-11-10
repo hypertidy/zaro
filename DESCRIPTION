@@ -32,6 +32,7 @@ Suggests:
     altarr,
     arrow,
     gdalraster,
+    icechunkr,
     blosc,
     DBI,
     RSQLite,
@@ -46,6 +47,7 @@ Collate:
     'utils.R'
     'zaro-package.R'
     'store.R'
+    'icechunk.R'
     'meta.R'
     'codec.R'
     'chunk.R'
