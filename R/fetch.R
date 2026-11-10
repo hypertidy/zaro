@@ -72,7 +72,19 @@ zaro_fetch <- function(store, plan, max_con = getOption("zaro.max_con", 8L),
          " HTTP request(s), ", format_bytes(stats$bytes), ", ",
          sprintf("%.2f s", stats$seconds), verbose = verbose)
   }
-  for (i in setdiff(seq_len(n), http)) {
+  # Icechunk: whole-key reads go to icechunk in one call (read concurrently
+  # there, with its authorisation and checksums)
+  batched <- integer()
+  if (S7::S7_inherits(store, IcechunkStore)) {
+    batched <- which(plan$transport == "store" & is.na(plan$size))
+    if (length(batched)) {
+      got <- ic_fetch_store_rows(store, plan, batched)
+      for (j in seq_along(batched)) {
+        if (!is.null(got[[j]])) out[[batched[j]]] <- got[[j]]
+      }
+    }
+  }
+  for (i in setdiff(seq_len(n), c(http, batched))) {
     r <- fetch_ref(store, plan[i, , drop = FALSE])
     if (!is.null(r)) out[[i]] <- r
   }

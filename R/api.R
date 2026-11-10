@@ -38,6 +38,11 @@
 #'     Chunk references are read by row group, only those whose dim
 #'     statistics can hold the selection, so a table of tens of millions of
 #'     rows is never read whole. \code{target} as for \code{byterefs://}
+#'   \item \code{icechunk://}: an Icechunk repository through icechunkr,
+#'     e.g. \code{icechunk:///path/to/repo?tag=v1}; the query picks
+#'     \code{branch}, \code{tag} or \code{snapshot}. An
+#'     \code{icechunk_repo}, \code{icechunk_session} or
+#'     \code{icechunk_storage} object works too. See [zaro_icechunk()]
 #' }
 #'
 #' For S3 stores, if Arrow returns a 301 redirect (wrong region), zaro will
@@ -51,7 +56,9 @@
 #' Opening reads nothing from the store by default (`source` is only checked
 #' to be a non-empty character string); set `validate = TRUE` to read the
 #' root metadata at open.
-#' @param source character. Path, URI, or reference store locator.
+#' @param source character. Path, URI, or reference store locator; or an
+#'   Icechunk repository, session or storage from icechunkr (see
+#'   [zaro_icechunk()]).
 #' @param verbose logical. Emit progress and diagnostic messages. Default
 #'   `getOption("zaro.verbose", TRUE)`; set `options(zaro.verbose = FALSE)` to
 #'   silence zaro everywhere.
@@ -59,7 +66,9 @@
 #'   the Arrow filesystem constructors (e.g. \code{anonymous = TRUE},
 #'   \code{region}, \code{endpoint_override}), also used for curl-pool
 #'   access; for \code{byterefs://} and \code{flatrefs://}, \code{target}
-#'   (the path remap to apply).
+#'   (the path remap to apply); for Icechunk sources, the arguments of
+#'   [zaro_icechunk()] (\code{branch}, \code{tag}, \code{snapshot},
+#'   \code{authorize}, \code{direct}).
 #' @param validate logical. Read the root metadata at open, warning if that
 #'   fails. Default `FALSE`.
 #' @returns A store object (internal class) for use with other zaro functions.
@@ -92,6 +101,19 @@
 #' }
 zaro <- function(source, verbose = zaro_verbose(), ..., validate = FALSE) {
   dots <- list(...)
+
+  # Icechunk: a repository, session or storage from icechunkr, or
+  # icechunk://<location>?branch=|tag=|snapshot=
+  if (inherits(source, c("icechunk_repo", "icechunk_session", "icechunk_storage"))) {
+    return(do.call(zaro_icechunk, c(list(source), dots, list(verbose = verbose))))
+  }
+  if (is.character(source) && length(source) == 1L && !is.na(source) &&
+      grepl("^icechunk://", source)) {
+    u <- parse_icechunk_url(source)
+    args <- utils::modifyList(u[setdiff(names(u), "location")], dots)
+    return(do.call(zaro_icechunk, c(list(u$location), args,
+                                    list(verbose = verbose))))
+  }
 
   if (!is.character(source) || length(source) != 1L || is.na(source) || !nzchar(source)) {
     stop("'source' must be a non-empty character string", call. = FALSE)

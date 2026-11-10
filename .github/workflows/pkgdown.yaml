@@ -49,12 +49,14 @@ jobs:
         run: apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq libarrow-s3-dev
 
       # pak: Suggests at the top level only (see R-CMD-check.yaml)
+      # icechunkr (Suggests) is not published yet: left out (see R-CMD-check.yaml)
       - name: Install dependencies
         run: |
-          Rscript -e '
-            pak::local_install_dev_deps(upgrade = FALSE, dependencies = TRUE, ask = FALSE)
-            pak::local_install(upgrade = FALSE, dependencies = FALSE, ask = FALSE)
-          '
+          cp DESCRIPTION DESCRIPTION.orig
+          sed -i '/^    icechunkr,$/d' DESCRIPTION
+          Rscript -e 'pak::local_install_dev_deps(upgrade = FALSE, dependencies = TRUE, ask = FALSE)'
+          mv DESCRIPTION.orig DESCRIPTION
+          Rscript -e 'pak::local_install(upgrade = FALSE, dependencies = FALSE, ask = FALSE)'
 
       - name: Build site
         run: pkgdown::build_site_github_pages(new_process = FALSE, install = FALSE)

@@ -7,7 +7,9 @@
 zaro(source, verbose = zaro_verbose(), ..., validate = FALSE)
 }
 \arguments{
-\item{source}{character. Path, URI, or reference store locator.}
+\item{source}{character. Path, URI, or reference store locator; or an
+Icechunk repository, session or storage from icechunkr (see
+\code{\link[=zaro_icechunk]{zaro_icechunk()}}).}
 
 \item{verbose}{logical. Emit progress and diagnostic messages. Default
 \code{getOption("zaro.verbose", TRUE)}; set \code{options(zaro.verbose = FALSE)} to
@@ -17,7 +19,9 @@ silence zaro everywhere.}
 the Arrow filesystem constructors (e.g. \code{anonymous = TRUE},
 \code{region}, \code{endpoint_override}), also used for curl-pool
 access; for \code{byterefs://} and \code{flatrefs://}, \code{target}
-(the path remap to apply).}
+(the path remap to apply); for Icechunk sources, the arguments of
+\code{\link[=zaro_icechunk]{zaro_icechunk()}} (\code{branch}, \code{tag}, \code{snapshot},
+\code{authorize}, \code{direct}).}
 
 \item{validate}{logical. Read the root metadata at open, warning if that
 fails. Default \code{FALSE}.}
@@ -56,6 +60,11 @@ the verbatim sources
 Chunk references are read by row group, only those whose dim
 statistics can hold the selection, so a table of tens of millions of
 rows is never read whole. \code{target} as for \code{byterefs://}
+\item \code{icechunk://}: an Icechunk repository through icechunkr,
+e.g. \code{icechunk:///path/to/repo?tag=v1}; the query picks
+\code{branch}, \code{tag} or \code{snapshot}. An
+\code{icechunk_repo}, \code{icechunk_session} or
+\code{icechunk_storage} object works too. See \code{\link[=zaro_icechunk]{zaro_icechunk()}}
 }
 }
 \details{
