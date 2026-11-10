@@ -53,8 +53,15 @@ jobs:
 
       # pak: Suggests at the top level only. remotes::install_deps() with
       # Suggests in a character vector applies it at every level (1189 packages)
+      # icechunkr (Suggests) is not published yet, so pak can't resolve it:
+      # leave it out of the install (check runs without it, its tests skip).
+      # Drop the DESCRIPTION swap once icechunkr is on r-universe.
       - name: Install package dependencies
-        run: Rscript -e 'pak::local_install_dev_deps(upgrade = FALSE, dependencies = TRUE, ask = FALSE)'
+        run: |
+          cp DESCRIPTION DESCRIPTION.orig
+          sed -i '/^    icechunkr,$/d' DESCRIPTION
+          Rscript -e 'pak::local_install_dev_deps(upgrade = FALSE, dependencies = TRUE, ask = FALSE)'
+          mv DESCRIPTION.orig DESCRIPTION
 
       - name: Build
         run: R CMD build --no-build-vignettes .
