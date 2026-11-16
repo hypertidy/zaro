@@ -223,7 +223,11 @@ zaro_groups <- function(source, verbose = zaro_verbose(), ...) {
 #' A store from a store or a character source
 #' @noRd
 as_store <- function(source, verbose, ...) {
-  store <- if (is.character(source)) zaro(source, verbose = verbose, ...) else source
+  store <- if (is.character(source) ||
+                inherits(source, c("icechunk_repo", "icechunk_session",
+                                   "icechunk_storage"))) {
+    zaro(source, verbose = verbose, ...)
+  } else source
   if (inherits(store, "zaro_dataset")) store <- store$store
   if (!S7::S7_inherits(store, ZaroStore)) {
     stop("'source' must be a zaro store or a character source", call. = FALSE)

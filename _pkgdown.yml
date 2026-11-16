@@ -28,6 +28,7 @@ reference:
   - zaro
   - zaro_dataset
   - zaro_groups
+  - zaro_icechunk
   - zaro_list
   - zaro_meta
 - title: Read

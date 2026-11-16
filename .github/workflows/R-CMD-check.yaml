@@ -53,8 +53,11 @@ jobs:
 
       # pak: Suggests at the top level only. remotes::install_deps() with
       # Suggests in a character vector applies it at every level (1189 packages)
+      # tabularberg (Suggests) is on hypertidy.r-universe.dev; built from
+      # source here (the image has Rust), so test-icechunk.R runs
       - name: Install package dependencies
-        run: Rscript -e 'pak::local_install_dev_deps(upgrade = FALSE, dependencies = TRUE, ask = FALSE)'
+        run: |
+          Rscript -e 'options(repos = c(hypertidy = "https://hypertidy.r-universe.dev", getOption("repos"))); pak::local_install_dev_deps(upgrade = FALSE, dependencies = TRUE, ask = FALSE)'
 
       - name: Build
         run: R CMD build --no-build-vignettes .
