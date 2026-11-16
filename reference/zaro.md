@@ -41,6 +41,12 @@ appropriate backend based on the URI scheme:
   hold the selection, so a table of tens of millions of rows is never
   read whole. `target` as for `byterefs://`
 
+- `icechunk://`: an Icechunk repository through tabularberg, e.g.
+  `icechunk:///path/to/repo?tag=v1`; the query picks `branch`, `tag` or
+  `snapshot`. An `icechunk_repo`, `icechunk_session` or
+  `icechunk_storage` object works too. See
+  [`zaro_icechunk()`](https://hypertidy.github.io/zaro/reference/zaro_icechunk.md)
+
 ## Usage
 
 ``` r
@@ -51,7 +57,9 @@ zaro(source, verbose = zaro_verbose(), ..., validate = FALSE)
 
 - source:
 
-  character. Path, URI, or reference store locator.
+  character. Path, URI, or reference store locator; or an Icechunk
+  repository, session or storage from tabularberg (see
+  [`zaro_icechunk()`](https://hypertidy.github.io/zaro/reference/zaro_icechunk.md)).
 
 - verbose:
 
@@ -64,7 +72,10 @@ zaro(source, verbose = zaro_verbose(), ..., validate = FALSE)
   store options: for `s3://` and `gs://`, arguments for the Arrow
   filesystem constructors (e.g. `anonymous = TRUE`, `region`,
   `endpoint_override`), also used for curl-pool access; for
-  `byterefs://` and `flatrefs://`, `target` (the path remap to apply).
+  `byterefs://` and `flatrefs://`, `target` (the path remap to apply);
+  for Icechunk sources, the arguments of
+  [`zaro_icechunk()`](https://hypertidy.github.io/zaro/reference/zaro_icechunk.md)
+  (`branch`, `tag`, `snapshot`, `authorize`, `direct`).
 
 - validate:
 

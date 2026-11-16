@@ -28,6 +28,11 @@ refs_&amp;lt;array&amp;gt;.parquet per array, as raad.virtualize publishes).
 Chunk references are read by row group, only those whose dim
 statistics can hold the selection, so a table of tens of millions of
 rows is never read whole. target as for byterefs://
+icechunk://: an Icechunk repository through tabularberg,
+e.g. icechunk:///path/to/repo?tag=v1; the query picks
+branch, tag or snapshot. An
+icechunk_repo, icechunk_session or
+icechunk_storage object works too. See zaro_icechunk()
 
 "><meta property="og:description" content="Connects to a Zarr store at the given path or URI. Dispatches to the
 appropriate backend based on the URI scheme:
@@ -58,6 +63,11 @@ refs_&amp;lt;array&amp;gt;.parquet per array, as raad.virtualize publishes).
 Chunk references are read by row group, only those whose dim
 statistics can hold the selection, so a table of tens of millions of
 rows is never read whole. target as for byterefs://
+icechunk://: an Icechunk repository through tabularberg,
+e.g. icechunk:///path/to/repo?tag=v1; the query picks
+branch, tag or snapshot. An
+icechunk_repo, icechunk_session or
+icechunk_storage object works too. See zaro_icechunk()
 
 "></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -131,6 +141,11 @@ the verbatim sources</p></li>
 Chunk references are read by row group, only those whose dim
 statistics can hold the selection, so a table of tens of millions of
 rows is never read whole. <code>target</code> as for <code>byterefs://</code></p></li>
+<li><p><code>icechunk://</code>: an Icechunk repository through tabularberg,
+e.g. <code>icechunk:///path/to/repo?tag=v1</code>; the query picks
+<code>branch</code>, <code>tag</code> or <code>snapshot</code>. An
+<code>icechunk_repo</code>, <code>icechunk_session</code> or
+<code>icechunk_storage</code> object works too. See <code><a href="zaro_icechunk.html">zaro_icechunk()</a></code></p></li>
 </ul></div>
 
     <div class="section level2">
@@ -143,7 +158,9 @@ rows is never read whole. <code>target</code> as for <code>byterefs://</code></p
 
 
 <dl><dt id="arg-source">source<a class="anchor" aria-label="anchor" href="#arg-source"></a></dt>
-<dd><p>character. Path, URI, or reference store locator.</p></dd>
+<dd><p>character. Path, URI, or reference store locator; or an
+Icechunk repository, session or storage from tabularberg (see
+<code><a href="zaro_icechunk.html">zaro_icechunk()</a></code>).</p></dd>
 
 
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
@@ -157,7 +174,9 @@ silence zaro everywhere.</p></dd>
 the Arrow filesystem constructors (e.g. <code>anonymous = TRUE</code>,
 <code>region</code>, <code>endpoint_override</code>), also used for curl-pool
 access; for <code>byterefs://</code> and <code>flatrefs://</code>, <code>target</code>
-(the path remap to apply).</p></dd>
+(the path remap to apply); for Icechunk sources, the arguments of
+<code><a href="zaro_icechunk.html">zaro_icechunk()</a></code> (<code>branch</code>, <code>tag</code>, <code>snapshot</code>,
+<code>authorize</code>, <code>direct</code>).</p></dd>
 
 
 <dt id="arg-validate">validate<a class="anchor" aria-label="anchor" href="#arg-validate"></a></dt>

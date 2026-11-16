@@ -274,6 +274,8 @@ Connect to a store and see what is in it, without reading data.
   : Open a store as a dataset: every array, its dimensions, no data read
 - [`zaro_groups()`](https://hypertidy.github.io/zaro/reference/zaro_groups.md)
   : The groups of a store
+- [`zaro_icechunk()`](https://hypertidy.github.io/zaro/reference/zaro_icechunk.md)
+  : Open an Icechunk repository as a zaro store
 - [`zaro_list()`](https://hypertidy.github.io/zaro/reference/zaro_list.md)
   : List contents of a Zarr store
 - [`zaro_meta()`](https://hypertidy.github.io/zaro/reference/zaro_meta.md)
