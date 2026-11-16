@@ -8,7 +8,7 @@ zaro(source, verbose = zaro_verbose(), ..., validate = FALSE)
 }
 \arguments{
 \item{source}{character. Path, URI, or reference store locator; or an
-Icechunk repository, session or storage from icechunkr (see
+Icechunk repository, session or storage from tabularberg (see
 \code{\link[=zaro_icechunk]{zaro_icechunk()}}).}
 
 \item{verbose}{logical. Emit progress and diagnostic messages. Default
@@ -60,7 +60,7 @@ the verbatim sources
 Chunk references are read by row group, only those whose dim
 statistics can hold the selection, so a table of tens of millions of
 rows is never read whole. \code{target} as for \code{byterefs://}
-\item \code{icechunk://}: an Icechunk repository through icechunkr,
+\item \code{icechunk://}: an Icechunk repository through tabularberg,
 e.g. \code{icechunk:///path/to/repo?tag=v1}; the query picks
 \code{branch}, \code{tag} or \code{snapshot}. An
 \code{icechunk_repo}, \code{icechunk_session} or

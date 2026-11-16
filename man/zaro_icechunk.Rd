@@ -15,15 +15,15 @@ zaro_icechunk(
 )
 }
 \arguments{
-\item{source}{an \code{icechunk_repo} or \code{icechunk_session} from icechunkr,
-or a repository location for \code{icechunkr::ic_repo_open()} (a local path,
+\item{source}{an \code{icechunk_repo} or \code{icechunk_session} from tabularberg,
+or a repository location for \code{tabularberg::ic_repo_open()} (a local path,
 an \verb{http(s)://} URL, or an \code{icechunk_storage}).}
 
 \item{branch, tag, snapshot}{the version to read (one of them; default
 branch \code{"main"}). Ignored when \code{source} is a session.}
 
 \item{authorize}{virtual chunk containers to authorise, passed to
-\code{icechunkr::ic_repo_open()} when \code{source} is a location.}
+\code{tabularberg::ic_repo_open()} when \code{source} is a location.}
 
 \item{direct}{logical. Fetch virtual chunks with zaro's own fetcher
 instead of through Icechunk (see Details).}
@@ -35,7 +35,7 @@ An \code{IcechunkStore}.
 }
 \description{
 Reads one snapshot of an \href{https://icechunk.io}{Icechunk} repository
-through the icechunkr package. Everything zaro does with a store works on
+through the tabularberg package. Everything zaro does with a store works on
 the result: \code{\link[=zaro_meta]{zaro_meta()}}, \code{\link[=zaro_read]{zaro_read()}}, \code{\link[=zaro_array]{zaro_array()}},
 \code{\link[=zaro_dataset]{zaro_dataset()}}, \code{\link[=zaro_plan]{zaro_plan()}}.
 }
@@ -49,13 +49,13 @@ Chunks are read through Icechunk by default, which applies the
 repository's container authorisation and checksums. With \code{direct = TRUE}
 zaro fetches virtual chunks itself, concurrently and with adjacent byte
 ranges merged, but only from containers the repository object has
-authorised (see \code{icechunkr::ic_repo_containers()}), and without
+authorised (see \code{tabularberg::ic_repo_containers()}), and without
 Icechunk's etag / last-modified checks. Native and inline chunks always
 come from Icechunk.
 }
 \examples{
 \dontrun{
-ex <- icechunkr::ic_example_repo()
+ex <- tabularberg::ic_example_repo()
 store <- zaro_icechunk(ex$path, tag = "v1", authorize = ex$authorize)
 x <- zaro_array(store, "from_bin")
 x[1:4, 1:4]

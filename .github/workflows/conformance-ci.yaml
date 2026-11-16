@@ -21,9 +21,10 @@ jobs:
         with:
           use-public-rspm: true
 
-      # icechunkr (Suggests) is not published yet: left out (see R-CMD-check.yaml)
-      - name: Leave unpublished icechunkr out of the dependency solve
-        run: sed -i '/^    icechunkr,$/d' DESCRIPTION
+      # tabularberg (Suggests) is not needed here; left out of the solve so
+      # it is not built from source (Rust) for nothing
+      - name: Leave tabularberg out of the dependency solve
+        run: sed -i '/^    tabularberg,$/d' DESCRIPTION
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:

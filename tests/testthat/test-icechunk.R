@@ -1,16 +1,16 @@
-# Icechunk repositories through icechunkr (IcechunkStore, icechunk.R)
+# Icechunk repositories through tabularberg (IcechunkStore, icechunk.R)
 #
-# Built on icechunkr::ic_example_repo(): /from_bin (four virtual chunks in a
+# Built on tabularberg::ic_example_repo(): /from_bin (four virtual chunks in a
 # local file), /from_nc (one virtual chunk at an offset), /small (inline
 # chunks, second commit; tag v1 is the first commit). Values of the virtual
 # arrays are (0:3071) / 4, float32, C order.
 
-skip_if_not_installed("icechunkr")
+skip_if_not_installed("tabularberg")
 skip_if_not_installed("altarr")
 
 ic_ex <- function() {
-  ex <- icechunkr::ic_example_repo()
-  ex$repo <- icechunkr::ic_repo_open(ex$path, authorize = ex$authorize)
+  ex <- tabularberg::ic_example_repo()
+  ex$repo <- tabularberg::ic_repo_open(ex$path, authorize = ex$authorize)
   ex
 }
 
@@ -60,7 +60,7 @@ test_that("tag, snapshot and branch pick the version", {
   u <- zaro(paste0("icechunk://", ex$path, "?tag=v1"),
             authorize = ex$authorize, verbose = FALSE)
   expect_identical(u@snapshot, v1@snapshot)
-  s <- icechunkr::ic_session_readonly(ex$repo, tag = "v1")
+  s <- tabularberg::ic_session_readonly(ex$repo, tag = "v1")
   expect_identical(zaro(s, verbose = FALSE)@snapshot, v1@snapshot)
   expect_identical(zaro(ex$repo, tag = "v1", verbose = FALSE)@snapshot,
                    v1@snapshot)
@@ -71,10 +71,10 @@ test_that("a lazy array stays on its snapshot when the branch moves", {
   store <- zaro_icechunk(ex$repo, verbose = FALSE)
   x <- zaro_array(store, "small", verbose = FALSE)
 
-  w <- icechunkr::ic_session_writable(ex$repo, "main")
-  icechunkr::ic_set(w, "small/c/0/0",
+  w <- tabularberg::ic_session_writable(ex$repo, "main")
+  tabularberg::ic_set(w, "small/c/0/0",
                     writeBin(rep(-1, 6), raw(), size = 8, endian = "little"))
-  icechunkr::ic_commit(w, "overwrite one chunk")
+  tabularberg::ic_commit(w, "overwrite one chunk")
 
   expect_equal(unname(t(x[, ])), matrix(as.double(1:24), 4, 6, byrow = TRUE))
   now <- zaro_array(zaro_icechunk(ex$repo, verbose = FALSE), "small",
@@ -92,25 +92,25 @@ test_that("direct = TRUE fetches authorised virtual chunks with zaro", {
                ex$values)
 
   # no authorisation: nothing is fetched around icechunk
-  bare <- icechunkr::ic_repo_open(ex$path)
+  bare <- tabularberg::ic_repo_open(ex$path)
   store <- zaro_icechunk(bare, direct = TRUE, verbose = FALSE)
   expect_equal(store_refs(store, "from_bin/c/1/0")$transport, "store")
 
   # a session alone can't say what is authorised
-  s <- icechunkr::ic_session_readonly(ex$repo, branch = "main")
+  s <- tabularberg::ic_session_readonly(ex$repo, branch = "main")
   expect_error(zaro_icechunk(s, direct = TRUE), "needs the repository")
 })
 
 test_that("writable sessions are refused", {
   ex <- ic_ex()
-  w <- icechunkr::ic_session_writable(ex$repo, "main")
+  w <- tabularberg::ic_session_writable(ex$repo, "main")
   expect_error(zaro_icechunk(w, verbose = FALSE), "read-only")
 })
 
 test_that("native chunks with V3 numcodecs.shuffle + numcodecs.zlib decode", {
   ex <- ic_ex()
-  w <- icechunkr::ic_session_writable(ex$repo, "main")
-  icechunkr::ic_set(w, "nc4/zarr.json", charToRaw(
+  w <- tabularberg::ic_session_writable(ex$repo, "main")
+  tabularberg::ic_set(w, "nc4/zarr.json", charToRaw(
     '{"zarr_format":3,"node_type":"array","shape":[200,300],"data_type":"int16",
       "chunk_grid":{"name":"regular","configuration":{"chunk_shape":[100,300]}},
       "chunk_key_encoding":{"name":"default","configuration":{"separator":"/"}},
@@ -124,10 +124,10 @@ test_that("native chunks with V3 numcodecs.shuffle + numcodecs.zlib decode", {
   for (i in 0:1) {
     blk <- as.vector(t(v[i * 100 + 1:100, ]))
     b <- writeBin(as.integer(blk), raw(), size = 2, endian = "little")
-    icechunkr::ic_set(w, sprintf("nc4/c/%d/0", i),
+    tabularberg::ic_set(w, sprintf("nc4/c/%d/0", i),
                       memCompress(shuffle(b, 2L), "gzip"))
   }
-  icechunkr::ic_commit(w, "netCDF-4 style chunks")
+  tabularberg::ic_commit(w, "netCDF-4 style chunks")
 
   store <- zaro_icechunk(ex$repo, verbose = FALSE)
   expect_true(all(store_refs(store, c("nc4/c/0/0", "nc4/c/1/0"))$transport ==

@@ -32,7 +32,7 @@ Suggests:
     altarr,
     arrow,
     gdalraster,
-    icechunkr,
+    tabularberg,
     blosc,
     DBI,
     RSQLite,
@@ -43,6 +43,7 @@ Suggests:
 Config/testthat/edition: 3
 Remotes:
     hypertidy/altarr
+Additional_repositories: https://hypertidy.r-universe.dev
 Collate:
     'utils.R'
     'zaro-package.R'

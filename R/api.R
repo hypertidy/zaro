@@ -38,7 +38,7 @@
 #'     Chunk references are read by row group, only those whose dim
 #'     statistics can hold the selection, so a table of tens of millions of
 #'     rows is never read whole. \code{target} as for \code{byterefs://}
-#'   \item \code{icechunk://}: an Icechunk repository through icechunkr,
+#'   \item \code{icechunk://}: an Icechunk repository through tabularberg,
 #'     e.g. \code{icechunk:///path/to/repo?tag=v1}; the query picks
 #'     \code{branch}, \code{tag} or \code{snapshot}. An
 #'     \code{icechunk_repo}, \code{icechunk_session} or
@@ -57,7 +57,7 @@
 #' to be a non-empty character string); set `validate = TRUE` to read the
 #' root metadata at open.
 #' @param source character. Path, URI, or reference store locator; or an
-#'   Icechunk repository, session or storage from icechunkr (see
+#'   Icechunk repository, session or storage from tabularberg (see
 #'   [zaro_icechunk()]).
 #' @param verbose logical. Emit progress and diagnostic messages. Default
 #'   `getOption("zaro.verbose", TRUE)`; set `options(zaro.verbose = FALSE)` to
@@ -102,7 +102,7 @@
 zaro <- function(source, verbose = zaro_verbose(), ..., validate = FALSE) {
   dots <- list(...)
 
-  # Icechunk: a repository, session or storage from icechunkr, or
+  # Icechunk: a repository, session or storage from tabularberg, or
   # icechunk://<location>?branch=|tag=|snapshot=
   if (inherits(source, c("icechunk_repo", "icechunk_session", "icechunk_storage"))) {
     return(do.call(zaro_icechunk, c(list(source), dots, list(verbose = verbose))))
