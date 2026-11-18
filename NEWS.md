@@ -1,6 +1,6 @@
 # zaro (development version)
 
-* `print()` of a group's metadata no longer uses the `\(x)` lambda, so
+* `print()` of a group's metadata no longer uses the `\(x)` lambda (#38), so
   `R CMD build` adds no `R (>= 4.1.0)` dependency (it warned that it did).
 
 * The gallery tests are retired for a store gallery (#37, `gallery/`,
@@ -15,7 +15,7 @@
   NCSA pod. GPCP is dropped (its current copy needs credentials), the EOPF
   Sentinel-2 sharded GeoZarr is added, and `inst/codes/gallery-examples.R`
   is folded in.
-* New article, "Store gallery": the same public stores, each opened, read
+* New article, "Store gallery" (#38): the same public stores, each opened, read
   and drawn (a global sea level map from a lazy array, 33 years at one
   point from the geo-chunked copy, CMIP6 on its tripolar grid with lon/lat
   contours, Himawari-8 SST, a Sentinel-2 true-colour composite from
