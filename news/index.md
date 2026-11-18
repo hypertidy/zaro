@@ -2,6 +2,23 @@
 
 ## zaro (development version)
 
+- The gallery tests are retired for a store gallery
+  ([\#37](https://github.com/hypertidy/zaro/issues/37), `gallery/`,
+  build-ignored). `gallery/stores.R` lists public stores, each with what
+  it exercises and one small read with its expected type and shape;
+  `gallery/run.R` reads each and reports it as ok, unreachable (a host
+  that is down: a warning) or failed (zaro broke, or the store changed:
+  an error). The weekly workflow (`gallery.yaml`, also run by pull
+  requests that change the gallery) writes the table to the run summary
+  and fails only on a failed read. The gallery tests had failed every
+  week since at least October because one host stopped answering: Pangeo
+  GPCP on the OSN NCSA pod. GPCP is dropped (its current copy needs
+  credentials), the EOPF Sentinel-2 sharded GeoZarr is added, and
+  `inst/codes/gallery-examples.R` is folded in.
+
+- Clamping a selection past the array’s extent (with a warning) has a
+  unit test; it was only in a gallery test that skipped on CI.
+
 - Preparation for CRAN
   ([\#36](https://github.com/hypertidy/zaro/issues/36)). Every exported
   function has an example that runs offline, on a small Zarr V3 store
