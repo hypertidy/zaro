@@ -1,6 +1,6 @@
 # zaro (development version)
 
-* Preparation for CRAN. Every exported function has an example that
+* Preparation for CRAN (#36). Every exported function has an example that
   runs offline, on a small Zarr V3 store now shipped in `inst/extdata`
   (`example.zarr`: coordinates, a gzip float32 array, and a sharded int16
   array in a nested group; written by `data-raw/example_zarr.py` with
