@@ -1,5 +1,8 @@
 # zaro (development version)
 
+* `print()` of a group's metadata no longer uses the `\(x)` lambda, so
+  `R CMD build` adds no `R (>= 4.1.0)` dependency (it warned that it did).
+
 * The gallery tests are retired for a store gallery (#37, `gallery/`,
   build-ignored). `gallery/stores.R` lists public stores, each with what it
   exercises and one small read with its expected type and shape;
