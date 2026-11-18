@@ -1,6 +1,6 @@
 Package: zaro
 Title: Read 'Zarr' Arrays from Native and Virtual Stores
-Version: 0.0.1.9043
+Version: 0.0.1.9044
 Authors@R: c(
     person("Michael", "Sumner", , "mdsumner@gmail.com", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0002-2471-7511")),
@@ -8,8 +8,8 @@ Authors@R: c(
            comment = c(ORCID = "0000-0002-4094-1476"))
   )
 Description: A low-level reader for 'Zarr' arrays
-    (<https://zarr-specs.readthedocs.io/>), versions 2 and 3 including
-    sharded version 3, native or virtual, from local disk, HTTP(S), Amazon
+    (<https://zarr-specs.readthedocs.io/>), versions 2 and 3 (including
+    version 3 shards), native or virtual, from local disk, HTTP(S), Amazon
     'S3' and Google Cloud Storage. Virtual stores read the bytes of
     existing 'NetCDF', 'HDF5' and 'GeoTIFF' files in place, from 'Kerchunk'
     'JSON' and 'Parquet' references, 'VirtualiZarr' manifests and

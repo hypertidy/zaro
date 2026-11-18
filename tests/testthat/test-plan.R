@@ -77,7 +77,9 @@ test_that("zaro_plan() on a native local store: whole objects, no request", {
   expect_equal(nrow(p), 6L)
   expect_true(all(p$transport == "local"))
   expect_true(all(is.na(p$size)))
-  expect_equal(p$path, file.path(path, p$key))
+  ## under the store's root, which is normalized (macOS /var is /private/var,
+  ## Windows short names are expanded), so not always the path given
+  expect_equal(p$path, file.path(store@root, p$key))
   ## the skipped chunk is planned (existence is unknown until fetched)
   ## and fetches as NULL, like store_get()
   for (i in seq_len(nrow(p))) {
