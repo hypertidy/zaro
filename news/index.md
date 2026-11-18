@@ -2,6 +2,21 @@
 
 ## zaro (development version)
 
+- Fixes from win-builder and R-universe’s macOS and Windows checks
+  ([\#39](https://github.com/hypertidy/zaro/issues/39)):
+
+  - Icechunk virtual chunks in local files read with `direct = TRUE` on
+    Windows. tabularberg writes their locations as `file:///C:/...`,
+    which zaro turned into the path `/C:/...`; the chunks were not found
+    and read as fill (NaN).
+  - A
+    [`zaro_plan()`](https://hypertidy.github.io/zaro/reference/zaro_plan.md)
+    test expected the path given rather than the store’s normalized root
+    (macOS `/private/var`, Windows long names); it failed on both, and
+    would have on CRAN.
+  - The DESCRIPTION no longer says “sharded”, which CRAN’s spell check
+    flags.
+
 - [`print()`](https://rdrr.io/r/base/print.html) of a group’s metadata
   no longer uses the `\(x)` lambda
   ([\#38](https://github.com/hypertidy/zaro/issues/38)), so
