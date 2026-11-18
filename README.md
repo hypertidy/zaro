@@ -209,6 +209,9 @@ GDAL's sharding test fixtures.
 
 The articles walk through each piece with live data:
 [getting started](https://hypertidy.github.io/zaro/articles/getting-started.html),
+a [store gallery](https://hypertidy.github.io/zaro/articles/gallery.html) of
+public stores zaro reads (providers, transports and formats, with a
+picture from each),
 [connecting to stores](https://hypertidy.github.io/zaro/articles/connecting.html)
 (HTTPS, S3, GCS, custom endpoints, credentials, translating Python's
 `storage_options`),

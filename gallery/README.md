@@ -30,4 +30,9 @@ kind), with a read small enough to take a few seconds. A store that
 stays unreachable for weeks should be removed: Pangeo's GPCP on the OSN
 NCSA pod (`ncsa.osn.xsede.org`) was dropped for that in November 2026.
 
+The [store gallery article](https://hypertidy.github.io/zaro/articles/gallery.html)
+shows the same stores, each with a picture
+(`vignettes/articles/gallery.Rmd.orig`, knitted locally as the other
+articles are). When a store is added or dropped here, update it too.
+
 This directory is build-ignored: it is not part of the package.

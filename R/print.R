@@ -9,7 +9,7 @@
 local(method(print, ZaroMeta) <- function(x, ...) {
   cat(sprintf("<ZaroMeta> [%s]\n", x@node_type))
   if (x@node_type == "group") {
-    shapes <- lapply(attr(x, "consolidated"), \(.x) sprintf("[%s]", paste0(.x@shape, collapse = ",")))
+    shapes <- lapply(attr(x, "consolidated"), function(.x) sprintf("[%s]", paste0(.x@shape, collapse = ",")))
     labels <- sprintf("    %s %s", names(shapes), shapes)
     nc <- nchar(labels)
     for (ii in seq_along(nc)) {
