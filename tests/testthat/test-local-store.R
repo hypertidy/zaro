@@ -33,3 +33,11 @@ test_that("cloud URLs map to GDAL VSI paths", {
   expect_identical(cloud_to_vsi("s3://b/k/x.zarr"), "/vsis3/b/k/x.zarr")
   expect_identical(cloud_to_vsi("gs://b/k"), "/vsigs/b/k")
 })
+
+test_that("file:// URLs become local paths, Windows drive letters included", {
+  expect_identical(file_url_path("file:///tmp/a%20b/grid.bin"), "/tmp/a b/grid.bin")
+  ## as tabularberg writes them on Windows
+  expect_identical(file_url_path(c("file:///C:/Users/x/grid.bin", "file:///d:\\y\\z.nc")),
+                   c("C:/Users/x/grid.bin", "d:\\y\\z.nc"))
+  expect_identical(file_url_path(character()), character())
+})

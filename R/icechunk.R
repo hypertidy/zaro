@@ -228,7 +228,7 @@ method(store_refs, IcechunkStore) <- function(store, keys) {
       if (any(vir)) {
         loc <- r$location[vir]
         local <- grepl("^file://", loc)
-        loc[local] <- utils::URLdecode(sub("^file://", "", loc[local]))
+        loc[local] <- file_url_path(loc[local])
         out$path[hit[vir]] <- loc
         out$offset[hit[vir]] <- as.numeric(r$offset[vir])
         out$size[hit[vir]] <- as.numeric(r$length[vir])
@@ -237,6 +237,15 @@ method(store_refs, IcechunkStore) <- function(store, keys) {
     }
   }
   out
+}
+
+#' Local paths from file:// URLs (percent-decoded), Windows drive letters
+#' included
+#' @noRd
+file_url_path <- function(x) {
+  p <- vapply(sub("^file://", "", x), utils::URLdecode, "", USE.NAMES = FALSE)
+  ## file:///C:/dir/f is C:/dir/f on Windows, not /C:/dir/f
+  sub("^/([A-Za-z]:[/\\\\])", "\\1", p)
 }
 
 #' Locations within an authorized container prefix
