@@ -13,7 +13,7 @@ are planned with zaro_plan() and fetched together with zaro_fetch()."></head><bo
 
     <a class="navbar-brand me-2" href="../index.html">zaro</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.1.9036</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.1.9038</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -128,6 +128,34 @@ transpose of <code><a href="zaro_array.html">zaro_array()</a></code> for C-order
 character.</p>
     </div>
 
+    <div class="section level2">
+    <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">f</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata"</span>, <span class="st">"example.zarr"</span>, package <span class="op">=</span> <span class="st">"zaro"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">store</span> <span class="op">&lt;-</span> <span class="fu"><a href="zaro.html">zaro</a></span><span class="op">(</span><span class="va">f</span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro] opening local store: /usr/local/lib/R/site-library/zaro/extdata/example.zarr</span>
+<span class="r-in"><span><span class="co">## the first time step, every lat and lon (start is 0-based)</span></span></span>
+<span class="r-in"><span><span class="va">x</span> <span class="op">&lt;-</span> <span class="fu">zaro_read</span><span class="op">(</span><span class="va">store</span>, <span class="st">"temp"</span>, start <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">0</span>, <span class="fl">0</span><span class="op">)</span>, count <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="cn">NA</span>, <span class="cn">NA</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro] found temp/zarr.json (Zarr V3)</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro]   dtype: float32 | shape: [3, 8, 16] | chunks: [1, 4, 8]</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro]   codecs: bytes -&gt; gzip</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro]   dimensions: time, lat, lon</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro] reading 4 chunk(s) for path 'temp' (V3)</span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> time  lat  lon </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    1    8   16 </span>
+<span class="r-in"><span><span class="co">## a window of a sharded array</span></span></span>
+<span class="r-in"><span><span class="fu">zaro_read</span><span class="op">(</span><span class="va">store</span>, <span class="st">"detail/elev"</span>, start <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">2</span><span class="op">)</span>, count <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">3</span>, <span class="fl">4</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro] found detail/elev/zarr.json (Zarr V3)</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro]   dtype: int16 | shape: [16, 16] | chunks: [4, 4]</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro]   codecs: bytes -&gt; gzip</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro]   dimensions: y, x</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro] reading 4 chunk(s) for path 'detail/elev' (V3)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      [,1] [,2] [,3] [,4]</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1,]  202  203  204  205</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [2,]  302  303  304  305</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [3,]  402  403  404  405</span>
+</code></pre></div>
+    </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>
 

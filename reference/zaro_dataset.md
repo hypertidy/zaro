@@ -81,12 +81,53 @@ keep their arrays several groups down).
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
+f <- system.file("extdata", "example.zarr", package = "zaro")
+ds <- zaro_dataset(f)
+#> [zaro] opening local store: /usr/local/lib/R/site-library/zaro/extdata/example.zarr
+#> [zaro] found zarr.json at root (Zarr V3)
+#> [zaro] reading consolidated metadata (6 entries)
+ds
+#> <zaro_dataset> 4 array(s) [zaro::LocalStore]
+#>   lat  float64  (lat: 8)
+#>   lon  float64  (lon: 16)
+#>   temp float32  (lon: 16, lat: 8, time: 3)
+#>   time int32    (time: 3)
+#>   attributes: 1
+ds$dims$temp
+#> [1] "lon"  "lat"  "time"
+zaro_read(ds, "temp", start = c(0, 0, 0), count = c(1, 2, 3))
+#> [zaro] reading 1 chunk(s) for path 'temp' (V3)
+#> , , 1
+#> 
+#>      [,1]   [,2]
+#> [1,]  NaN 14.875
+#> 
+#> , , 2
+#> 
+#>      [,1]   [,2]
+#> [1,]  NaN 14.975
+#> 
+#> , , 3
+#> 
+#>      [,1]   [,2]
+#> [1,]  NaN 15.075
+#> 
+zaro_dataset(f, group = "detail")
+#> [zaro] opening local store: /usr/local/lib/R/site-library/zaro/extdata/example.zarr
+#> [zaro] found zarr.json at root (Zarr V3)
+#> [zaro] reading consolidated metadata (6 entries)
+#> <zaro_dataset> 1 array(s) group 'detail' [zaro::LocalStore]
+#>   elev int16    (x: 16, y: 16)
+#>   attributes: 1
+if (FALSE) { # interactive() && requireNamespace("blosc", quietly = TRUE)
+## public cloud stores (network access; blosc-compressed chunks)
 ds <- zaro_dataset("s3://aodn-cloud-optimised/model_sea_level_anomaly_gridded_realtime.zarr",
                    anonymous = TRUE, region = "ap-southeast-2")
 ds
 ds$dims$GSLA                       # "LONGITUDE" "LATITUDE" "TIME"
-gsla <- zaro_array(ds, "GSLA", cf = TRUE)
+if (requireNamespace("altarr", quietly = TRUE)) {
+  gsla <- zaro_array(ds, "GSLA", cf = TRUE)   # lazy, CF-unpacked
+}
 
 ## a nested store: list the groups, open one
 eopf_url <- paste0(
@@ -96,6 +137,6 @@ eopf_url <- paste0(
 eopf <- zaro(eopf_url)
 zaro_groups(eopf)
 r10m <- zaro_dataset(eopf, group = "measurements/reflectance/r10m")
-b04 <- zaro_array(r10m, "b04")
-} # }
+r10m
+}
 ```

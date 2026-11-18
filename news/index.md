@@ -2,6 +2,38 @@
 
 ## zaro (development version)
 
+- Preparation for CRAN
+  ([\#36](https://github.com/hypertidy/zaro/issues/36)). Every exported
+  function has an example that runs offline, on a small Zarr V3 store
+  now shipped in `inst/extdata` (`example.zarr`: coordinates, a gzip
+  float32 array, and a sharded int16 array in a nested group; written by
+  `data-raw/example_zarr.py` with zarr-python 3.2.1). Examples that read
+  public cloud stores run only in interactive sessions, and the
+  [`zaro_array()`](https://hypertidy.github.io/zaro/reference/zaro_array.md)
+  and
+  [`zaro_icechunk()`](https://hypertidy.github.io/zaro/reference/zaro_icechunk.md)
+  examples only when altarr and tabularberg are installed. Neither is on
+  CRAN: the `Remotes` field is gone (both come from
+  hypertidy.r-universe.dev, already in `Additional_repositories`), and
+  the errors when they are missing say how to install them from there.
+
+- The DESCRIPTION title is now “Read ‘Zarr’ Arrays from Native and
+  Virtual Stores” (arrow has been optional since
+  [\#23](https://github.com/hypertidy/zaro/issues/23)), the description
+  quotes software and package names, and stats is declared in Imports.
+
+- A byterefs (SQLite) store closes its connection when it is garbage
+  collected, and when opening it fails (an unsupported
+  `format_version`), so RSQLite no longer warns about connections left
+  open.
+
+- Tests that start a local Python HTTP server or run zarr-python skip on
+  CRAN, and the zstd-compressed string fixtures skip when neither base R
+  nor arrow can decode zstd.
+
+- The design notes, `inst/codes` and `inst/examples` are build-ignored
+  (they stay in the repository, linked from the site).
+
 - New article, “Connecting to stores”
   ([\#4](https://github.com/hypertidy/zaro/issues/4)): what to give
   [`zaro()`](https://hypertidy.github.io/zaro/reference/zaro.md) for

@@ -70,9 +70,26 @@ A list of raw vectors (or `NULL`), one per plan row, with attribute
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-p <- zaro_plan(store, "temp", start = c(0, 0, 0, 0), count = c(1, 1, NA, NA))
+f <- system.file("extdata", "example.zarr", package = "zaro")
+store <- zaro(f)
+#> [zaro] opening local store: /usr/local/lib/R/site-library/zaro/extdata/example.zarr
+p <- zaro_plan(store, "temp", start = c(0, 0, 0), count = c(1, NA, NA))
+#> [zaro] found temp/zarr.json (Zarr V3)
+#> [zaro]   dtype: float32 | shape: [3, 8, 16] | chunks: [1, 4, 8]
+#> [zaro]   codecs: bytes -> gzip
+#> [zaro]   dimensions: time, lat, lon
+#> [zaro] planned 4 chunk(s) for path 'temp'
 raw <- zaro_fetch(store, p)
+lengths(raw)                 # encoded (gzip) bytes per chunk
+#> [1] 105  97 100  98
 attr(raw, "stats")
-} # }
+#> $requests
+#> [1] 0
+#> 
+#> $bytes
+#> [1] 0
+#> 
+#> $seconds
+#> [1] 0
+#> 
 ```

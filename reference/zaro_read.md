@@ -83,3 +83,32 @@ An R array with dimensions matching `count`, in Zarr dimension order and
 named by the array's dimension names (the transpose of
 [`zaro_array()`](https://hypertidy.github.io/zaro/reference/zaro_array.md)
 for C-order arrays). String arrays read as character.
+
+## Examples
+
+``` r
+f <- system.file("extdata", "example.zarr", package = "zaro")
+store <- zaro(f)
+#> [zaro] opening local store: /usr/local/lib/R/site-library/zaro/extdata/example.zarr
+## the first time step, every lat and lon (start is 0-based)
+x <- zaro_read(store, "temp", start = c(0, 0, 0), count = c(1, NA, NA))
+#> [zaro] found temp/zarr.json (Zarr V3)
+#> [zaro]   dtype: float32 | shape: [3, 8, 16] | chunks: [1, 4, 8]
+#> [zaro]   codecs: bytes -> gzip
+#> [zaro]   dimensions: time, lat, lon
+#> [zaro] reading 4 chunk(s) for path 'temp' (V3)
+dim(x)
+#> time  lat  lon 
+#>    1    8   16 
+## a window of a sharded array
+zaro_read(store, "detail/elev", start = c(2, 2), count = c(3, 4))
+#> [zaro] found detail/elev/zarr.json (Zarr V3)
+#> [zaro]   dtype: int16 | shape: [16, 16] | chunks: [4, 4]
+#> [zaro]   codecs: bytes -> gzip
+#> [zaro]   dimensions: y, x
+#> [zaro] reading 4 chunk(s) for path 'detail/elev' (V3)
+#>      [,1] [,2] [,3] [,4]
+#> [1,]  202  203  204  205
+#> [2,]  302  303  304  305
+#> [3,]  402  403  404  405
+```

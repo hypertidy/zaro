@@ -23,7 +23,7 @@ store)."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">zaro</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.1.9036</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.1.9038</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -137,13 +137,46 @@ hosts.</p>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
-<span class="r-in"><span><span class="va">store</span> <span class="op">&lt;-</span> <span class="fu"><a href="zaro.html">zaro</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"virtualizarr://https://raw.githubusercontent.com/"</span>,</span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">f</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata"</span>, <span class="st">"example.zarr"</span>, package <span class="op">=</span> <span class="st">"zaro"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">store</span> <span class="op">&lt;-</span> <span class="fu"><a href="zaro.html">zaro</a></span><span class="op">(</span><span class="va">f</span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro] opening local store: /usr/local/lib/R/site-library/zaro/extdata/example.zarr</span>
+<span class="r-in"><span><span class="va">p</span> <span class="op">&lt;-</span> <span class="fu">zaro_plan</span><span class="op">(</span><span class="va">store</span>, <span class="st">"temp"</span>, start <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">0</span>, <span class="fl">0</span><span class="op">)</span>, count <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="cn">NA</span>, <span class="cn">NA</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro] found temp/zarr.json (Zarr V3)</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro]   dtype: float32 | shape: [3, 8, 16] | chunks: [1, 4, 8]</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro]   codecs: bytes -&gt; gzip</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro]   dimensions: time, lat, lon</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro] planned 4 chunk(s) for path 'temp'</span>
+<span class="r-in"><span><span class="va">p</span>                          <span class="co"># one row per chunk, whole local files</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;zaro_plan&gt; 'temp': 4 chunk(s), 4 request(s)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   transport: local 4</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   bytes:     4 whole object(s) of unknown size</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>           key transport offset size                                 path</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  temp/c/0/0/0     local      0   NA ...extdata/example.zarr/temp/c/0/0/0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  temp/c/0/1/0     local      0   NA ...extdata/example.zarr/temp/c/0/1/0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  temp/c/0/0/1     local      0   NA ...extdata/example.zarr/temp/c/0/0/1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  temp/c/0/1/1     local      0   NA ...extdata/example.zarr/temp/c/0/1/1</span>
+<span class="r-in"><span><span class="co">## a sharded array: byte ranges within each shard</span></span></span>
+<span class="r-in"><span><span class="fu">zaro_plan</span><span class="op">(</span><span class="va">store</span>, <span class="st">"detail/elev"</span>, start <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">0</span><span class="op">)</span>, count <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">4</span>, <span class="fl">8</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro] found detail/elev/zarr.json (Zarr V3)</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro]   dtype: int16 | shape: [16, 16] | chunks: [4, 4]</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro]   codecs: bytes -&gt; gzip</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro]   dimensions: y, x</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro] planned 2 chunk(s) for path 'detail/elev'</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;zaro_plan&gt; 'detail/elev': 2 chunk(s), 2 request(s)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   transport: local 2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   bytes:     103.0 B</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                key transport offset size                                 path</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  detail/elev/c/0/0     local      0   51 ...ta/example.zarr/detail/elev/c/0/0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  detail/elev/c/0/0     local    104   52 ...ta/example.zarr/detail/elev/c/0/0</span>
+<span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># interactive()</span></span></span>
+<span class="r-in"><span><span class="co">## a virtual store: byte ranges in NetCDF files on a THREDDS server</span></span></span>
+<span class="r-in"><span><span class="co">## (network access)</span></span></span>
+<span class="r-in"><span><span class="va">vstore</span> <span class="op">&lt;-</span> <span class="fu"><a href="zaro.html">zaro</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"virtualizarr://https://raw.githubusercontent.com/"</span>,</span></span>
 <span class="r-in"><span>  <span class="st">"mdsumner/virtualized/refs/heads/main/remote/ocean_temp_2023.parq"</span><span class="op">)</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">p</span> <span class="op">&lt;-</span> <span class="fu">zaro_plan</span><span class="op">(</span><span class="va">store</span>, <span class="st">"temp"</span>, start <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">0</span>, <span class="fl">0</span>, <span class="fl">0</span><span class="op">)</span>, count <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">1</span>, <span class="cn">NA</span>, <span class="cn">NA</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">p</span> <span class="op">&lt;-</span> <span class="fu">zaro_plan</span><span class="op">(</span><span class="va">vstore</span>, <span class="st">"temp"</span>, start <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">0</span>, <span class="fl">0</span>, <span class="fl">0</span><span class="op">)</span>, count <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">1</span>, <span class="cn">NA</span>, <span class="cn">NA</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">p</span>                          <span class="co"># 60 byte ranges on one host, ~4 MB</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">p</span><span class="op">$</span><span class="va">transport</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
+<span class="r-in"><span><span class="op">}</span></span></span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

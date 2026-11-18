@@ -27,7 +27,7 @@ zaro_array() read through this, so they get the same batching."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">zaro</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.1.9036</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.1.9038</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -128,11 +128,28 @@ attribute <code>"stats"</code>: HTTP <code>requests</code>, <code>bytes</code> r
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
-<span class="r-in"><span><span class="va">p</span> <span class="op">&lt;-</span> <span class="fu"><a href="zaro_plan.html">zaro_plan</a></span><span class="op">(</span><span class="va">store</span>, <span class="st">"temp"</span>, start <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">0</span>, <span class="fl">0</span>, <span class="fl">0</span><span class="op">)</span>, count <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">1</span>, <span class="cn">NA</span>, <span class="cn">NA</span><span class="op">)</span><span class="op">)</span></span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">f</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata"</span>, <span class="st">"example.zarr"</span>, package <span class="op">=</span> <span class="st">"zaro"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">store</span> <span class="op">&lt;-</span> <span class="fu"><a href="zaro.html">zaro</a></span><span class="op">(</span><span class="va">f</span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro] opening local store: /usr/local/lib/R/site-library/zaro/extdata/example.zarr</span>
+<span class="r-in"><span><span class="va">p</span> <span class="op">&lt;-</span> <span class="fu"><a href="zaro_plan.html">zaro_plan</a></span><span class="op">(</span><span class="va">store</span>, <span class="st">"temp"</span>, start <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">0</span>, <span class="fl">0</span><span class="op">)</span>, count <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="cn">NA</span>, <span class="cn">NA</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro] found temp/zarr.json (Zarr V3)</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro]   dtype: float32 | shape: [3, 8, 16] | chunks: [1, 4, 8]</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro]   codecs: bytes -&gt; gzip</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro]   dimensions: time, lat, lon</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro] planned 4 chunk(s) for path 'temp'</span>
 <span class="r-in"><span><span class="va">raw</span> <span class="op">&lt;-</span> <span class="fu">zaro_fetch</span><span class="op">(</span><span class="va">store</span>, <span class="va">p</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/lengths.html" class="external-link">lengths</a></span><span class="op">(</span><span class="va">raw</span><span class="op">)</span>                 <span class="co"># encoded (gzip) bytes per chunk</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 105  97 100  98</span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">raw</span>, <span class="st">"stats"</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $requests</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $bytes</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $seconds</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

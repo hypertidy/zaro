@@ -41,11 +41,20 @@ A data frame with columns `group` (path, `""` for the root) and `arrays`
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
+f <- system.file("extdata", "example.zarr", package = "zaro")
+zaro_groups(f)
+#> [zaro] opening local store: /usr/local/lib/R/site-library/zaro/extdata/example.zarr
+#> [zaro] found zarr.json at root (Zarr V3)
+#> [zaro] reading consolidated metadata (6 entries)
+#>    group arrays
+#> 1             4
+#> 2 detail      1
+if (FALSE) { # interactive()
+## a nested store (network access)
 eopf_url <- paste0(
   "https://s3.explorer.eopf.copernicus.eu/esa-zarr-sentinel-explorer-fra/",
   "tests-output/sentinel-2-l2a/",
   "S2C_MSIL2A_20260120T084301_N0511_R064_T36UXA_20260120T122910.zarr")
 zaro_groups(eopf_url)
-} # }
+}
 ```

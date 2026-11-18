@@ -70,3 +70,20 @@ A list with components:
   chunk_shape for edge chunks)
 
 Returns NULL if the chunk doesn't exist (missing/sparse).
+
+## Examples
+
+``` r
+f <- system.file("extdata", "example.zarr", package = "zaro")
+store <- zaro(f)
+#> [zaro] opening local store: /usr/local/lib/R/site-library/zaro/extdata/example.zarr
+ch <- zaro_chunk(store, "temp", c(0, 1, 1))
+#> [zaro] found temp/zarr.json (Zarr V3)
+#> [zaro]   dtype: float32 | shape: [3, 8, 16] | chunks: [1, 4, 8]
+#> [zaro]   codecs: bytes -> gzip
+#> [zaro]   dimensions: time, lat, lon
+ch$start           # where the chunk sits in the array (0-based)
+#> [1] 0 4 8
+dim(ch$values)
+#> [1] 1 4 8
+```

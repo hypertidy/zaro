@@ -77,7 +77,7 @@ icechunk_storage object works too. See zaro_icechunk()
 
     <a class="navbar-brand me-2" href="../index.html">zaro</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.1.9036</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.1.9038</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -203,30 +203,75 @@ root metadata at open.</p>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
-<span class="r-in"><span><span class="co"># local store</span></span></span>
-<span class="r-in"><span><span class="va">store</span> <span class="op">&lt;-</span> <span class="fu">zaro</span><span class="op">(</span><span class="st">"/data/my_dataset.zarr"</span><span class="op">)</span></span></span>
-<span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># S3 store (anonymous)</span></span></span>
-<span class="r-in"><span><span class="va">store</span> <span class="op">&lt;-</span> <span class="fu">zaro</span><span class="op">(</span><span class="st">"s3://mur-sst/zarr-v1"</span>, anonymous <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
-<span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># GCS - known public bucket, anonymous auto-detected</span></span></span>
-<span class="r-in"><span><span class="va">store</span> <span class="op">&lt;-</span> <span class="fu">zaro</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"gs://cmip6/CMIP6/ScenarioMIP/NOAA-GFDL/GFDL-ESM4/"</span>,</span></span>
-<span class="r-in"><span>                     <span class="st">"ssp585/r1i1p1f1/Omon/zos/gn/v20180701"</span><span class="op">)</span><span class="op">)</span></span></span>
-<span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># VirtualiZarr Parquet reference</span></span></span>
-<span class="r-in"><span><span class="va">store</span> <span class="op">&lt;-</span> <span class="fu">zaro</span><span class="op">(</span><span class="st">"virtualizarr://https://example.com/dataset.parq"</span><span class="op">)</span></span></span>
-<span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># byterefs: a SQLite table, or the flat Parquet export</span></span></span>
-<span class="r-in"><span><span class="va">store</span> <span class="op">&lt;-</span> <span class="fu">zaro</span><span class="op">(</span><span class="st">"byterefs:///path/to/store.sqlite"</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">store</span> <span class="op">&lt;-</span> <span class="fu">zaro</span><span class="op">(</span><span class="st">"flatrefs://https://example.com/store"</span>, target <span class="op">=</span> <span class="st">"public"</span><span class="op">)</span></span></span>
-<span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># then explore</span></span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co">## a small Zarr V3 store shipped with the package</span></span></span>
+<span class="r-in"><span><span class="va">f</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata"</span>, <span class="st">"example.zarr"</span>, package <span class="op">=</span> <span class="st">"zaro"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">store</span> <span class="op">&lt;-</span> <span class="fu">zaro</span><span class="op">(</span><span class="va">f</span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro] opening local store: /usr/local/lib/R/site-library/zaro/extdata/example.zarr</span>
+<span class="r-in"><span><span class="va">store</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;ZaroStore&gt; [zaro::LocalStore]</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   root: /usr/local/lib/R/site-library/zaro/extdata/example.zarr</span>
 <span class="r-in"><span><span class="fu"><a href="zaro_list.html">zaro_list</a></span><span class="op">(</span><span class="va">store</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu"><a href="zaro_meta.html">zaro_meta</a></span><span class="op">(</span><span class="va">store</span>, <span class="st">"analysed_sst"</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="zaro_read.html">zaro_read</a></span><span class="op">(</span><span class="va">store</span>, <span class="st">"analysed_sst"</span>,</span></span>
-<span class="r-in"><span>                  start <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">0</span>, <span class="fl">0</span><span class="op">)</span>, count <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">100</span>, <span class="fl">100</span><span class="op">)</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "detail"    "lat"       "lon"       "temp"      "time"      "zarr.json"</span>
+<span class="r-in"><span><span class="fu"><a href="zaro_read.html">zaro_read</a></span><span class="op">(</span><span class="va">store</span>, <span class="st">"temp"</span>, start <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">0</span>, <span class="fl">0</span><span class="op">)</span>, count <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">4</span>, <span class="fl">8</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro] found temp/zarr.json (Zarr V3)</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro]   dtype: float32 | shape: [3, 8, 16] | chunks: [1, 4, 8]</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro]   codecs: bytes -&gt; gzip</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro]   dimensions: time, lat, lon</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro] reading 1 chunk(s) for path 'temp' (V3)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> , , 1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      [,1]   [,2]   [,3]   [,4]</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1,]  NaN 14.875 14.625 14.375</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> , , 2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      [,1]   [,2]   [,3]   [,4]</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1,]  NaN 14.975 14.725 14.475</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> , , 3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      [,1]   [,2]   [,3]   [,4]</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1,]  NaN 15.075 14.825 14.575</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> , , 4</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>        [,1]   [,2]   [,3]   [,4]</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1,] 15.425 15.175 14.925 14.675</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> , , 5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>        [,1]   [,2]   [,3]   [,4]</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1,] 15.525 15.275 15.025 14.775</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> , , 6</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>        [,1]   [,2]   [,3]   [,4]</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1,] 15.625 15.375 15.125 14.875</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> , , 7</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>        [,1]   [,2]   [,3]   [,4]</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1,] 15.725 15.475 15.225 14.975</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> , , 8</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>        [,1]   [,2]   [,3]   [,4]</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1,] 15.825 15.575 15.325 15.075</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co">## other sources (see the "Connecting to stores" article):</span></span></span>
+<span class="r-in"><span><span class="co">## zaro("s3://bucket/store.zarr", anonymous = TRUE)</span></span></span>
+<span class="r-in"><span><span class="co">## zaro("gs://bucket/store.zarr")</span></span></span>
+<span class="r-in"><span><span class="co">## zaro("virtualizarr://https://host/dataset.parq")</span></span></span>
+<span class="r-in"><span><span class="co">## zaro("byterefs:///path/to/store.sqlite")</span></span></span>
+<span class="r-in"><span><span class="co">## zaro("flatrefs://https://host/store", target = "public")</span></span></span>
+<span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># interactive() &amp;&amp; requireNamespace("blosc", quietly = TRUE)</span></span></span>
+<span class="r-in"><span><span class="co">## a public store over HTTPS (network access; blosc-compressed chunks)</span></span></span>
+<span class="r-in"><span><span class="va">aodn</span> <span class="op">&lt;-</span> <span class="fu">zaro</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"https://aodn-cloud-optimised.s3.ap-southeast-2.amazonaws.com/"</span>,</span></span>
+<span class="r-in"><span>                    <span class="st">"model_sea_level_anomaly_gridded_realtime.zarr"</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="zaro_meta.html">zaro_meta</a></span><span class="op">(</span><span class="va">aodn</span>, <span class="st">"GSLA"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="zaro_read.html">zaro_read</a></span><span class="op">(</span><span class="va">aodn</span>, <span class="st">"GSLA"</span>, start <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">100</span>, <span class="fl">100</span><span class="op">)</span>, count <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span>, <span class="fl">3</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">}</span></span></span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

@@ -9,7 +9,7 @@ chunk-indexed operations."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">zaro</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.1.9036</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.1.9038</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -98,6 +98,22 @@ chunk-indexed operations.</p>
 
 </dl></div>
 
+    <div class="section level2">
+    <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">f</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata"</span>, <span class="st">"example.zarr"</span>, package <span class="op">=</span> <span class="st">"zaro"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">store</span> <span class="op">&lt;-</span> <span class="fu"><a href="zaro.html">zaro</a></span><span class="op">(</span><span class="va">f</span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro] opening local store: /usr/local/lib/R/site-library/zaro/extdata/example.zarr</span>
+<span class="r-in"><span><span class="va">info</span> <span class="op">&lt;-</span> <span class="fu">zaro_chunk_info</span><span class="op">(</span><span class="va">store</span>, <span class="st">"temp"</span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro] found temp/zarr.json (Zarr V3)</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro]   dtype: float32 | shape: [3, 8, 16] | chunks: [1, 4, 8]</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro]   codecs: bytes -&gt; gzip</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro]   dimensions: time, lat, lon</span>
+<span class="r-in"><span><span class="va">info</span><span class="op">$</span><span class="va">grid</span>          <span class="co"># chunks along time, lat, lon</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 3 2 2</span>
+<span class="r-in"><span><span class="va">info</span><span class="op">$</span><span class="va">chunk_shape</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 1 4 8</span>
+</code></pre></div>
+    </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>
 

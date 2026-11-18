@@ -79,11 +79,44 @@ hosts.
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-store <- zaro(paste0("virtualizarr://https://raw.githubusercontent.com/",
+f <- system.file("extdata", "example.zarr", package = "zaro")
+store <- zaro(f)
+#> [zaro] opening local store: /usr/local/lib/R/site-library/zaro/extdata/example.zarr
+p <- zaro_plan(store, "temp", start = c(0, 0, 0), count = c(1, NA, NA))
+#> [zaro] found temp/zarr.json (Zarr V3)
+#> [zaro]   dtype: float32 | shape: [3, 8, 16] | chunks: [1, 4, 8]
+#> [zaro]   codecs: bytes -> gzip
+#> [zaro]   dimensions: time, lat, lon
+#> [zaro] planned 4 chunk(s) for path 'temp'
+p                          # one row per chunk, whole local files
+#> <zaro_plan> 'temp': 4 chunk(s), 4 request(s)
+#>   transport: local 4
+#>   bytes:     4 whole object(s) of unknown size
+#>           key transport offset size                                 path
+#>  temp/c/0/0/0     local      0   NA ...extdata/example.zarr/temp/c/0/0/0
+#>  temp/c/0/1/0     local      0   NA ...extdata/example.zarr/temp/c/0/1/0
+#>  temp/c/0/0/1     local      0   NA ...extdata/example.zarr/temp/c/0/0/1
+#>  temp/c/0/1/1     local      0   NA ...extdata/example.zarr/temp/c/0/1/1
+## a sharded array: byte ranges within each shard
+zaro_plan(store, "detail/elev", start = c(0, 0), count = c(4, 8))
+#> [zaro] found detail/elev/zarr.json (Zarr V3)
+#> [zaro]   dtype: int16 | shape: [16, 16] | chunks: [4, 4]
+#> [zaro]   codecs: bytes -> gzip
+#> [zaro]   dimensions: y, x
+#> [zaro] planned 2 chunk(s) for path 'detail/elev'
+#> <zaro_plan> 'detail/elev': 2 chunk(s), 2 request(s)
+#>   transport: local 2
+#>   bytes:     103.0 B
+#>                key transport offset size                                 path
+#>  detail/elev/c/0/0     local      0   51 ...ta/example.zarr/detail/elev/c/0/0
+#>  detail/elev/c/0/0     local    104   52 ...ta/example.zarr/detail/elev/c/0/0
+if (FALSE) { # interactive()
+## a virtual store: byte ranges in NetCDF files on a THREDDS server
+## (network access)
+vstore <- zaro(paste0("virtualizarr://https://raw.githubusercontent.com/",
   "mdsumner/virtualized/refs/heads/main/remote/ocean_temp_2023.parq"))
-p <- zaro_plan(store, "temp", start = c(0, 0, 0, 0), count = c(1, 1, NA, NA))
+p <- zaro_plan(vstore, "temp", start = c(0, 0, 0, 0), count = c(1, 1, NA, NA))
 p                          # 60 byte ranges on one host, ~4 MB
 table(p$transport)
-} # }
+}
 ```

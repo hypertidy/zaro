@@ -56,4 +56,4 @@ Work with individual chunks.
 ## Package
 
 - [`zaro-package`](https://hypertidy.github.io/zaro/reference/zaro-package.md)
-  : zaro: Zarr via Arrow
+  : zaro: Read 'Zarr' Arrays from Native and Virtual Stores

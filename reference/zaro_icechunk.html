@@ -13,7 +13,7 @@ zaro_dataset(), zaro_plan()."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">zaro</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.1.9036</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.1.9038</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -84,7 +84,7 @@ branch <code>"main"</code>). Ignored when <code>source</code> is a session.</p><
 
 
 <dt id="arg-authorize">authorize<a class="anchor" aria-label="anchor" href="#arg-authorize"></a></dt>
-<dd><p>virtual chunk containers to authorise, passed to
+<dd><p>virtual chunk containers to authorize, passed to
 <code>tabularberg::ic_repo_open()</code> when <code>source</code> is a location.</p></dd>
 
 
@@ -103,28 +103,34 @@ instead of through Icechunk (see Details).</p></dd>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>The session is read-only and pinned to one snapshot (its id is in
+    <p>The tabularberg package is not on CRAN; install it from R-universe with
+<code>install.packages("tabularberg", repos = "https://hypertidy.r-universe.dev")</code>.</p>
+<p>The session is read-only and pinned to one snapshot (its id is in
 <code>store@snapshot</code>), so lazy arrays made from it keep reading the same
 version after the branch moves on. Pick the version with <code>branch</code>, <code>tag</code>
 or <code>snapshot</code> (default branch <code>"main"</code>).</p>
 <p>Chunks are read through Icechunk by default, which applies the
-repository's container authorisation and checksums. With <code>direct = TRUE</code>
+repository's container authorization and checksums. With <code>direct = TRUE</code>
 zaro fetches virtual chunks itself, concurrently and with adjacent byte
 ranges merged, but only from containers the repository object has
-authorised (see <code>tabularberg::ic_repo_containers()</code>), and without
+authorized (see <code>tabularberg::ic_repo_containers()</code>), and without
 Icechunk's etag / last-modified checks. Native and inline chunks always
 come from Icechunk.</p>
     </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># requireNamespace("tabularberg", quietly = TRUE)</span></span></span>
+<span class="r-in"><span><span class="co">## a small local repository that tabularberg writes to tempdir()</span></span></span>
 <span class="r-in"><span><span class="va">ex</span> <span class="op">&lt;-</span> <span class="fu">tabularberg</span><span class="fu">::</span><span class="fu">ic_example_repo</span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">store</span> <span class="op">&lt;-</span> <span class="fu">zaro_icechunk</span><span class="op">(</span><span class="va">ex</span><span class="op">$</span><span class="va">path</span>, tag <span class="op">=</span> <span class="st">"v1"</span>, authorize <span class="op">=</span> <span class="va">ex</span><span class="op">$</span><span class="va">authorize</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">x</span> <span class="op">&lt;-</span> <span class="fu"><a href="zaro_array.html">zaro_array</a></span><span class="op">(</span><span class="va">store</span>, <span class="st">"from_bin"</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">x</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">4</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">4</span><span class="op">]</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="zaro_dataset.html">zaro_dataset</a></span><span class="op">(</span><span class="va">store</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="zaro_read.html">zaro_read</a></span><span class="op">(</span><span class="va">store</span>, <span class="st">"from_bin"</span>, start <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">0</span><span class="op">)</span>, count <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">3</span>, <span class="fl">4</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace</a></span><span class="op">(</span><span class="st">"altarr"</span>, quietly <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span></span>
+<span class="r-in"><span>  <span class="va">x</span> <span class="op">&lt;-</span> <span class="fu"><a href="zaro_array.html">zaro_array</a></span><span class="op">(</span><span class="va">store</span>, <span class="st">"from_bin"</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="va">x</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">4</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">4</span><span class="op">]</span></span></span>
+<span class="r-in"><span><span class="op">}</span></span></span>
+<span class="r-in"><span><span class="op">}</span></span></span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

@@ -56,3 +56,20 @@ A list with components:
 - meta:
 
   ZaroMeta for the array
+
+## Examples
+
+``` r
+f <- system.file("extdata", "example.zarr", package = "zaro")
+store <- zaro(f)
+#> [zaro] opening local store: /usr/local/lib/R/site-library/zaro/extdata/example.zarr
+info <- zaro_chunk_info(store, "temp")
+#> [zaro] found temp/zarr.json (Zarr V3)
+#> [zaro]   dtype: float32 | shape: [3, 8, 16] | chunks: [1, 4, 8]
+#> [zaro]   codecs: bytes -> gzip
+#> [zaro]   dimensions: time, lat, lon
+info$grid          # chunks along time, lat, lon
+#> [1] 3 2 2
+info$chunk_shape
+#> [1] 1 4 8
+```

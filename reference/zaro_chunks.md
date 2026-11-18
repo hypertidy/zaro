@@ -63,3 +63,26 @@ zaro_chunks(
 A list of chunk results (as from
 [`zaro_chunk()`](https://hypertidy.github.io/zaro/reference/zaro_chunk.md)).
 NULL entries indicate missing chunks.
+
+## Examples
+
+``` r
+f <- system.file("extdata", "example.zarr", package = "zaro")
+store <- zaro(f)
+#> [zaro] opening local store: /usr/local/lib/R/site-library/zaro/extdata/example.zarr
+## every chunk of the first time step
+chs <- zaro_chunks(store, "temp", ranges = list(0, NULL, NULL))
+#> [zaro] found temp/zarr.json (Zarr V3)
+#> [zaro]   dtype: float32 | shape: [3, 8, 16] | chunks: [1, 4, 8]
+#> [zaro]   codecs: bytes -> gzip
+#> [zaro]   dimensions: time, lat, lon
+#> [zaro] reading 4 chunk(s) for path 'temp'
+length(chs)
+#> [1] 4
+t(sapply(chs, `[[`, "start"))
+#>      [,1] [,2] [,3]
+#> [1,]    0    0    0
+#> [2,]    0    4    0
+#> [3,]    0    0    8
+#> [4,]    0    4    8
+```

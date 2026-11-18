@@ -65,16 +65,46 @@ A list of results from `fun`, one per non-NULL chunk.
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-# per-chunk mean, memory-efficient
-means <- zaro_chunk_apply(store, "temperature", function(chunk) {
+f <- system.file("extdata", "example.zarr", package = "zaro")
+store <- zaro(f)
+#> [zaro] opening local store: /usr/local/lib/R/site-library/zaro/extdata/example.zarr
+## per-chunk mean, one chunk in memory at a time
+means <- zaro_chunk_apply(store, "temp", function(chunk) {
   mean(chunk$values, na.rm = TRUE)
 })
+#> [zaro] found temp/zarr.json (Zarr V3)
+#> [zaro]   dtype: float32 | shape: [3, 8, 16] | chunks: [1, 4, 8]
+#> [zaro]   codecs: bytes -> gzip
+#> [zaro]   dimensions: time, lat, lon
+#> [zaro] reading 12 chunk(s) for path 'temp'
+unlist(means)
+#>  [1] 15.08707 16.10000 17.10000 14.10000 15.10000 16.10000 15.90000 16.90000
+#>  [9] 17.90000 14.90000 15.90000 16.90000
 
-# first time step only, all spatial chunks
-means <- zaro_chunk_apply(store, "temperature", function(chunk) {
+## first time step only, all spatial chunks
+zaro_chunk_apply(store, "temp", function(chunk) {
   c(mean = mean(chunk$values, na.rm = TRUE),
     n_valid = sum(is.finite(chunk$values)))
 }, ranges = list(0, NULL, NULL))
-} # }
+#> [zaro] found temp/zarr.json (Zarr V3)
+#> [zaro]   dtype: float32 | shape: [3, 8, 16] | chunks: [1, 4, 8]
+#> [zaro]   codecs: bytes -> gzip
+#> [zaro]   dimensions: time, lat, lon
+#> [zaro] reading 4 chunk(s) for path 'temp'
+#> [[1]]
+#>     mean  n_valid 
+#> 15.08707 29.00000 
+#> 
+#> [[2]]
+#>    mean n_valid 
+#>    14.1    32.0 
+#> 
+#> [[3]]
+#>    mean n_valid 
+#>    15.9    32.0 
+#> 
+#> [[4]]
+#>    mean n_valid 
+#>    14.9    32.0 
+#> 
 ```

@@ -47,9 +47,16 @@ Fetch statistics are in `attr(, "stats")`.
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-ds <- zaro_dataset("https://host/store.zarr")
-xy <- zaro_read_arrays(ds, c("x", "y"))
-attr(xy, "stats")$requests
-} # }
+f <- system.file("extdata", "example.zarr", package = "zaro")
+ds <- zaro_dataset(f)
+#> [zaro] opening local store: /usr/local/lib/R/site-library/zaro/extdata/example.zarr
+#> [zaro] found zarr.json at root (Zarr V3)
+#> [zaro] reading consolidated metadata (6 entries)
+xy <- zaro_read_arrays(ds, c("lon", "lat", "time"))
+#> [zaro] read 3 array(s), 3 chunk(s) in 0 HTTP request(s)
+lengths(xy)
+#>  lon  lat time 
+#>   16    8    3 
+attr(xy, "stats")$requests   # 0 for a local store, one pool for HTTP
+#> [1] 0
 ```

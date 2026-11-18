@@ -65,6 +65,9 @@ A lazy array, see
 
 ## Details
 
+The altarr package is not on CRAN; install it from R-universe with
+`install.packages("altarr", repos = "https://hypertidy.r-universe.dev")`.
+
 Subsetting with `x[i]`, `x[cbind(i, j, k)]` and
 `altarr::altarr_extract(x, i, j, k)` plans the chunks it needs and
 fetches them in one batch; [`sum()`](https://rdrr.io/r/base/sum.html),
@@ -119,12 +122,34 @@ does not read in a new R session; re-open it with `zaro_array()`.
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
-store <- zaro("https://ncsa.osn.xsede.org/Pangeo/pangeo-forge/gpcp-feedstock/gpcp.zarr")
-x <- zaro_array(store, "precip")
-dim(x)                       # longitude, latitude, time
-x[cbind(180, 90, 1:10)]      # one pixel, ten time steps, one fetch
-altarr::altarr_extract(x, 1:20, 1:20, 100)
-altarr::altarr_stats(x)
-} # }
+f <- system.file("extdata", "example.zarr", package = "zaro")
+store <- zaro(f)
+#> [zaro] opening local store: /usr/local/lib/R/site-library/zaro/extdata/example.zarr
+x <- zaro_array(store, "temp")
+#> [zaro] found temp/zarr.json (Zarr V3)
+#> [zaro]   dtype: float32 | shape: [3, 8, 16] | chunks: [1, 4, 8]
+#> [zaro]   codecs: bytes -> gzip
+#> [zaro]   dimensions: time, lat, lon
+dim(x)                       # lon, lat, time: the Zarr shape reversed
+#> [1] 16  8  3
+x[1:4, 1:2, 1]               # reads one chunk
+#>        [,1]   [,2]
+#> [1,]    NaN 14.875
+#> [2,]    NaN 14.975
+#> [3,]    NaN 15.075
+#> [4,] 15.425 15.175
+altarr::altarr_stats(x)[c("fetch_calls", "chunks_fetched")]
+#>    fetch_calls chunks_fetched 
+#>              1              1 
+if (FALSE) { # interactive() && requireNamespace("altarr", quietly = TRUE)
+## a public store over HTTPS (network access; blosc-compressed chunks)
+if (requireNamespace("blosc", quietly = TRUE)) {
+  aodn <- zaro(paste0("https://aodn-cloud-optimised.s3.ap-southeast-2.amazonaws.com/",
+                      "model_sea_level_anomaly_gridded_realtime.zarr"))
+  x <- zaro_array(aodn, "GSLA", cf = TRUE)
+  dim(x)                     # LONGITUDE, LATITUDE, TIME
+  x[cbind(101, 101, 1:5)]    # one pixel, five time steps, one fetch
+  altarr::altarr_stats(x)[c("fetch_calls", "chunks_fetched")]
+}
+}
 ```

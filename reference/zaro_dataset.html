@@ -21,7 +21,7 @@ HTTP, which can't list)."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">zaro</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.1.9036</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.1.9038</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -125,12 +125,53 @@ arrays several groups down).</p>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">f</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata"</span>, <span class="st">"example.zarr"</span>, package <span class="op">=</span> <span class="st">"zaro"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">ds</span> <span class="op">&lt;-</span> <span class="fu">zaro_dataset</span><span class="op">(</span><span class="va">f</span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro] opening local store: /usr/local/lib/R/site-library/zaro/extdata/example.zarr</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro] found zarr.json at root (Zarr V3)</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro] reading consolidated metadata (6 entries)</span>
+<span class="r-in"><span><span class="va">ds</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;zaro_dataset&gt; 4 array(s) [zaro::LocalStore]</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   lat  float64  (lat: 8)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   lon  float64  (lon: 16)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   temp float32  (lon: 16, lat: 8, time: 3)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   time int32    (time: 3)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   attributes: 1</span>
+<span class="r-in"><span><span class="va">ds</span><span class="op">$</span><span class="va">dims</span><span class="op">$</span><span class="va">temp</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "lon"  "lat"  "time"</span>
+<span class="r-in"><span><span class="fu"><a href="zaro_read.html">zaro_read</a></span><span class="op">(</span><span class="va">ds</span>, <span class="st">"temp"</span>, start <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">0</span>, <span class="fl">0</span><span class="op">)</span>, count <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span>, <span class="fl">3</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro] reading 1 chunk(s) for path 'temp' (V3)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> , , 1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      [,1]   [,2]</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1,]  NaN 14.875</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> , , 2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      [,1]   [,2]</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1,]  NaN 14.975</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> , , 3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>      [,1]   [,2]</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1,]  NaN 15.075</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-in"><span><span class="fu">zaro_dataset</span><span class="op">(</span><span class="va">f</span>, group <span class="op">=</span> <span class="st">"detail"</span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro] opening local store: /usr/local/lib/R/site-library/zaro/extdata/example.zarr</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro] found zarr.json at root (Zarr V3)</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> [zaro] reading consolidated metadata (6 entries)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;zaro_dataset&gt; 1 array(s) group 'detail' [zaro::LocalStore]</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   elev int16    (x: 16, y: 16)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   attributes: 1</span>
+<span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># interactive() &amp;&amp; requireNamespace("blosc", quietly = TRUE)</span></span></span>
+<span class="r-in"><span><span class="co">## public cloud stores (network access; blosc-compressed chunks)</span></span></span>
 <span class="r-in"><span><span class="va">ds</span> <span class="op">&lt;-</span> <span class="fu">zaro_dataset</span><span class="op">(</span><span class="st">"s3://aodn-cloud-optimised/model_sea_level_anomaly_gridded_realtime.zarr"</span>,</span></span>
 <span class="r-in"><span>                   anonymous <span class="op">=</span> <span class="cn">TRUE</span>, region <span class="op">=</span> <span class="st">"ap-southeast-2"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">ds</span></span></span>
 <span class="r-in"><span><span class="va">ds</span><span class="op">$</span><span class="va">dims</span><span class="op">$</span><span class="va">GSLA</span>                       <span class="co"># "LONGITUDE" "LATITUDE" "TIME"</span></span></span>
-<span class="r-in"><span><span class="va">gsla</span> <span class="op">&lt;-</span> <span class="fu"><a href="zaro_array.html">zaro_array</a></span><span class="op">(</span><span class="va">ds</span>, <span class="st">"GSLA"</span>, cf <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace</a></span><span class="op">(</span><span class="st">"altarr"</span>, quietly <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span></span>
+<span class="r-in"><span>  <span class="va">gsla</span> <span class="op">&lt;-</span> <span class="fu"><a href="zaro_array.html">zaro_array</a></span><span class="op">(</span><span class="va">ds</span>, <span class="st">"GSLA"</span>, cf <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>   <span class="co"># lazy, CF-unpacked</span></span></span>
+<span class="r-in"><span><span class="op">}</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co">## a nested store: list the groups, open one</span></span></span>
 <span class="r-in"><span><span class="va">eopf_url</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span></span></span>
@@ -140,8 +181,8 @@ arrays several groups down).</p>
 <span class="r-in"><span><span class="va">eopf</span> <span class="op">&lt;-</span> <span class="fu"><a href="zaro.html">zaro</a></span><span class="op">(</span><span class="va">eopf_url</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="zaro_groups.html">zaro_groups</a></span><span class="op">(</span><span class="va">eopf</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">r10m</span> <span class="op">&lt;-</span> <span class="fu">zaro_dataset</span><span class="op">(</span><span class="va">eopf</span>, group <span class="op">=</span> <span class="st">"measurements/reflectance/r10m"</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">b04</span> <span class="op">&lt;-</span> <span class="fu"><a href="zaro_array.html">zaro_array</a></span><span class="op">(</span><span class="va">r10m</span>, <span class="st">"b04"</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
+<span class="r-in"><span><span class="va">r10m</span></span></span>
+<span class="r-in"><span><span class="op">}</span></span></span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
