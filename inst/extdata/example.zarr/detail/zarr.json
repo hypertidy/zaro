@@ -1,0 +1,7 @@
+{
+  "attributes": {
+    "description": "a nested group with a sharded array"
+  },
+  "zarr_format": 3,
+  "node_type": "group"
+}

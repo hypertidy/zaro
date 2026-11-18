@@ -43,3 +43,11 @@ dimension of the chunk grid, one at a time or in parallel. For
 batched, pooled reads use \code{\link[=zaro_plan]{zaro_plan()}} and \code{\link[=zaro_fetch]{zaro_fetch()}}, or
 \code{\link[=zaro_read]{zaro_read()}}.
 }
+\examples{
+f <- system.file("extdata", "example.zarr", package = "zaro")
+store <- zaro(f)
+## every chunk of the first time step
+chs <- zaro_chunks(store, "temp", ranges = list(0, NULL, NULL))
+length(chs)
+t(sapply(chs, `[[`, "start"))
+}

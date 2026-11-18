@@ -14,9 +14,9 @@
 #   (no row)                           transport "absent" (fill value)
 #
 # Through icechunk (the default) every read gets Icechunk's container
-# authorisation and its etag/last-modified checks. direct = TRUE lets zaro
+# authorization and its etag/last-modified checks. direct = TRUE lets zaro
 # fetch virtual chunks itself (one curl pool, merged byte ranges), but only
-# from containers the repository has authorised, and without the checks.
+# from containers the repository has authorized, and without the checks.
 #
 # A read-only session is pinned to one snapshot, so a lazy zaro_array() made
 # from it keeps reading the same bytes when the branch moves on.
@@ -37,16 +37,19 @@ IcechunkStore <- new_class("IcechunkStore", parent = ZaroStore, properties = lis
 #' the result: [zaro_meta()], [zaro_read()], [zaro_array()],
 #' [zaro_dataset()], [zaro_plan()].
 #'
+#' The tabularberg package is not on CRAN; install it from R-universe with
+#' `install.packages("tabularberg", repos = "https://hypertidy.r-universe.dev")`.
+#'
 #' The session is read-only and pinned to one snapshot (its id is in
 #' `store@snapshot`), so lazy arrays made from it keep reading the same
 #' version after the branch moves on. Pick the version with `branch`, `tag`
 #' or `snapshot` (default branch `"main"`).
 #'
 #' Chunks are read through Icechunk by default, which applies the
-#' repository's container authorisation and checksums. With `direct = TRUE`
+#' repository's container authorization and checksums. With `direct = TRUE`
 #' zaro fetches virtual chunks itself, concurrently and with adjacent byte
 #' ranges merged, but only from containers the repository object has
-#' authorised (see `tabularberg::ic_repo_containers()`), and without
+#' authorized (see `tabularberg::ic_repo_containers()`), and without
 #' Icechunk's etag / last-modified checks. Native and inline chunks always
 #' come from Icechunk.
 #'
@@ -55,26 +58,30 @@ IcechunkStore <- new_class("IcechunkStore", parent = ZaroStore, properties = lis
 #'   an `http(s)://` URL, or an `icechunk_storage`).
 #' @param branch,tag,snapshot the version to read (one of them; default
 #'   branch `"main"`). Ignored when `source` is a session.
-#' @param authorize virtual chunk containers to authorise, passed to
+#' @param authorize virtual chunk containers to authorize, passed to
 #'   `tabularberg::ic_repo_open()` when `source` is a location.
 #' @param direct logical. Fetch virtual chunks with zaro's own fetcher
 #'   instead of through Icechunk (see Details).
 #' @param verbose logical. Emit diagnostic messages.
 #' @returns An `IcechunkStore`.
 #' @export
-#' @examples
-#' \dontrun{
+#' @examplesIf requireNamespace("tabularberg", quietly = TRUE)
+#' ## a small local repository that tabularberg writes to tempdir()
 #' ex <- tabularberg::ic_example_repo()
 #' store <- zaro_icechunk(ex$path, tag = "v1", authorize = ex$authorize)
-#' x <- zaro_array(store, "from_bin")
-#' x[1:4, 1:4]
 #' zaro_dataset(store)
+#' zaro_read(store, "from_bin", start = c(0, 0), count = c(3, 4))
+#' if (requireNamespace("altarr", quietly = TRUE)) {
+#'   x <- zaro_array(store, "from_bin")
+#'   x[1:4, 1:4]
 #' }
 zaro_icechunk <- function(source, branch = NULL, tag = NULL, snapshot = NULL,
                           authorize = NULL, direct = FALSE,
                           verbose = zaro_verbose()) {
   if (!requireNamespace("tabularberg", quietly = TRUE)) {
-    stop("Icechunk repositories need the tabularberg package", call. = FALSE)
+    stop("Icechunk repositories need the tabularberg package (not on CRAN):\n",
+         "  install.packages(\"tabularberg\", repos = \"https://hypertidy.r-universe.dev\")",
+         call. = FALSE)
   }
   repo <- NULL
   if (inherits(source, "icechunk_session")) {
@@ -96,7 +103,7 @@ zaro_icechunk <- function(source, branch = NULL, tag = NULL, snapshot = NULL,
   if (isTRUE(direct)) {
     if (is.null(repo)) {
       stop("direct = TRUE needs the repository (to know which containers ",
-           "are authorised); pass the icechunk_repo, not a session",
+           "are authorized); pass the icechunk_repo, not a session",
            call. = FALSE)
     }
     ct <- tabularberg::ic_repo_containers(repo)
@@ -232,7 +239,7 @@ method(store_refs, IcechunkStore) <- function(store, keys) {
   out
 }
 
-#' Locations within an authorised container prefix
+#' Locations within an authorized container prefix
 #' @noRd
 ic_authorized <- function(location, prefixes) {
   if (!length(prefixes)) return(rep(FALSE, length(location)))

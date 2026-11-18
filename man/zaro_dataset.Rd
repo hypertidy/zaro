@@ -53,12 +53,21 @@ a nested store's groups (e.g. EOPF and GeoZarr products, which keep their
 arrays several groups down).
 }
 \examples{
-\dontrun{
+f <- system.file("extdata", "example.zarr", package = "zaro")
+ds <- zaro_dataset(f)
+ds
+ds$dims$temp
+zaro_read(ds, "temp", start = c(0, 0, 0), count = c(1, 2, 3))
+zaro_dataset(f, group = "detail")
+\dontshow{if (interactive() && requireNamespace("blosc", quietly = TRUE)) withAutoprint(\{ # examplesIf}
+## public cloud stores (network access; blosc-compressed chunks)
 ds <- zaro_dataset("s3://aodn-cloud-optimised/model_sea_level_anomaly_gridded_realtime.zarr",
                    anonymous = TRUE, region = "ap-southeast-2")
 ds
 ds$dims$GSLA                       # "LONGITUDE" "LATITUDE" "TIME"
-gsla <- zaro_array(ds, "GSLA", cf = TRUE)
+if (requireNamespace("altarr", quietly = TRUE)) {
+  gsla <- zaro_array(ds, "GSLA", cf = TRUE)   # lazy, CF-unpacked
+}
 
 ## a nested store: list the groups, open one
 eopf_url <- paste0(
@@ -68,6 +77,6 @@ eopf_url <- paste0(
 eopf <- zaro(eopf_url)
 zaro_groups(eopf)
 r10m <- zaro_dataset(eopf, group = "measurements/reflectance/r10m")
-b04 <- zaro_array(r10m, "b04")
-}
+r10m
+\dontshow{\}) # examplesIf}
 }

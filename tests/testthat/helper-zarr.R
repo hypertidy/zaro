@@ -154,3 +154,14 @@ write_sharded_zarr <- function(path, x, shard, inner, index_location = "end",
   }
   invisible(path)
 }
+
+# zstd chunks decode with base R when R was built with libzstd (R >= 4.5),
+# otherwise with arrow; skip fixtures that need it when neither can.
+skip_if_no_zstd <- function() {
+  base_ok <- tryCatch({
+    memDecompress(memCompress(as.raw(1:10), "zstd"), "zstd")
+    TRUE
+  }, error = function(e) FALSE)
+  testthat::skip_if(!base_ok && !requireNamespace("arrow", quietly = TRUE),
+                    "no zstd decoder (base R or arrow)")
+}

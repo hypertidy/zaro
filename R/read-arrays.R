@@ -28,11 +28,11 @@
 #'   `attr(, "stats")`.
 #' @export
 #' @examples
-#' \dontrun{
-#' ds <- zaro_dataset("https://host/store.zarr")
-#' xy <- zaro_read_arrays(ds, c("x", "y"))
-#' attr(xy, "stats")$requests
-#' }
+#' f <- system.file("extdata", "example.zarr", package = "zaro")
+#' ds <- zaro_dataset(f)
+#' xy <- zaro_read_arrays(ds, c("lon", "lat", "time"))
+#' lengths(xy)
+#' attr(xy, "stats")$requests   # 0 for a local store, one pool for HTTP
 zaro_read_arrays <- function(store, paths, metas = NULL,
                              verbose = zaro_verbose()) {
   paths <- as.character(paths)

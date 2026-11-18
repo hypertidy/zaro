@@ -1,21 +1,25 @@
 Package: zaro
-Title: Zarr via Arrow
-Version: 0.0.1.9036
-Authors@R: c(person("Michael", "Sumner", email = "mdsumner@gmail.com",
-                  role = c("aut", "cre"), comment = c(ORCID = "0000-0002-2471-7511")), 
-             person("Hugo", "Gruson", , , role = c("ctb"),
-           comment = c(ORCID = "0000-0002-4094-1476")))
-Description: A low-level reader for Zarr arrays (V2 and V3, including
-    sharded V3), native or virtual, from local disk, HTTP(S), S3 and GCS.
-    Virtual stores read the bytes of existing NetCDF, HDF5 and GeoTIFF
-    archives in place, from Kerchunk JSON and Parquet references,
-    VirtualiZarr manifests and byterefs tables (SQLite, or the flat
-    Parquet export read by row group). Every read is a plan of byte
-    references (one row per chunk) fetched through one curl connection
-    pool, then decoded in R. Zarr arrays can also be opened as lazy R
-    arrays (via altarr) with CF unpacking. Arrow and GDAL (via
-    gdalraster) are optional, for S3 and GCS listing and credentials and
-    for some codecs.
+Title: Read 'Zarr' Arrays from Native and Virtual Stores
+Version: 0.0.1.9038
+Authors@R: c(
+    person("Michael", "Sumner", , "mdsumner@gmail.com", role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0002-2471-7511")),
+    person("Hugo", "Gruson", role = "ctb",
+           comment = c(ORCID = "0000-0002-4094-1476"))
+  )
+Description: A low-level reader for 'Zarr' arrays
+    (<https://zarr-specs.readthedocs.io/>), versions 2 and 3 including
+    sharded version 3, native or virtual, from local disk, HTTP(S), Amazon
+    'S3' and Google Cloud Storage. Virtual stores read the bytes of
+    existing 'NetCDF', 'HDF5' and 'GeoTIFF' files in place, from 'Kerchunk'
+    'JSON' and 'Parquet' references, 'VirtualiZarr' manifests and
+    'byterefs' tables ('SQLite', or the flat 'Parquet' export read by row
+    group). Every read is a plan of byte references (one row per chunk)
+    fetched through one 'curl' connection pool, then decoded in R. Arrays
+    can also be opened as lazy R arrays (via 'altarr') with 'CF'
+    unpacking, and 'Icechunk' repositories read (via 'tabularberg').
+    'Arrow' and 'GDAL' (via 'gdalraster') are optional, for 'S3' and
+    Google Cloud Storage listing and credentials and for some codecs.
 License: MIT + file LICENSE
 URL: https://hypertidy.github.io/zaro/, https://github.com/hypertidy/zaro
 BugReports: https://github.com/hypertidy/zaro/issues
@@ -27,6 +31,7 @@ Imports:
     methods,
     nanoparquet,
     S7,
+    stats,
     utils
 Suggests:
     altarr,
@@ -41,8 +46,6 @@ Suggests:
     future.mirai,
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
-Remotes:
-    hypertidy/altarr
 Additional_repositories: https://hypertidy.r-universe.dev
 Collate:
     'utils.R'

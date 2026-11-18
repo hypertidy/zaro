@@ -13,3 +13,9 @@
 ^docs$
 ^pkgdown$
 ^vignettes/articles$
+^data-raw$
+^cran-comments\.md$
+^CRAN-SUBMISSION$
+^inst/docs-design$
+^inst/codes$
+^inst/examples$

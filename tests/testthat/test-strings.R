@@ -6,6 +6,8 @@
 ##   grid  <U4 (3, 2), chunks (2, 2)
 ## Chunks are 2 elements, so every array has a short edge chunk.
 
+skip_if_no_zstd()
+
 u_ref <- c("alpha", "β-beta", "", "δέλτα", "e")
 s_ref <- c("ab", "", "cdef", "g", "hijkl")
 v_ref <- c("one", "", "three", "日本語", "a longer string here")

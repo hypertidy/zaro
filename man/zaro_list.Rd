@@ -20,3 +20,9 @@ character vector of keys (relative paths).
 \description{
 List contents of a Zarr store
 }
+\examples{
+f <- system.file("extdata", "example.zarr", package = "zaro")
+store <- zaro(f)
+zaro_list(store)
+zaro_list(store, "temp")
+}

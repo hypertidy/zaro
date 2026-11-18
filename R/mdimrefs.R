@@ -44,6 +44,9 @@ open_mdimrefs <- function(source, target = NULL, verbose = zaro_verbose()) {
     source <- tf
   }
   con <- DBI::dbConnect(RSQLite::SQLite(), source, flags = RSQLite::SQLITE_RO)
+  ## until the store holds it, an error here must not leave it open
+  opened <- FALSE
+  on.exit(if (!opened) DBI::dbDisconnect(con), add = TRUE)
   meta <- DBI::dbGetQuery(con, "SELECT key, value FROM meta")
   fmt <- meta$value[meta$key == "format_version"]
   if (!mdimrefs_format_ok(fmt)) {
@@ -84,11 +87,24 @@ open_mdimrefs <- function(source, target = NULL, verbose = zaro_verbose()) {
     warning("cannot read ", length(refused), " array(s) of this store: ",
             paste0(names(refused), ": ", refused, collapse = "; "), call. = FALSE)
   }
-  MdimRefsStore(root = source, con = con, remap = remap, arrays = arrays,
-                target = target, md = mdimrefs_meta(arrays, codecs),
-                refused = if (length(refused)) refused else
-                  stats::setNames(character(), character()),
-                cache = new.env(parent = emptyenv()))
+  store <- MdimRefsStore(root = source, con = con, remap = remap,
+                         arrays = arrays, target = target,
+                         md = mdimrefs_meta(arrays, codecs),
+                         refused = if (length(refused)) refused else
+                           stats::setNames(character(), character()),
+                         cache = disconnect_on_gc(new.env(parent = emptyenv()), con))
+  opened <- TRUE
+  store
+}
+
+## The store holds its read-only connection open; close it when the store
+## (its cache environment, shared by copies) is garbage collected, so
+## RSQLite does not warn about a connection left open.
+disconnect_on_gc <- function(env, con) {
+  reg.finalizer(env, function(e) {
+    if (DBI::dbIsValid(con)) DBI::dbDisconnect(con)
+  }, onexit = TRUE)
+  env
 }
 
 ## byterefs/spec decision 0003: a byterefs/0.1 reader accepts byterefs/0.1

@@ -81,28 +81,24 @@ to be a non-empty character string); set \code{validate = TRUE} to read the
 root metadata at open.
 }
 \examples{
-\dontrun{
-# local store
-store <- zaro("/data/my_dataset.zarr")
-
-# S3 store (anonymous)
-store <- zaro("s3://mur-sst/zarr-v1", anonymous = TRUE)
-
-# GCS - known public bucket, anonymous auto-detected
-store <- zaro(paste0("gs://cmip6/CMIP6/ScenarioMIP/NOAA-GFDL/GFDL-ESM4/",
-                     "ssp585/r1i1p1f1/Omon/zos/gn/v20180701"))
-
-# VirtualiZarr Parquet reference
-store <- zaro("virtualizarr://https://example.com/dataset.parq")
-
-# byterefs: a SQLite table, or the flat Parquet export
-store <- zaro("byterefs:///path/to/store.sqlite")
-store <- zaro("flatrefs://https://example.com/store", target = "public")
-
-# then explore
+## a small Zarr V3 store shipped with the package
+f <- system.file("extdata", "example.zarr", package = "zaro")
+store <- zaro(f)
+store
 zaro_list(store)
-zaro_meta(store, "analysed_sst")
-data <- zaro_read(store, "analysed_sst",
-                  start = c(0, 0, 0), count = c(1, 100, 100))
-}
+zaro_read(store, "temp", start = c(0, 0, 0), count = c(1, 4, 8))
+
+## other sources (see the "Connecting to stores" article):
+## zaro("s3://bucket/store.zarr", anonymous = TRUE)
+## zaro("gs://bucket/store.zarr")
+## zaro("virtualizarr://https://host/dataset.parq")
+## zaro("byterefs:///path/to/store.sqlite")
+## zaro("flatrefs://https://host/store", target = "public")
+\dontshow{if (interactive() && requireNamespace("blosc", quietly = TRUE)) withAutoprint(\{ # examplesIf}
+## a public store over HTTPS (network access; blosc-compressed chunks)
+aodn <- zaro(paste0("https://aodn-cloud-optimised.s3.ap-southeast-2.amazonaws.com/",
+                    "model_sea_level_anomaly_gridded_realtime.zarr"))
+zaro_meta(aodn, "GSLA")
+zaro_read(aodn, "GSLA", start = c(0, 100, 100), count = c(1, 2, 3))
+\dontshow{\}) # examplesIf}
 }
