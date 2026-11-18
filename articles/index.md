@@ -4,6 +4,7 @@
 
 - [Getting
   started](https://hypertidy.github.io/zaro/articles/getting-started.md):
+- [Store gallery](https://hypertidy.github.io/zaro/articles/gallery.md):
 - [Connecting to
   stores](https://hypertidy.github.io/zaro/articles/connecting.md):
 - [Virtual
