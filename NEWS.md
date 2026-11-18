@@ -1,6 +1,6 @@
 # zaro (development version)
 
-* The gallery tests are retired for a store gallery (`gallery/`,
+* The gallery tests are retired for a store gallery (#37, `gallery/`,
   build-ignored). `gallery/stores.R` lists public stores, each with what it
   exercises and one small read with its expected type and shape;
   `gallery/run.R` reads each and reports it as ok, unreachable (a host
