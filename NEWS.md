@@ -1,6 +1,6 @@
 # zaro (development version)
 
-* Fixes from win-builder and R-universe's macOS and Windows checks:
+* Fixes from win-builder and R-universe's macOS and Windows checks (#39):
   * Icechunk virtual chunks in local files read with `direct = TRUE` on
     Windows. tabularberg writes their locations as `file:///C:/...`, which
     zaro turned into the path `/C:/...`; the chunks were not found and read
