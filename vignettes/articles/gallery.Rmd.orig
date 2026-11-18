@@ -1,0 +1,246 @@
+---
+title: "Store gallery"
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.path = "figures/gal-",
+                      fig.width = 7, fig.height = 4.5, dpi = 96)
+options(width = 90)
+```
+
+Public stores that zaro reads, across data providers, transports (HTTPS,
+S3, GCS) and formats (Zarr V2 and V3, sharding, NetCDF through references).
+Each section opens the store, shows a little of what is in it, and reads
+one picture's worth of data.
+
+| Store | From | Format | Transport | Shows |
+|---|---|---|---|---|
+| [Sea level, time-chunked](#sea-level-time-chunked) | Copernicus Marine | Zarr V2 | HTTPS | a global map from a lazy array, CF unpacking |
+| [Sea level, geo-chunked](#sea-level-geo-chunked) | Copernicus Marine | Zarr V2 | HTTPS | 33 years at one point in a few requests |
+| [CMIP6 sea surface height](#cmip6-sea-surface-height) | Pangeo CMIP6 | Zarr V2 | `gs://` | a model's curvilinear grid |
+| [Himawari-8 SST](#himawari-8-sea-surface-temperature) | AODN | Zarr V2, blosc | `s3://` | a window of a 4500 x 6000 grid |
+| [Sentinel-2 L2A](#sentinel-2-l2a) | ESA EOPF | Zarr V3, sharded | HTTPS | true colour from bands in a nested group |
+| [BRAN2023 currents](#bran2023-currents) | CSIRO Bluelink at NCI | NetCDF, via VirtualiZarr | HTTPS (THREDDS) | byte ranges in NetCDF files read in place |
+
+This article reads live data, so it is knitted ahead of time rather than
+when the site is built (last on `r format(Sys.Date())`). The same stores are
+checked every week by the store gallery in the repository
+([`gallery/`](https://github.com/hypertidy/zaro/tree/main/gallery)), which
+reads a small selection from each and reports any that stop working. Other
+kinds of store, such as Kerchunk references, byterefs tables and local
+files, are in [virtual stores](virtual-stores.html) and
+[getting started](getting-started.html).
+
+The maps use base R's `image()` and
+[ximage](https://hypertidy.github.io/ximage/). They want different orders,
+and zaro gives both: a lazy array from `zaro_array()` is in R order
+(`longitude, latitude`), which is what `image()` takes, while `zaro_read()`
+gives Zarr order (`latitude, longitude`), which for a north-up grid is the
+raster order `ximage()` takes.
+
+```{r library}
+library(zaro)
+library(ximage)
+options(zaro.verbose = FALSE)   # zaro explains what it does by default
+
+## values beyond the colour range drawn at its ends, not left blank
+clamp <- function(z, lim) pmin(pmax(z, -lim), lim)
+## raster order for a grid stored south to north: first row at the top
+north_up <- function(m) m[nrow(m):1, , drop = FALSE]
+```
+
+## Sea level, time-chunked
+
+Copernicus Marine's global daily sea level, 1993 to the present at 1/8
+degree, is published as two Zarr V2 copies of the same data. This one is
+chunked for maps: one day, 512 x 1024 pixels per chunk.
+
+```{r cmems-time}
+cmems_time <- zaro(paste0("https://s3.waw3-1.cloudferro.com/mdl-arco-time-045/arco/",
+                          "SEALEVEL_GLO_PHY_L4_MY_008_047/",
+                          "cmems_obs-sl_glo_phy-ssh_my_allsat-l4-duacs-0.125deg_P1D_202411/",
+                          "timeChunked.zarr"))
+ds <- zaro_dataset(cmems_time)
+ds
+```
+
+The arrays are int32, packed with a `scale_factor`. As a lazy array with
+`cf = TRUE` they read as metres, with fill values as `NA`, in R's dimension
+order (`longitude, latitude, time`). Indexing one day reads its nine chunks.
+
+```{r cmems-time-read}
+sla <- zaro_array(ds, "sla", cf = TRUE)
+dim(sla)
+day <- dim(sla)[3]
+z <- sla[, , day]
+lon <- as.vector(zaro_read(ds, "longitude"))
+lat <- as.vector(zaro_read(ds, "latitude"))
+date <- as.Date("1950-01-01") + as.vector(zaro_read(ds, "time"))[day]
+```
+
+```{r cmems-time-plot, fig.height = 4}
+image(lon, lat, clamp(z, 0.6), asp = 1, zlim = c(-1, 1) * 0.6, col = hcl.colors(64, "Blue-Red 3"),
+      xlab = "", ylab = "", main = sprintf("Sea level anomaly (m), %s", date))
+```
+
+## Sea level, geo-chunked
+
+The other copy has the same arrays chunked for time series: 2264 days of
+16 x 8 pixels per chunk. 33 years at one point in the Tasman Sea is six
+chunks here; the time-chunked copy would need one per day.
+
+```{r cmems-geo}
+cmems_geo <- zaro(paste0("https://s3.waw3-1.cloudferro.com/mdl-arco-geo-045/arco/",
+                         "SEALEVEL_GLO_PHY_L4_MY_008_047/",
+                         "cmems_obs-sl_glo_phy-ssh_my_allsat-l4-duacs-0.125deg_P1D_202411/",
+                         "geoChunked.zarr"))
+ilon <- which.min(abs(lon - 155))
+ilat <- which.min(abs(lat - -35))
+start <- c(0, ilat - 1, ilon - 1)   # 0-based, Zarr order: time, latitude, longitude
+count <- c(NA, 1, 1)
+nrow(zaro_plan(cmems_geo, "sla", start = start, count = count))
+nrow(zaro_plan(cmems_time, "sla", start = start, count = count))
+
+series <- zaro_array(cmems_geo, "sla", cf = TRUE)[ilon, ilat, ]
+dates <- as.Date("1950-01-01") + as.vector(zaro_read(cmems_geo, "time"))
+```
+
+```{r cmems-geo-plot, fig.height = 3.5}
+plot(dates, series, type = "l", col = "steelblue", xlab = "", ylab = "sea level anomaly (m)",
+     main = sprintf("%.2f E, %.2f S", lon[ilon], -lat[ilat]))
+```
+
+## CMIP6 sea surface height
+
+Pangeo's CMIP6 archive on Google Cloud Storage: here GFDL-ESM4 monthly sea
+surface height under SSP5-8.5. `cmip6` is a known public bucket, so zaro
+reads it anonymously with no arguments. The ocean grid is curvilinear
+(tripolar): `x` and `y` are nominal, and `lon` and `lat` are 2D arrays.
+So the map is drawn on the grid itself, in columns and rows, with contours
+of `lon` (dashed, every 30 degrees) and `lat` (solid, every 20) to show
+where it is: north of about 65 N the grid bends to two poles, over Canada
+and Siberia. Land is the array's fill value (1e20), which `cf = TRUE` reads
+as `NA`.
+
+```{r cmip6}
+cmip6 <- zaro(paste0("gs://cmip6/CMIP6/ScenarioMIP/NOAA-GFDL/GFDL-ESM4/",
+                     "ssp585/r1i1p1f1/Omon/zos/gn/v20180701/"))
+zaro_meta(cmip6, "zos")
+zos <- zaro_array(cmip6, "zos", cf = TRUE)[, , 1]   # x, y; the first month
+dim(zos)
+lon <- zaro_read(cmip6, "lon")                      # y, x
+lat <- zaro_read(cmip6, "lat")
+```
+
+```{r cmip6-plot, fig.height = 5}
+ximage(north_up(t(zos)), zlim = c(-1, 1) * max(abs(zos), na.rm = TRUE),
+       col = hcl.colors(64, "Blue-Red 3"), xlab = "grid column (x)", ylab = "grid row (y)",
+       main = "Sea surface height above geoid (m), January 2015")
+xcontour(north_up(lat), add = TRUE, levels = seq(-60, 80, by = 20), col = "grey30", labcex = 0.6)
+xcontour(north_up(lon), add = TRUE, levels = seq(-270, 30, by = 30), col = "grey30", lty = 2,
+         labcex = 0.6)
+```
+
+## Himawari-8 sea surface temperature
+
+AODN's cloud-optimised GHRSST L3C night-time SST from Himawari-8 on S3,
+2015 to 2022: a 4500 x 6000 grid at 0.02 degrees, float64 compressed with
+blosc. The window around Tasmania is four chunks. Gaps are cloud.
+
+```{r himawari}
+him <- zaro("s3://aodn-cloud-optimised/satellite_ghrsst_l3c_1day_nighttime_himawari8.zarr",
+            region = "ap-southeast-2", anonymous = TRUE)
+lon <- as.vector(zaro_read(him, "lon"))
+lat <- as.vector(zaro_read(him, "lat"))   # north to south
+time <- as.POSIXct(as.vector(zaro_read(him, "time")), origin = "1981-01-01", tz = "UTC")
+ix <- which(lon >= 140 & lon <= 152)
+iy <- which(lat >= -45 & lat <= -37)
+it <- which(format(time, "%Y-%m-%d") == "2020-02-01")
+sst <- zaro_read(him, "sea_surface_temperature", start = c(it, min(iy), min(ix)) - 1,
+                 count = c(1, length(iy), length(ix)))
+dim(sst)
+```
+
+The rows already run north to south, so the slice is in raster order as
+read; the extent is the outer edges of the 0.02 degree cells.
+
+```{r himawari-plot, fig.height = 5}
+ext <- c(range(lon[ix]), range(lat[iy])) + c(-1, 1, -1, 1) * 0.01
+ximage(sst[1, , ] - 273.15, extent = ext, asp = 1 / cos(41 * pi / 180),   # kelvin to degC
+       col = hcl.colors(64, "Inferno"),
+       main = sprintf("Night-time SST (degC), %s", format(time[it], "%Y-%m-%d")))
+```
+
+## Sentinel-2 L2A
+
+ESA's EOPF Sentinel-2 products are Zarr V3: nested groups, each band one
+shard of 183 x 183 chunks, compressed with blosc. `zaro_groups()` lists the
+groups; a dataset opens one of them.
+
+```{r eopf}
+eopf <- zaro(paste0("https://s3.explorer.eopf.copernicus.eu/esa-zarr-sentinel-explorer-fra/",
+                    "tests-output/sentinel-2-l2a/",
+                    "S2C_MSIL2A_20260120T084301_N0511_R064_T36UXA_20260120T122910.zarr"))
+grp <- zaro_groups(eopf)
+grp[grepl("^measurements", grp$group), ]
+r120 <- zaro_dataset(eopf, group = "measurements/reflectance/r120m")
+zaro_meta(r120$store, "measurements/reflectance/r120m/b04")
+```
+
+Red, green and blue reflectance at 120 m, three shards. It is January
+and the ground is snow-covered, so the reflectance needs no brightening.
+
+```{r eopf-read}
+bands <- lapply(c(red = "b04", green = "b03", blue = "b02"), function(b) zaro_read(r120, b))
+dim(bands$red)
+unit <- function(v) {
+  v <- pmin(pmax(v, 0), 1)
+  v[is.na(v)] <- 0
+  v
+}
+img <- array(unlist(lapply(bands, unit)), c(dim(bands$red), 3))   # y, x, band
+```
+
+The bands are `y, x` from north to south, raster order, so the RGB array
+goes straight to `ximage()`.
+
+```{r eopf-plot, fig.width = 6, fig.height = 6.3, dev = "jpeg"}
+par(mar = c(0, 0, 2, 0))
+ximage(img, axes = FALSE, main = "Sentinel-2C L2A, tile 36UXA, 2026-01-20, true colour")
+```
+
+## BRAN2023 currents
+
+CSIRO's Bluelink reanalysis (BRAN2023) is daily NetCDF files on NCI's
+THREDDS server. A VirtualiZarr reference store (a Parquet file on GitHub)
+says where each chunk is in those files, and zaro reads the byte ranges in
+place: no copy of the data, no NetCDF library.
+
+```{r bran}
+bran <- zaro(paste0("virtualizarr://https://raw.githubusercontent.com/mdsumner/",
+                    "virtualized/refs/heads/main/remote/ocean_v_2023.parq"))
+v <- zaro_array(bran, "v", cf = TRUE)
+dim(v)                                 # xu_ocean, yu_ocean, st_ocean, Time
+xu <- as.vector(zaro_read(bran, "xu_ocean"))
+yu <- as.vector(zaro_read(bran, "yu_ocean"))
+days <- as.Date("1979-01-01") + as.vector(zaro_read(bran, "Time"))
+ix <- which(xu >= 145 & xu <= 165)
+iy <- which(yu >= -45 & yu <= -25)
+nt <- length(days)
+z <- v[ix, iy, 1, nt]
+```
+
+The plan for that read: byte ranges of one NetCDF file.
+
+```{r bran-plan}
+p <- zaro_plan(bran, "v", start = c(nt, 1, min(iy), min(ix)) - 1,
+               count = c(1, 1, length(iy), length(ix)))
+p
+unique(basename(p$path))
+```
+
+```{r bran-plot, fig.height = 5.5}
+image(xu[ix], yu[iy], clamp(z, 1.2), asp = 1 / cos(35 * pi / 180), zlim = c(-1, 1) * 1.2,
+      col = hcl.colors(64, "Blue-Red 3"), xlab = "", ylab = "",
+      main = sprintf("Northward surface current (m/s), %s", days[nt]))
+```

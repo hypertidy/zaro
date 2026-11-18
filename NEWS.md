@@ -12,6 +12,12 @@
   NCSA pod. GPCP is dropped (its current copy needs credentials), the EOPF
   Sentinel-2 sharded GeoZarr is added, and `inst/codes/gallery-examples.R`
   is folded in.
+* New article, "Store gallery": the same public stores, each opened, read
+  and drawn (a global sea level map from a lazy array, 33 years at one
+  point from the geo-chunked copy, CMIP6 on its tripolar grid with lon/lat
+  contours, Himawari-8 SST, a Sentinel-2 true-colour composite from
+  sharded bands, BRAN2023 currents read from NetCDF on THREDDS). Knitted
+  locally like the other articles; maps drawn with `image()` or ximage.
 * Clamping a selection past the array's extent (with a warning) has a unit
   test; it was only in a gallery test that skipped on CI.
 
