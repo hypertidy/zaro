@@ -96,3 +96,17 @@ test_that("zaro_plan() accepts a zaro_dataset", {
   ds <- zaro_dataset(path, verbose = FALSE)
   expect_equal(zaro_plan(ds, "a", verbose = FALSE)$key, "a/0.0")
 })
+
+test_that("a selection past the array's extent is clamped, with a warning", {
+  store <- zaro(system.file("extdata", "example.zarr", package = "zaro"),
+                verbose = FALSE)
+  expect_warning(
+    x <- zaro_read(store, "temp", start = c(2, 6, 10), count = c(5, 4, 10),
+                   verbose = FALSE),
+    "exceeds array extent on dimension\\(s\\) 1, 2, 3; clamping")
+  expect_equal(dim(x), c(time = 1L, lat = 2L, lon = 6L))
+  expect_warning(p <- zaro_plan(store, "temp", start = c(0, 0, 15),
+                                count = c(1, 1, 5), verbose = FALSE),
+                 "dimension\\(s\\) 3; clamping")
+  expect_equal(nrow(p), 1L)
+})

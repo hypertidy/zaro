@@ -1,6 +1,6 @@
 Package: zaro
 Title: Read 'Zarr' Arrays from Native and Virtual Stores
-Version: 0.0.1.9038
+Version: 0.0.1.9039
 Authors@R: c(
     person("Michael", "Sumner", , "mdsumner@gmail.com", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0002-2471-7511")),
