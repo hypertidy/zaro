@@ -32,9 +32,9 @@ a dataset's coordinate arrays at open, where each array is small and the
 cost is the round trips.
 }
 \examples{
-\dontrun{
-ds <- zaro_dataset("https://host/store.zarr")
-xy <- zaro_read_arrays(ds, c("x", "y"))
-attr(xy, "stats")$requests
-}
+f <- system.file("extdata", "example.zarr", package = "zaro")
+ds <- zaro_dataset(f)
+xy <- zaro_read_arrays(ds, c("lon", "lat", "time"))
+lengths(xy)
+attr(xy, "stats")$requests   # 0 for a local store, one pool for HTTP
 }

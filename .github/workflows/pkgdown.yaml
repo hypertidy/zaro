@@ -49,13 +49,15 @@ jobs:
         run: apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq libarrow-s3-dev
 
       # pak: Suggests at the top level only (see R-CMD-check.yaml)
+      # altarr (Suggests) is on hypertidy.r-universe.dev, not CRAN.
       # tabularberg (Suggests) is not needed to build the site (the
-      # zaro_icechunk() example is \dontrun): left out, no Rust build
+      # zaro_icechunk() example runs only when it is installed): left out,
+      # no Rust build
       - name: Install dependencies
         run: |
           cp DESCRIPTION DESCRIPTION.orig
           sed -i '/^    tabularberg,$/d' DESCRIPTION
-          Rscript -e 'pak::local_install_dev_deps(upgrade = FALSE, dependencies = TRUE, ask = FALSE)'
+          Rscript -e 'options(repos = c(hypertidy = "https://hypertidy.r-universe.dev", getOption("repos"))); pak::local_install_dev_deps(upgrade = FALSE, dependencies = TRUE, ask = FALSE)'
           mv DESCRIPTION.orig DESCRIPTION
           Rscript -e 'pak::local_install(upgrade = FALSE, dependencies = FALSE, ask = FALSE)'
 

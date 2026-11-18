@@ -22,7 +22,7 @@ an \verb{http(s)://} URL, or an \code{icechunk_storage}).}
 \item{branch, tag, snapshot}{the version to read (one of them; default
 branch \code{"main"}). Ignored when \code{source} is a session.}
 
-\item{authorize}{virtual chunk containers to authorise, passed to
+\item{authorize}{virtual chunk containers to authorize, passed to
 \code{tabularberg::ic_repo_open()} when \code{source} is a location.}
 
 \item{direct}{logical. Fetch virtual chunks with zaro's own fetcher
@@ -40,25 +40,32 @@ the result: \code{\link[=zaro_meta]{zaro_meta()}}, \code{\link[=zaro_read]{zaro_
 \code{\link[=zaro_dataset]{zaro_dataset()}}, \code{\link[=zaro_plan]{zaro_plan()}}.
 }
 \details{
+The tabularberg package is not on CRAN; install it from R-universe with
+\code{install.packages("tabularberg", repos = "https://hypertidy.r-universe.dev")}.
+
 The session is read-only and pinned to one snapshot (its id is in
 \code{store@snapshot}), so lazy arrays made from it keep reading the same
 version after the branch moves on. Pick the version with \code{branch}, \code{tag}
 or \code{snapshot} (default branch \code{"main"}).
 
 Chunks are read through Icechunk by default, which applies the
-repository's container authorisation and checksums. With \code{direct = TRUE}
+repository's container authorization and checksums. With \code{direct = TRUE}
 zaro fetches virtual chunks itself, concurrently and with adjacent byte
 ranges merged, but only from containers the repository object has
-authorised (see \code{tabularberg::ic_repo_containers()}), and without
+authorized (see \code{tabularberg::ic_repo_containers()}), and without
 Icechunk's etag / last-modified checks. Native and inline chunks always
 come from Icechunk.
 }
 \examples{
-\dontrun{
+\dontshow{if (requireNamespace("tabularberg", quietly = TRUE)) withAutoprint(\{ # examplesIf}
+## a small local repository that tabularberg writes to tempdir()
 ex <- tabularberg::ic_example_repo()
 store <- zaro_icechunk(ex$path, tag = "v1", authorize = ex$authorize)
-x <- zaro_array(store, "from_bin")
-x[1:4, 1:4]
 zaro_dataset(store)
+zaro_read(store, "from_bin", start = c(0, 0), count = c(3, 4))
+if (requireNamespace("altarr", quietly = TRUE)) {
+  x <- zaro_array(store, "from_bin")
+  x[1:4, 1:4]
 }
+\dontshow{\}) # examplesIf}
 }

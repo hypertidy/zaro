@@ -75,30 +75,25 @@
 #'
 #' @export
 #' @examples
-#' \dontrun{
-#' # local store
-#' store <- zaro("/data/my_dataset.zarr")
-#'
-#' # S3 store (anonymous)
-#' store <- zaro("s3://mur-sst/zarr-v1", anonymous = TRUE)
-#'
-#' # GCS - known public bucket, anonymous auto-detected
-#' store <- zaro(paste0("gs://cmip6/CMIP6/ScenarioMIP/NOAA-GFDL/GFDL-ESM4/",
-#'                      "ssp585/r1i1p1f1/Omon/zos/gn/v20180701"))
-#'
-#' # VirtualiZarr Parquet reference
-#' store <- zaro("virtualizarr://https://example.com/dataset.parq")
-#'
-#' # byterefs: a SQLite table, or the flat Parquet export
-#' store <- zaro("byterefs:///path/to/store.sqlite")
-#' store <- zaro("flatrefs://https://example.com/store", target = "public")
-#'
-#' # then explore
+#' ## a small Zarr V3 store shipped with the package
+#' f <- system.file("extdata", "example.zarr", package = "zaro")
+#' store <- zaro(f)
+#' store
 #' zaro_list(store)
-#' zaro_meta(store, "analysed_sst")
-#' data <- zaro_read(store, "analysed_sst",
-#'                   start = c(0, 0, 0), count = c(1, 100, 100))
-#' }
+#' zaro_read(store, "temp", start = c(0, 0, 0), count = c(1, 4, 8))
+#'
+#' ## other sources (see the "Connecting to stores" article):
+#' ## zaro("s3://bucket/store.zarr", anonymous = TRUE)
+#' ## zaro("gs://bucket/store.zarr")
+#' ## zaro("virtualizarr://https://host/dataset.parq")
+#' ## zaro("byterefs:///path/to/store.sqlite")
+#' ## zaro("flatrefs://https://host/store", target = "public")
+#' @examplesIf interactive() && requireNamespace("blosc", quietly = TRUE)
+#' ## a public store over HTTPS (network access; blosc-compressed chunks)
+#' aodn <- zaro(paste0("https://aodn-cloud-optimised.s3.ap-southeast-2.amazonaws.com/",
+#'                     "model_sea_level_anomaly_gridded_realtime.zarr"))
+#' zaro_meta(aodn, "GSLA")
+#' zaro_read(aodn, "GSLA", start = c(0, 100, 100), count = c(1, 2, 3))
 zaro <- function(source, verbose = zaro_verbose(), ..., validate = FALSE) {
   dots <- list(...)
 
@@ -258,6 +253,11 @@ zaro <- function(source, verbose = zaro_verbose(), ..., validate = FALSE) {
 #' @returns character vector of keys (relative paths).
 #'
 #' @export
+#' @examples
+#' f <- system.file("extdata", "example.zarr", package = "zaro")
+#' store <- zaro(f)
+#' zaro_list(store)
+#' zaro_list(store, "temp")
 zaro_list <- function(store, path = "", ...) {
   store_list(store, prefix = path, ...)
 }
@@ -269,7 +269,7 @@ zaro_list <- function(store, path = "", ...) {
 #' Automatically detects Zarr V2 (\code{.zarray}/\code{.zattrs}/\code{.zmetadata})
 #' vs V3 (\code{zarr.json}) format. For cloud stores, consolidated metadata
 #' (\code{.zmetadata} for V2, consolidated \code{zarr.json} for V3) is preferred
-#' to minimise the number of requests.
+#' to minimize the number of requests.
 #'
 #' @param store a store object from [zaro()]
 #' @param path character. Path to the array or group within the store.
@@ -283,6 +283,12 @@ zaro_list <- function(store, path = "", ...) {
 #'   \code{attr(, "consolidated")}.
 #'
 #' @export
+#' @examples
+#' f <- system.file("extdata", "example.zarr", package = "zaro")
+#' store <- zaro(f)
+#' zaro_meta(store)                  # the root group
+#' zaro_meta(store, "temp")          # an array
+#' zaro_meta(store, "detail/elev")   # a sharded array in a nested group
 zaro_meta <- function(store, path = "", consolidated = TRUE, verbose = zaro_verbose()) {
 
   # --- consolidated metadata for root group requests ---
@@ -458,6 +464,14 @@ zaro_meta <- function(store, path = "", consolidated = TRUE, verbose = zaro_verb
 #'   character.
 #'
 #' @export
+#' @examples
+#' f <- system.file("extdata", "example.zarr", package = "zaro")
+#' store <- zaro(f)
+#' ## the first time step, every lat and lon (start is 0-based)
+#' x <- zaro_read(store, "temp", start = c(0, 0, 0), count = c(1, NA, NA))
+#' dim(x)
+#' ## a window of a sharded array
+#' zaro_read(store, "detail/elev", start = c(2, 2), count = c(3, 4))
 zaro_read <- function(store, path = "", start = NULL, count = NULL, meta = NULL,
                       parallel = FALSE, verbose = zaro_verbose(), assemble = TRUE) {
   if (path == ".") path <- ""

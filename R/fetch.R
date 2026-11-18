@@ -45,11 +45,12 @@
 #'
 #' @export
 #' @examples
-#' \dontrun{
-#' p <- zaro_plan(store, "temp", start = c(0, 0, 0, 0), count = c(1, 1, NA, NA))
+#' f <- system.file("extdata", "example.zarr", package = "zaro")
+#' store <- zaro(f)
+#' p <- zaro_plan(store, "temp", start = c(0, 0, 0), count = c(1, NA, NA))
 #' raw <- zaro_fetch(store, p)
+#' lengths(raw)                 # encoded (gzip) bytes per chunk
 #' attr(raw, "stats")
-#' }
 zaro_fetch <- function(store, plan, max_con = getOption("zaro.max_con", 8L),
                        merge_gap = getOption("zaro.merge_gap", 0),
                        retries = 2L, verbose = zaro_verbose()) {

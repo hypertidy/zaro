@@ -116,6 +116,8 @@ test_that("a crc32c codec on chunks is stripped", {
 })
 
 test_that("sharded arrays written by zarr-python read exactly", {
+  skip_on_cran()
+  skip_if_no_zstd()
   py <- Sys.which("python3")
   skip_if(!nzchar(py), "python3 not available")
   has_zarr3 <- suppressWarnings(system2(py, c("-I", "-c", shQuote(

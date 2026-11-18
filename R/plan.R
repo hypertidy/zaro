@@ -46,13 +46,20 @@
 #'
 #' @export
 #' @examples
-#' \dontrun{
-#' store <- zaro(paste0("virtualizarr://https://raw.githubusercontent.com/",
+#' f <- system.file("extdata", "example.zarr", package = "zaro")
+#' store <- zaro(f)
+#' p <- zaro_plan(store, "temp", start = c(0, 0, 0), count = c(1, NA, NA))
+#' p                          # one row per chunk, whole local files
+#' ## a sharded array: byte ranges within each shard
+#' zaro_plan(store, "detail/elev", start = c(0, 0), count = c(4, 8))
+#' @examplesIf interactive()
+#' ## a virtual store: byte ranges in NetCDF files on a THREDDS server
+#' ## (network access)
+#' vstore <- zaro(paste0("virtualizarr://https://raw.githubusercontent.com/",
 #'   "mdsumner/virtualized/refs/heads/main/remote/ocean_temp_2023.parq"))
-#' p <- zaro_plan(store, "temp", start = c(0, 0, 0, 0), count = c(1, 1, NA, NA))
+#' p <- zaro_plan(vstore, "temp", start = c(0, 0, 0, 0), count = c(1, 1, NA, NA))
 #' p                          # 60 byte ranges on one host, ~4 MB
 #' table(p$transport)
-#' }
 zaro_plan <- function(store, path = "", start = NULL, count = NULL,
                       meta = NULL, chunks = NULL, verbose = zaro_verbose()) {
   if (path == ".") path <- ""

@@ -31,3 +31,10 @@ A list with components:
 Returns the chunk grid dimensions and related metadata needed for
 chunk-indexed operations.
 }
+\examples{
+f <- system.file("extdata", "example.zarr", package = "zaro")
+store <- zaro(f)
+info <- zaro_chunk_info(store, "temp")
+info$grid          # chunks along time, lat, lon
+info$chunk_shape
+}

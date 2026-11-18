@@ -33,21 +33,24 @@ Default \code{getOption("zaro.verbose", TRUE)}.}
 Default \code{FALSE}.}
 }
 \value{
-A lazy array, see \code{\link[altarr:altarr]{altarr::altarr()}}.
+A lazy array, see \code{altarr::altarr()}.
 }
 \description{
 Returns an ordinary R array (a double, integer or logical vector with a
 \code{dim} attribute and no class) whose values are read from the store chunk
 by chunk, only when R asks for them. It is an ALTREP object built by
-\code{\link[altarr:altarr]{altarr::altarr()}}, with zaro's chunk fetch and codec pipeline behind it.
+\code{altarr::altarr()}, with zaro's chunk fetch and codec pipeline behind it.
 Nothing is read when the array is created beyond the metadata.
 }
 \details{
+The altarr package is not on CRAN; install it from R-universe with
+\code{install.packages("altarr", repos = "https://hypertidy.r-universe.dev")}.
+
 Subsetting with \code{x[i]}, \code{x[cbind(i, j, k)]} and
 \code{altarr::altarr_extract(x, i, j, k)} plans the chunks it needs and fetches
 them in one batch; \code{sum()}, \code{mean()}, \code{min()} and \code{max()} stream the chunk
 grid. See \code{?altarr::altarr_contract} for what base R does with a lazy
-array, and \code{\link[altarr:altarr_stats]{altarr::altarr_stats()}} to count fetches.
+array, and \code{altarr::altarr_stats()} to count fetches.
 }
 \section{Dimension order}{
 
@@ -88,12 +91,23 @@ re-open it with \code{zaro_array()}.
 }
 
 \examples{
-\dontrun{
-store <- zaro("https://ncsa.osn.xsede.org/Pangeo/pangeo-forge/gpcp-feedstock/gpcp.zarr")
-x <- zaro_array(store, "precip")
-dim(x)                       # longitude, latitude, time
-x[cbind(180, 90, 1:10)]      # one pixel, ten time steps, one fetch
-altarr::altarr_extract(x, 1:20, 1:20, 100)
-altarr::altarr_stats(x)
+\dontshow{if (requireNamespace("altarr", quietly = TRUE)) withAutoprint(\{ # examplesIf}
+f <- system.file("extdata", "example.zarr", package = "zaro")
+store <- zaro(f)
+x <- zaro_array(store, "temp")
+dim(x)                       # lon, lat, time: the Zarr shape reversed
+x[1:4, 1:2, 1]               # reads one chunk
+altarr::altarr_stats(x)[c("fetch_calls", "chunks_fetched")]
+\dontshow{\}) # examplesIf}
+\dontshow{if (interactive() && requireNamespace("altarr", quietly = TRUE)) withAutoprint(\{ # examplesIf}
+## a public store over HTTPS (network access; blosc-compressed chunks)
+if (requireNamespace("blosc", quietly = TRUE)) {
+  aodn <- zaro(paste0("https://aodn-cloud-optimised.s3.ap-southeast-2.amazonaws.com/",
+                      "model_sea_level_anomaly_gridded_realtime.zarr"))
+  x <- zaro_array(aodn, "GSLA", cf = TRUE)
+  dim(x)                     # LONGITUDE, LATITUDE, TIME
+  x[cbind(101, 101, 1:5)]    # one pixel, five time steps, one fetch
+  altarr::altarr_stats(x)[c("fetch_calls", "chunks_fetched")]
 }
+\dontshow{\}) # examplesIf}
 }

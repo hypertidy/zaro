@@ -59,3 +59,12 @@ chunks and assembling them into an R array. Supports Zarr V2 and V3,
 including sharded V3 arrays, and every store \code{\link[=zaro]{zaro()}} opens. The chunks
 are planned with \code{\link[=zaro_plan]{zaro_plan()}} and fetched together with \code{\link[=zaro_fetch]{zaro_fetch()}}.
 }
+\examples{
+f <- system.file("extdata", "example.zarr", package = "zaro")
+store <- zaro(f)
+## the first time step, every lat and lon (start is 0-based)
+x <- zaro_read(store, "temp", start = c(0, 0, 0), count = c(1, NA, NA))
+dim(x)
+## a window of a sharded array
+zaro_read(store, "detail/elev", start = c(2, 2), count = c(3, 4))
+}

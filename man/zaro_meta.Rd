@@ -28,5 +28,12 @@ Reads and parses the metadata for an array or group at the given path.
 Automatically detects Zarr V2 (\code{.zarray}/\code{.zattrs}/\code{.zmetadata})
 vs V3 (\code{zarr.json}) format. For cloud stores, consolidated metadata
 (\code{.zmetadata} for V2, consolidated \code{zarr.json} for V3) is preferred
-to minimise the number of requests.
+to minimize the number of requests.
+}
+\examples{
+f <- system.file("extdata", "example.zarr", package = "zaro")
+store <- zaro(f)
+zaro_meta(store)                  # the root group
+zaro_meta(store, "temp")          # an array
+zaro_meta(store, "detail/elev")   # a sharded array in a nested group
 }

@@ -15,14 +15,17 @@
 #' Returns an ordinary R array (a double, integer or logical vector with a
 #' `dim` attribute and no class) whose values are read from the store chunk
 #' by chunk, only when R asks for them. It is an ALTREP object built by
-#' [altarr::altarr()], with zaro's chunk fetch and codec pipeline behind it.
+#' `altarr::altarr()`, with zaro's chunk fetch and codec pipeline behind it.
 #' Nothing is read when the array is created beyond the metadata.
+#'
+#' The altarr package is not on CRAN; install it from R-universe with
+#' `install.packages("altarr", repos = "https://hypertidy.r-universe.dev")`.
 #'
 #' Subsetting with `x[i]`, `x[cbind(i, j, k)]` and
 #' `altarr::altarr_extract(x, i, j, k)` plans the chunks it needs and fetches
 #' them in one batch; `sum()`, `mean()`, `min()` and `max()` stream the chunk
 #' grid. See `?altarr::altarr_contract` for what base R does with a lazy
-#' array, and [altarr::altarr_stats()] to count fetches.
+#' array, and `altarr::altarr_stats()` to count fetches.
 #'
 #' @section Dimension order:
 #' A C-order Zarr array of shape `(s1, ..., sn)` (all Zarr V3 arrays, and V2
@@ -66,23 +69,32 @@
 #'   [zaro_read()] (the same caveats about store serialization apply).
 #' @param verbose logical. Emit diagnostic messages when reading metadata.
 #'   Default `getOption("zaro.verbose", TRUE)`.
-#' @returns A lazy array, see [altarr::altarr()].
+#' @returns A lazy array, see `altarr::altarr()`.
 #'
 #' @export
-#' @examples
-#' \dontrun{
-#' store <- zaro("https://ncsa.osn.xsede.org/Pangeo/pangeo-forge/gpcp-feedstock/gpcp.zarr")
-#' x <- zaro_array(store, "precip")
-#' dim(x)                       # longitude, latitude, time
-#' x[cbind(180, 90, 1:10)]      # one pixel, ten time steps, one fetch
-#' altarr::altarr_extract(x, 1:20, 1:20, 100)
-#' altarr::altarr_stats(x)
+#' @examplesIf requireNamespace("altarr", quietly = TRUE)
+#' f <- system.file("extdata", "example.zarr", package = "zaro")
+#' store <- zaro(f)
+#' x <- zaro_array(store, "temp")
+#' dim(x)                       # lon, lat, time: the Zarr shape reversed
+#' x[1:4, 1:2, 1]               # reads one chunk
+#' altarr::altarr_stats(x)[c("fetch_calls", "chunks_fetched")]
+#' @examplesIf interactive() && requireNamespace("altarr", quietly = TRUE)
+#' ## a public store over HTTPS (network access; blosc-compressed chunks)
+#' if (requireNamespace("blosc", quietly = TRUE)) {
+#'   aodn <- zaro(paste0("https://aodn-cloud-optimised.s3.ap-southeast-2.amazonaws.com/",
+#'                       "model_sea_level_anomaly_gridded_realtime.zarr"))
+#'   x <- zaro_array(aodn, "GSLA", cf = TRUE)
+#'   dim(x)                     # LONGITUDE, LATITUDE, TIME
+#'   x[cbind(101, 101, 1:5)]    # one pixel, five time steps, one fetch
+#'   altarr::altarr_stats(x)[c("fetch_calls", "chunks_fetched")]
 #' }
 zaro_array <- function(store, path = "", meta = NULL, parallel = FALSE,
                        verbose = zaro_verbose(), cf = FALSE) {
   if (!requireNamespace("altarr", quietly = TRUE)) {
-    stop("zaro_array() requires the altarr package:\n",
-         "  remotes::install_github(\"hypertidy/altarr\")", call. = FALSE)
+    stop("zaro_array() requires the altarr package (not on CRAN):\n",
+         "  install.packages(\"altarr\", repos = \"https://hypertidy.r-universe.dev\")",
+         call. = FALSE)
   }
   if (path == ".") path <- ""
   if (inherits(store, "zaro_dataset")) {

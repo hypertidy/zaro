@@ -1,8 +1,9 @@
 # R CMD check in the hypertidy/gdal-r-ci images (GDAL, PROJ and GEOS built
 # from source; :latest = releases, :dev = GDAL HEAD), as for ndr. zaro needs
 # GDAL only for its optional gdalraster paths; the image gives one
-# environment across the hypertidy packages. GITHUB_PAT lets remotes install
-# the GitHub Remotes (altarr). Online tests skip here (skip_on_cran).
+# environment across the hypertidy packages. altarr and tabularberg
+# (Suggests) come from hypertidy.r-universe.dev. Online tests skip here
+# (skip_on_cran).
 on:
   push:
     branches: [main, master]

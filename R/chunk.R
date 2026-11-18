@@ -30,6 +30,12 @@
 #'   }
 #'
 #' @export
+#' @examples
+#' f <- system.file("extdata", "example.zarr", package = "zaro")
+#' store <- zaro(f)
+#' info <- zaro_chunk_info(store, "temp")
+#' info$grid          # chunks along time, lat, lon
+#' info$chunk_shape
 zaro_chunk_info <- function(store, path, meta = NULL, verbose = zaro_verbose()) {
   meta <- resolve_array_meta(store, path, meta, verbose)
 
@@ -74,6 +80,12 @@ zaro_chunk_info <- function(store, path, meta = NULL, verbose = zaro_verbose()) 
 #'   Returns NULL if the chunk doesn't exist (missing/sparse).
 #'
 #' @export
+#' @examples
+#' f <- system.file("extdata", "example.zarr", package = "zaro")
+#' store <- zaro(f)
+#' ch <- zaro_chunk(store, "temp", c(0, 1, 1))
+#' ch$start           # where the chunk sits in the array (0-based)
+#' dim(ch$values)
 zaro_chunk <- function(store, path, chunk_idx, meta = NULL,
                        shaped = TRUE, verbose = zaro_verbose()) {
   meta <- resolve_array_meta(store, path, meta, verbose)
@@ -123,6 +135,13 @@ zaro_chunk <- function(store, path, chunk_idx, meta = NULL,
 #'   entries indicate missing chunks.
 #'
 #' @export
+#' @examples
+#' f <- system.file("extdata", "example.zarr", package = "zaro")
+#' store <- zaro(f)
+#' ## every chunk of the first time step
+#' chs <- zaro_chunks(store, "temp", ranges = list(0, NULL, NULL))
+#' length(chs)
+#' t(sapply(chs, `[[`, "start"))
 zaro_chunks <- function(store, path, ranges = NULL, meta = NULL,
                         shaped = TRUE, parallel = FALSE, verbose = zaro_verbose()) {
   meta <- resolve_array_meta(store, path, meta, verbose)
@@ -195,18 +214,19 @@ zaro_chunks <- function(store, path, ranges = NULL, meta = NULL,
 #'
 #' @export
 #' @examples
-#' \dontrun{
-#' # per-chunk mean, memory-efficient
-#' means <- zaro_chunk_apply(store, "temperature", function(chunk) {
+#' f <- system.file("extdata", "example.zarr", package = "zaro")
+#' store <- zaro(f)
+#' ## per-chunk mean, one chunk in memory at a time
+#' means <- zaro_chunk_apply(store, "temp", function(chunk) {
 #'   mean(chunk$values, na.rm = TRUE)
 #' })
+#' unlist(means)
 #'
-#' # first time step only, all spatial chunks
-#' means <- zaro_chunk_apply(store, "temperature", function(chunk) {
+#' ## first time step only, all spatial chunks
+#' zaro_chunk_apply(store, "temp", function(chunk) {
 #'   c(mean = mean(chunk$values, na.rm = TRUE),
 #'     n_valid = sum(is.finite(chunk$values)))
 #' }, ranges = list(0, NULL, NULL))
-#' }
 zaro_chunk_apply <- function(store, path, fun, ranges = NULL, meta = NULL,
                              shaped = TRUE, parallel = FALSE, verbose = zaro_verbose()) {
   chunks <- zaro_chunks(store, path, ranges = ranges, meta = meta,

@@ -43,16 +43,17 @@ results. Chunks are fetched and decoded one at a time (or in parallel)
 so memory usage is proportional to one chunk, not the full array.
 }
 \examples{
-\dontrun{
-# per-chunk mean, memory-efficient
-means <- zaro_chunk_apply(store, "temperature", function(chunk) {
+f <- system.file("extdata", "example.zarr", package = "zaro")
+store <- zaro(f)
+## per-chunk mean, one chunk in memory at a time
+means <- zaro_chunk_apply(store, "temp", function(chunk) {
   mean(chunk$values, na.rm = TRUE)
 })
+unlist(means)
 
-# first time step only, all spatial chunks
-means <- zaro_chunk_apply(store, "temperature", function(chunk) {
+## first time step only, all spatial chunks
+zaro_chunk_apply(store, "temp", function(chunk) {
   c(mean = mean(chunk$values, na.rm = TRUE),
     n_valid = sum(is.finite(chunk$values)))
 }, ranges = list(0, NULL, NULL))
-}
 }

@@ -49,6 +49,8 @@ http.server.ThreadingHTTPServer(("127.0.0.1", port), H).serve_forever()
 #' Start the server on a free port; returns list(url, stats(), stop()).
 #' Callers stop it: on.exit(srv$stop(), add = TRUE)
 local_range_server <- function(dir, delay = 0) {
+  ## a background process and a socket: not on CRAN's machines
+  testthat::skip_on_cran()
   py <- Sys.which("python3")
   testthat::skip_if(!nzchar(py), "python3 not available")
   script <- tempfile(fileext = ".py")

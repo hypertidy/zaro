@@ -52,12 +52,21 @@
 #'
 #' @export
 #' @examples
-#' \dontrun{
+#' f <- system.file("extdata", "example.zarr", package = "zaro")
+#' ds <- zaro_dataset(f)
+#' ds
+#' ds$dims$temp
+#' zaro_read(ds, "temp", start = c(0, 0, 0), count = c(1, 2, 3))
+#' zaro_dataset(f, group = "detail")
+#' @examplesIf interactive() && requireNamespace("blosc", quietly = TRUE)
+#' ## public cloud stores (network access; blosc-compressed chunks)
 #' ds <- zaro_dataset("s3://aodn-cloud-optimised/model_sea_level_anomaly_gridded_realtime.zarr",
 #'                    anonymous = TRUE, region = "ap-southeast-2")
 #' ds
 #' ds$dims$GSLA                       # "LONGITUDE" "LATITUDE" "TIME"
-#' gsla <- zaro_array(ds, "GSLA", cf = TRUE)
+#' if (requireNamespace("altarr", quietly = TRUE)) {
+#'   gsla <- zaro_array(ds, "GSLA", cf = TRUE)   # lazy, CF-unpacked
+#' }
 #'
 #' ## a nested store: list the groups, open one
 #' eopf_url <- paste0(
@@ -67,8 +76,7 @@
 #' eopf <- zaro(eopf_url)
 #' zaro_groups(eopf)
 #' r10m <- zaro_dataset(eopf, group = "measurements/reflectance/r10m")
-#' b04 <- zaro_array(r10m, "b04")
-#' }
+#' r10m
 zaro_dataset <- function(source, group = "", arrays = NULL,
                          verbose = zaro_verbose(), ...) {
   store <- as_store(source, verbose, ...)
@@ -167,13 +175,15 @@ print.zaro_dataset <- function(x, ...) {
 #'   `arrays` (number of arrays directly in the group), sorted by path.
 #' @export
 #' @examples
-#' \dontrun{
+#' f <- system.file("extdata", "example.zarr", package = "zaro")
+#' zaro_groups(f)
+#' @examplesIf interactive()
+#' ## a nested store (network access)
 #' eopf_url <- paste0(
 #'   "https://s3.explorer.eopf.copernicus.eu/esa-zarr-sentinel-explorer-fra/",
 #'   "tests-output/sentinel-2-l2a/",
 #'   "S2C_MSIL2A_20260120T084301_N0511_R064_T36UXA_20260120T122910.zarr")
 #' zaro_groups(eopf_url)
-#' }
 zaro_groups <- function(source, verbose = zaro_verbose(), ...) {
   store <- as_store(source, verbose, ...)
   root <- tryCatch(zaro_meta(store, "", verbose = verbose),

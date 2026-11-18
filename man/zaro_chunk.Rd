@@ -47,3 +47,10 @@ Fetches and decodes one chunk, identified by its position in the chunk
 grid. Returns the decoded values with metadata about where the chunk
 sits in the array.
 }
+\examples{
+f <- system.file("extdata", "example.zarr", package = "zaro")
+store <- zaro(f)
+ch <- zaro_chunk(store, "temp", c(0, 1, 1))
+ch$start           # where the chunk sits in the array (0-based)
+dim(ch$values)
+}
