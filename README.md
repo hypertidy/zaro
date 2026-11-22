@@ -97,8 +97,8 @@ other store.
 | Source | Address |
 |---|---|
 | kerchunk JSON | `reference+json:///path/refs.json` |
-| kerchunk Parquet | `reference+parquet:///path/refs.parquet` |
-| VirtualiZarr Parquet manifests | `virtualizarr://https://.../dataset.parq` |
+| kerchunk Parquet, one table | `reference+parquet:///path/refs.parquet` |
+| kerchunk or VirtualiZarr Parquet directory | `reference+parquet://https://.../kerchunk` or `virtualizarr://...` |
 | byterefs SQLite table | `byterefs:///path/store.sqlite` |
 | byterefs flat Parquet export | `flatrefs://https://.../store` |
 

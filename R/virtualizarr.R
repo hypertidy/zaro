@@ -1,6 +1,9 @@
-# virtualizarr.R - VirtualiZarr Parquet reference store
+# virtualizarr.R - kerchunk Parquet reference directories
 #
-# VirtualiZarr emits a directory that looks like a V2 Zarr store:
+# This is kerchunk's Parquet layout (fsspec's LazyReferenceMapper), which
+# VirtualiZarr also writes; zaro("virtualizarr://...") and
+# zaro("reference+parquet://...") on a directory both open it. The
+# directory looks like a V2 Zarr store:
 #
 #   dataset.parq/
 #     .zmetadata              # standard V2 consolidated metadata (JSON)
@@ -102,11 +105,15 @@ method(store_refs, VirtualiZarrStore) <- function(store, keys) {
     }
     shard_size <- store@cache$shard_sizes[[var_name]]
     if (is.null(shard_size)) {
-      shard_0 <- vz_fetch_shard(store, var_name, 0L)
-      if (is.null(shard_0)) next
-      shard_size <- nrow(shard_0)
+      # kerchunk records the rows per file; without it, the first file's
+      shard_size <- vz_record_size(store)
+      if (is.null(shard_size)) {
+        shard_0 <- vz_fetch_shard(store, var_name, 0L)
+        if (is.null(shard_0)) next
+        shard_size <- nrow(shard_0)
+        store@cache$shards[[paste0(var_name, ":0")]] <- shard_0
+      }
       store@cache$shard_sizes[[var_name]] <- shard_size
-      store@cache$shards[[paste0(var_name, ":0")]] <- shard_0
     }
     # C-order linear index of each chunk in the grid
     idx <- do.call(rbind, lapply(parts[w], function(p) {
@@ -200,6 +207,27 @@ parse_chunk_key <- function(key) {
 }
 
 
+#' Rows per refs.N.parq file, from .zmetadata's record_size (NULL if absent)
+#' @noRd
+vz_record_size <- function(store) {
+  raw <- store_get(store, ".zmetadata")
+  if (is.null(raw)) return(NULL)
+  n <- jsonlite::fromJSON(sanitize_json(rawToChar(raw)),
+                          simplifyVector = FALSE)[["record_size"]]
+  if (is.numeric(n) && length(n) == 1L && n >= 1) as.numeric(n) else NULL
+}
+
+
+#' Is this a kerchunk Parquet reference directory (it has .zmetadata)?
+#' @noRd
+is_refs_parquet_dir <- function(path) {
+  if (grepl("^https?://", path)) {
+    return(!is.null(vz_http_get(paste0(path, "/.zmetadata"))))
+  }
+  dir.exists(path) && file.exists(file.path(path, ".zmetadata"))
+}
+
+
 #' Compute chunk grid dimensions for a variable from metadata
 #'
 #' @returns integer vector of chunk grid dimensions, or NULL
@@ -237,7 +265,9 @@ vz_fetch_shard <- function(store, var_name, shard_idx) {
   full_path <- paste0(store@root, "/", shard_path)
   pq_file <- vz_fetch_parquet_raw(full_path)
   if (is.null(pq_file)) return(NULL)
-  on.exit(if (grepl("^(/tmp|.*/Rtmp)", pq_file)) unlink(pq_file))
+  # a remote file was downloaded to a temporary one; a local file is the
+  # store's own and stays
+  if (!identical(pq_file, full_path)) on.exit(unlink(pq_file), add = TRUE)
   tryCatch({
     tbl <- read_refs_parquet(pq_file)
     shard <- data.frame(

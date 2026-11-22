@@ -46,8 +46,12 @@ names, see \code{\link[=zaro_dataset]{zaro_dataset()}})
 \item \code{/vsi...}: any GDAL virtual file system path, through gdalraster
 (e.g. \code{/vsicurl/https://...} to keep GDAL's HTTP handling)
 \item \code{reference+json://}: Kerchunk JSON reference store
-\item \code{reference+parquet://}: Kerchunk Parquet reference store
-\item \code{virtualizarr://}: VirtualiZarr Parquet manifest store
+\item \code{reference+parquet://}: Kerchunk Parquet references, either
+the directory kerchunk and VirtualiZarr write (\code{.zmetadata} and
+\code{<array>/refs.N.parq}; only the files a selection needs are
+read) or a single table of key, url, offset and length
+\item \code{virtualizarr://}: the same directory layout, by its older
+name here
 \item \code{byterefs://} (or the older \code{mdimrefs://}): a byterefs
 SQLite byte-reference table (\url{https://github.com/byterefs/spec}),
 \code{byterefs/0.1} or the legacy \code{mdim-refs/0.2}. Source paths

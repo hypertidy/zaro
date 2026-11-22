@@ -24,8 +24,12 @@
 #'   \item \code{/vsi...}: any GDAL virtual file system path, through gdalraster
 #'     (e.g. \code{/vsicurl/https://...} to keep GDAL's HTTP handling)
 #'   \item \code{reference+json://}: Kerchunk JSON reference store
-#'   \item \code{reference+parquet://}: Kerchunk Parquet reference store
-#'   \item \code{virtualizarr://}: VirtualiZarr Parquet manifest store
+#'   \item \code{reference+parquet://}: Kerchunk Parquet references, either
+#'     the directory kerchunk and VirtualiZarr write (\code{.zmetadata} and
+#'     \code{<array>/refs.N.parq}; only the files a selection needs are
+#'     read) or a single table of key, url, offset and length
+#'   \item \code{virtualizarr://}: the same directory layout, by its older
+#'     name here
 #'   \item \code{byterefs://} (or the older \code{mdimrefs://}): a byterefs
 #'     SQLite byte-reference table (\url{https://github.com/byterefs/spec}),
 #'     \code{byterefs/0.1} or the legacy \code{mdim-refs/0.2}. Source paths
@@ -132,10 +136,15 @@ zaro <- function(source, verbose = zaro_verbose(), ..., validate = FALSE) {
     vmsg("opening Kerchunk JSON reference store: ", path, verbose = verbose)
     store <- parse_kerchunk_json(path)
   } else if (grepl("^reference\\+parquet://", source)) {
-    # Kerchunk Parquet reference store (single file)
-    path <- sub("^reference\\+parquet://", "", source)
-    vmsg("opening Kerchunk Parquet reference store: ", path, verbose = verbose)
-    store <- parse_kerchunk_parquet(path)
+    # Kerchunk Parquet references: a directory (.zmetadata and
+    # <array>/refs.N.parq, as kerchunk and VirtualiZarr write) or one table
+    path <- sub("/+$", "", sub("^reference\\+parquet://", "", source))
+    if (is_refs_parquet_dir(path)) {
+      store <- open_virtualizarr(path, verbose = verbose)
+    } else {
+      vmsg("opening Kerchunk Parquet reference store: ", path, verbose = verbose)
+      store <- parse_kerchunk_parquet(path)
+    }
   } else if (grepl("^(byterefs|mdimrefs)://", source)) {
     # byterefs byte-reference table (SQLite), served as a Zarr V2 store
     store <- open_mdimrefs(sub("^(byterefs|mdimrefs)://", "", source),
