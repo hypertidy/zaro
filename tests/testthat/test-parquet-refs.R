@@ -72,6 +72,8 @@ test_that("reference+parquet:// opens the same directory; record_size is used", 
   st <- zaro(paste0("reference+parquet://", d$dir, "/"), verbose = FALSE)
   expect_true(S7::S7_inherits(st, VirtualiZarrStore))
   expect_equal(unname(zaro_read(st, "a", verbose = FALSE)), d$x, ignore_attr = TRUE)
+  ## reading a local store leaves its files in place
+  expect_true(all(file.exists(file.path(d$dir, "a", c("refs.0.parq", "refs.1.parq")))))
 
   ## record_size wins over the first file's row count: say 2 rows a file
   ## and leave only the second file, whose rows are chunks 2 and 3

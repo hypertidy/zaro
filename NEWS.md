@@ -6,6 +6,10 @@
   obvious from that name. The rows per file now come from `record_size` in
   `.zmetadata` when it is there.
 
+* Reading a local `virtualizarr://` store under the temporary directory no
+  longer deletes its `refs.N.parq` files: the cleanup meant for downloaded
+  copies matched any path under `/tmp`.
+
 * Fixes from win-builder and R-universe's macOS and Windows checks (#39):
   * Icechunk virtual chunks in local files read with `direct = TRUE` on
     Windows. tabularberg writes their locations as `file:///C:/...`, which

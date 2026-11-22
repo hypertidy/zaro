@@ -265,7 +265,9 @@ vz_fetch_shard <- function(store, var_name, shard_idx) {
   full_path <- paste0(store@root, "/", shard_path)
   pq_file <- vz_fetch_parquet_raw(full_path)
   if (is.null(pq_file)) return(NULL)
-  on.exit(if (grepl("^(/tmp|.*/Rtmp)", pq_file)) unlink(pq_file))
+  # a remote file was downloaded to a temporary one; a local file is the
+  # store's own and stays
+  if (!identical(pq_file, full_path)) on.exit(unlink(pq_file), add = TRUE)
   tryCatch({
     tbl <- read_refs_parquet(pq_file)
     shard <- data.frame(
