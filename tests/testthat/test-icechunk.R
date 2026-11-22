@@ -45,6 +45,50 @@ test_that("chunks come from the manifest: inline, store, absent", {
   expect_length(r$data[[1L]], 48L)
 })
 
+test_that("ic_boxes() splits scattered chunks, keeps compact ones whole", {
+  ## a compact block is one box
+  blk <- as.matrix(expand.grid(0:3, 10:14, 7))
+  b <- ic_boxes(blk)
+  expect_length(b, 1L)
+  expect_equal(b[[1L]]$lo, c(0, 10, 7), ignore_attr = TRUE)
+  expect_equal(b[[1L]]$hi, c(3, 14, 7), ignore_attr = TRUE)
+  ## two profiles far apart in time: two boxes, each a column of depths
+  far <- rbind(cbind(100, 0:50, 3, 4), cbind(9000, 0:50, 8, 2))
+  b <- ic_boxes(far)
+  expect_length(b, 2L)
+  vol <- vapply(b, function(x) prod(x$hi - x$lo + 1), 0)
+  expect_equal(vol, c(51, 51))
+  ## every chunk is in exactly one box, and no box is far larger than its chunks
+  set.seed(1)
+  pts <- unique(cbind(sample(0:12000, 200), sample(0:50, 200, TRUE),
+                      sample(0:4, 200, TRUE), sample(0:11, 200, TRUE)))
+  b <- ic_boxes(pts)
+  n_in <- vapply(b, function(x) sum(apply(pts, 1L, function(p) all(p >= x$lo & p <= x$hi))), 0)
+  expect_equal(sum(n_in), nrow(pts))
+  vol <- vapply(b, function(x) prod(x$hi - x$lo + 1), 0)
+  expect_true(all(vol <= pmax(4096, 64 * n_in)))
+})
+
+test_that("large arrays have their refs read by slab, with the same result", {
+  skip_if_not(ic_has_slab(), "tabularberg without ic_chunk_refs(chunks =)")
+  ex <- ic_ex()
+  keys <- c("from_bin/c/1/0", "from_bin/c/0/1", "from_bin/c/9/0", "small/c/0/0",
+            "small/c/1/1", "from_nc/c/0/0", "zarr.json")
+  whole <- store_refs(zaro_icechunk(ex$repo, direct = TRUE, verbose = FALSE), keys)
+
+  old <- options(zaro.icechunk_whole_refs = 0)      # every array is "large"
+  on.exit(options(old), add = TRUE)
+  store <- zaro_icechunk(ex$repo, direct = TRUE, verbose = FALSE)
+  expect_equal(store_refs(store, keys), whole)
+  expect_null(store@cache[["from_bin"]])            # no whole table was read
+  expect_false(is.null(store@cache[[".slabs:from_bin"]]))
+  ## and the values through the lazy array
+  x <- zaro_array(store, "from_bin", verbose = FALSE)
+  expect_equal(as.vector(x[, ]), ex$values)
+  s <- zaro_array(store, "small", verbose = FALSE)
+  expect_equal(unname(t(s[, ])), matrix(as.double(1:24), 4, 6, byrow = TRUE))
+})
+
 test_that("tag, snapshot and branch pick the version", {
   ex <- ic_ex()
   # (small's y and x differ from the other arrays', so zaro_dataset() warns)

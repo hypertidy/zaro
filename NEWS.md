@@ -1,5 +1,14 @@
 # zaro (development version)
 
+* Icechunk arrays with more than a million chunks have their chunk
+  references read by slab, only for the region asked for, instead of the
+  whole array's on first touch. Opening the 37.5 million chunk Bluelink
+  temperature repository and reading one profile no longer loads every
+  reference (the R process was killed for memory). Needs a tabularberg
+  with `ic_chunk_refs(chunks =)`; with an older one the whole table is
+  read as before. `options(zaro.icechunk_whole_refs = )` sets the
+  threshold.
+
 * Fixes from win-builder and R-universe's macOS and Windows checks (#39):
   * Icechunk virtual chunks in local files read with `direct = TRUE` on
     Windows. tabularberg writes their locations as `file:///C:/...`, which
