@@ -68,6 +68,13 @@ jobs:
           tarball=$(ls -1 *.tar.gz | head -1)
           R CMD check --no-manual --no-build-vignettes "$tarball"
 
+      # R CMD check runs as CRAN does, which skips the tests that start a
+      # local HTTP server (helper-http.R); run those here
+      - name: Local HTTP server tests
+        run: |
+          R CMD INSTALL --no-docs .
+          NOT_CRAN=true Rscript -e 'testthat::test_dir("tests/testthat", package = "zaro", load_package = "installed", filter = "fetch|flatrefs|parquet-refs|dataset", stop_on_failure = TRUE, stop_on_warning = FALSE)'
+
       - name: Show logs on failure
         if: failure()
         run: |
