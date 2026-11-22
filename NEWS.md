@@ -9,6 +9,16 @@
   read as before. `options(zaro.icechunk_whole_refs = )` sets the
   threshold.
 
+* `zaro("reference+parquet://...")` opens a kerchunk Parquet reference
+  directory (`.zmetadata` and `<array>/refs.N.parq`), not only a single
+  table. It is the layout `virtualizarr://` already read, which was not
+  obvious from that name. The rows per file now come from `record_size` in
+  `.zmetadata` when it is there.
+
+* Reading a local `virtualizarr://` store under the temporary directory no
+  longer deletes its `refs.N.parq` files: the cleanup meant for downloaded
+  copies matched any path under `/tmp`.
+
 * HTTP connections are kept open between fetches. `zaro_fetch()` made a new
   curl pool on every call, so code that reads one chunk per call (base R
   subsetting a `zaro_array()` chunk by chunk, a loop of small reads) opened
