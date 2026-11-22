@@ -23,9 +23,12 @@ appropriate backend based on the URI scheme:
 
 - `reference+json://`: Kerchunk JSON reference store
 
-- `reference+parquet://`: Kerchunk Parquet reference store
+- `reference+parquet://`: Kerchunk Parquet references, either the
+  directory kerchunk and VirtualiZarr write (`.zmetadata` and
+  `<array>/refs.N.parq`; only the files a selection needs are read) or a
+  single table of key, url, offset and length
 
-- `virtualizarr://`: VirtualiZarr Parquet manifest store
+- `virtualizarr://`: the same directory layout, by its older name here
 
 - `byterefs://` (or the older `mdimrefs://`): a byterefs SQLite
   byte-reference table (<https://github.com/byterefs/spec>),

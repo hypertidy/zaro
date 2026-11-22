@@ -100,13 +100,13 @@ summary(ts)
 A virtual store holds references, not data. Once open it behaves like
 any other store.
 
-| Source                         | Address                                   |
-|--------------------------------|-------------------------------------------|
-| kerchunk JSON                  | `reference+json:///path/refs.json`        |
-| kerchunk Parquet               | `reference+parquet:///path/refs.parquet`  |
-| VirtualiZarr Parquet manifests | `virtualizarr://https://.../dataset.parq` |
-| byterefs SQLite table          | `byterefs:///path/store.sqlite`           |
-| byterefs flat Parquet export   | `flatrefs://https://.../store`            |
+| Source | Address |
+|----|----|
+| kerchunk JSON | `reference+json:///path/refs.json` |
+| kerchunk Parquet, one table | `reference+parquet:///path/refs.parquet` |
+| kerchunk or VirtualiZarr Parquet directory | `reference+parquet://https://.../kerchunk` or `virtualizarr://...` |
+| byterefs SQLite table | `byterefs:///path/store.sqlite` |
+| byterefs flat Parquet export | `flatrefs://https://.../store` |
 
 byterefs stores apply their default path remap (`target`), so a table
 scanned on a local mirror reads from the public copy. A flat refs store

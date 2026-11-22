@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">zaro</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.1.9046</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.1.9048</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -44,7 +44,10 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="zaro-development-version">zaro (development version)<a class="anchor" aria-label="anchor" href="#zaro-development-version"></a></h2>
-<ul><li><p>HTTP connections are kept open between fetches. <code><a href="../reference/zaro_fetch.html">zaro_fetch()</a></code> made a new curl pool on every call, so code that reads one chunk per call (base R subsetting a <code><a href="../reference/zaro_array.html">zaro_array()</a></code> chunk by chunk, a loop of small reads) opened a new connection, and for HTTPS a new TLS handshake, per chunk. That was slow, and a THREDDS server answered it by resetting the connection after about 20 requests. The pool now lives for the session (per process). <code>attr(, "stats")</code> gains <code>connections</code>, the number newly opened; <code>options(zaro.http_keepalive = FALSE)</code> restores a pool per call.</p></li>
+<ul><li><p>Icechunk arrays with more than a million chunks have their chunk references read by slab, only for the region asked for, instead of the whole array’s on first touch. Opening the 37.5 million chunk Bluelink temperature repository and reading one profile no longer loads every reference (the R process was killed for memory). Needs a tabularberg with <code>ic_chunk_refs(chunks =)</code>; with an older one the whole table is read as before. <code>options(zaro.icechunk_whole_refs = )</code> sets the threshold.</p></li>
+<li><p><code>zaro("reference+parquet://...")</code> opens a kerchunk Parquet reference directory (<code>.zmetadata</code> and <code>&lt;array&gt;/refs.N.parq</code>), not only a single table. It is the layout <code>virtualizarr://</code> already read, which was not obvious from that name. The rows per file now come from <code>record_size</code> in <code>.zmetadata</code> when it is there.</p></li>
+<li><p>Reading a local <code>virtualizarr://</code> store under the temporary directory no longer deletes its <code>refs.N.parq</code> files: the cleanup meant for downloaded copies matched any path under <code>/tmp</code>.</p></li>
+<li><p>HTTP connections are kept open between fetches. <code><a href="../reference/zaro_fetch.html">zaro_fetch()</a></code> made a new curl pool on every call, so code that reads one chunk per call (base R subsetting a <code><a href="../reference/zaro_array.html">zaro_array()</a></code> chunk by chunk, a loop of small reads) opened a new connection, and for HTTPS a new TLS handshake, per chunk. That was slow, and a THREDDS server answered it by resetting the connection after about 20 requests. The pool now lives for the session (per process). <code>attr(, "stats")</code> gains <code>connections</code>, the number newly opened; <code>options(zaro.http_keepalive = FALSE)</code> restores a pool per call.</p></li>
 <li>
 <p>Fixes from win-builder and R-universe’s macOS and Windows checks (<a href="https://github.com/hypertidy/zaro/issues/39" class="external-link">#39</a>):</p>
 <ul><li>Icechunk virtual chunks in local files read with <code>direct = TRUE</code> on Windows. tabularberg writes their locations as <code>file:///C:/...</code>, which zaro turned into the path <code>/C:/...</code>; the chunks were not found and read as fill (NaN).</li>

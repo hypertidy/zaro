@@ -21,7 +21,7 @@
 
     <a class="navbar-brand me-2" href="index.html">zaro</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.1.9046</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.1.9048</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -140,12 +140,14 @@
 <td><code>reference+json:///path/refs.json</code></td>
 </tr>
 <tr>
-<td>kerchunk Parquet</td>
+<td>kerchunk Parquet, one table</td>
 <td><code>reference+parquet:///path/refs.parquet</code></td>
 </tr>
 <tr>
-<td>VirtualiZarr Parquet manifests</td>
-<td><code>virtualizarr://https://.../dataset.parq</code></td>
+<td>kerchunk or VirtualiZarr Parquet directory</td>
+<td>
+<code>reference+parquet://https://.../kerchunk</code> or <code>virtualizarr://...</code>
+</td>
 </tr>
 <tr>
 <td>byterefs SQLite table</td>

@@ -14,8 +14,12 @@ names, see zaro_dataset())
 /vsi...: any GDAL virtual file system path, through gdalraster
 (e.g. /vsicurl/https://... to keep GDAL's HTTP handling)
 reference+json://: Kerchunk JSON reference store
-reference+parquet://: Kerchunk Parquet reference store
-virtualizarr://: VirtualiZarr Parquet manifest store
+reference+parquet://: Kerchunk Parquet references, either
+the directory kerchunk and VirtualiZarr write (.zmetadata and
+&amp;lt;array&amp;gt;/refs.N.parq; only the files a selection needs are
+read) or a single table of key, url, offset and length
+virtualizarr://: the same directory layout, by its older
+name here
 byterefs:// (or the older mdimrefs://): a byterefs
 SQLite byte-reference table (https://github.com/byterefs/spec),
 byterefs/0.1 or the legacy mdim-refs/0.2. Source paths
@@ -49,8 +53,12 @@ names, see zaro_dataset())
 /vsi...: any GDAL virtual file system path, through gdalraster
 (e.g. /vsicurl/https://... to keep GDAL's HTTP handling)
 reference+json://: Kerchunk JSON reference store
-reference+parquet://: Kerchunk Parquet reference store
-virtualizarr://: VirtualiZarr Parquet manifest store
+reference+parquet://: Kerchunk Parquet references, either
+the directory kerchunk and VirtualiZarr write (.zmetadata and
+&amp;lt;array&amp;gt;/refs.N.parq; only the files a selection needs are
+read) or a single table of key, url, offset and length
+virtualizarr://: the same directory layout, by its older
+name here
 byterefs:// (or the older mdimrefs://): a byterefs
 SQLite byte-reference table (https://github.com/byterefs/spec),
 byterefs/0.1 or the legacy mdim-refs/0.2. Source paths
@@ -77,7 +85,7 @@ icechunk_storage object works too. See zaro_icechunk()
 
     <a class="navbar-brand me-2" href="../index.html">zaro</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.1.9046</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.1.9048</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -128,8 +136,12 @@ names, see <code><a href="zaro_dataset.html">zaro_dataset()</a></code>)</p></li>
 <li><p><code>/vsi...</code>: any GDAL virtual file system path, through gdalraster
 (e.g. <code>/vsicurl/https://...</code> to keep GDAL's HTTP handling)</p></li>
 <li><p><code>reference+json://</code>: Kerchunk JSON reference store</p></li>
-<li><p><code>reference+parquet://</code>: Kerchunk Parquet reference store</p></li>
-<li><p><code>virtualizarr://</code>: VirtualiZarr Parquet manifest store</p></li>
+<li><p><code>reference+parquet://</code>: Kerchunk Parquet references, either
+the directory kerchunk and VirtualiZarr write (<code>.zmetadata</code> and
+<code>&lt;array&gt;/refs.N.parq</code>; only the files a selection needs are
+read) or a single table of key, url, offset and length</p></li>
+<li><p><code>virtualizarr://</code>: the same directory layout, by its older
+name here</p></li>
 <li><p><code>byterefs://</code> (or the older <code>mdimrefs://</code>): a byterefs
 SQLite byte-reference table (<a href="https://github.com/byterefs/spec" class="external-link">https://github.com/byterefs/spec</a>),
 <code>byterefs/0.1</code> or the legacy <code>mdim-refs/0.2</code>. Source paths
