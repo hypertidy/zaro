@@ -9,6 +9,7 @@
 #   - byte ranges on the same URL that touch (or are within `merge_gap`
 #     bytes of each other) are merged into one request, then split
 #   - failed or short responses are retried with backoff
+#   - the pool lives for the session, so connections are reused across calls
 # S3 and GCS rows join the pool as HTTPS when their access is known
 # (anonymous, or AWS keys in the environment, signed by curl's SigV4; see
 # cloud.R). Other transports (S3/GCS with profile or role credentials,
@@ -41,7 +42,12 @@
 #' @param verbose logical. Emit diagnostic messages. Default
 #'   `getOption("zaro.verbose", TRUE)`.
 #' @returns A list of raw vectors (or `NULL`), one per plan row, with
-#'   attribute `"stats"`: HTTP `requests`, `bytes` received and `seconds`.
+#'   attribute `"stats"`: HTTP `requests`, `bytes` received, new
+#'   `connections` opened and `seconds`.
+#'
+#' @details Connections are kept open between calls, so a loop that reads a
+#'   chunk at a time reuses them rather than opening one per chunk. Set
+#'   `options(zaro.http_keepalive = FALSE)` for a fresh pool on every call.
 #'
 #' @export
 #' @examples
@@ -57,7 +63,7 @@ zaro_fetch <- function(store, plan, max_con = getOption("zaro.max_con", 8L),
   if (inherits(store, "zaro_dataset")) store <- store$store
   n <- nrow(plan)
   out <- vector("list", n)
-  stats <- list(requests = 0L, bytes = 0, seconds = 0)
+  stats <- list(requests = 0L, bytes = 0, connections = 0L, seconds = 0)
 
   # S3/GCS objects whose access is known go through the pool too, as HTTPS
   plan <- plan_cloud_to_http(plan, store)
@@ -103,18 +109,22 @@ http_fetch <- function(url, offset, length, max_con = 8L, merge_gap = 0,
                        retries = 2L, max_merge = 16 * 1024^2,
                        absent_ok = is.na(length), opts = NULL) {
   t0 <- Sys.time()
+  # an error or interrupt part way leaves requests queued in the shared
+  # pool; drop it then, so the next call starts clean
+  clean <- FALSE
+  on.exit(if (!clean) http_pool_reset(), add = TRUE)
   reqs <- http_requests(url, offset, length, merge_gap, max_merge)
   for (q in seq_along(reqs)) reqs[[q]]$absent_ok <- all(absent_ok[reqs[[q]]$rows])
   res <- vector("list", length(url))
   n_req <- 0L
   n_bytes <- 0
+  n_con <- 0L
   todo <- seq_along(reqs)
   errs <- character()
   for (attempt in 0:retries) {
     if (!length(todo)) break
     if (attempt > 0L) Sys.sleep(0.5 * 2^(attempt - 1L))
-    pool <- curl::new_pool(total_con = max_con, host_con = max_con,
-                           multiplex = FALSE)
+    pool <- http_pool(max_con)
     failed <- integer()
     for (q in todo) {
       local({
@@ -145,6 +155,8 @@ http_fetch <- function(url, offset, length, max_con = 8L, merge_gap = 0,
               return(invisible())
             }
             n_bytes <<- n_bytes + base::length(r$content)
+            # a reused connection reports no connect time
+            if (isTRUE(r$times[["connect"]] > 0)) n_con <<- n_con + 1L
             for (m in seq_along(rq$rows)) {
               res[[rq$rows[m]]] <<- if (is.na(rq$start) || isTRUE(rq$suffix)) body else
                 body[seq.int(rq$rel[m] + 1, length.out = rq$len[m])]
@@ -160,15 +172,52 @@ http_fetch <- function(url, offset, length, max_con = 8L, merge_gap = 0,
     curl::multi_run(pool = pool)
     todo <- failed
   }
+  clean <- TRUE
   if (length(todo)) {
     stop(length(todo), " HTTP request(s) failed after ", retries,
          " retries; last: ", utils::tail(errs, 1L), call. = FALSE)
   }
   attr(res, "stats") <- list(
-    requests = n_req, bytes = n_bytes,
+    requests = n_req, bytes = n_bytes, connections = n_con,
     seconds = as.numeric(difftime(Sys.time(), t0, units = "secs")))
   res
 }
+
+
+#' The curl pool HTTP fetches share
+#'
+#' One pool for the session, so that connections (and their TLS sessions)
+#' opened by one fetch are reused by the next. A caller that reads chunk by
+#' chunk otherwise opens a connection per chunk, which is slow and which
+#' some servers answer by resetting the connection. The pool is kept per
+#' process, so a forked worker does not share its parent's sockets.
+#' `options(zaro.http_keepalive = FALSE)` gives every call its own pool.
+#' @noRd
+http_pool <- function(max_con = 8L) {
+  if (!isTRUE(getOption("zaro.http_keepalive", TRUE))) {
+    return(curl::new_pool(total_con = max_con, host_con = max_con,
+                          multiplex = FALSE))
+  }
+  pid <- Sys.getpid()
+  if (is.null(.http$pool) || !identical(.http$pid, pid)) {
+    .http$pool <- curl::new_pool(total_con = max_con, host_con = max_con,
+                                 multiplex = FALSE)
+    .http$pid <- pid
+    .http$max_con <- max_con
+  } else if (!identical(.http$max_con, max_con)) {
+    curl::multi_set(total_con = max_con, host_con = max_con,
+                    multiplex = FALSE, pool = .http$pool)
+    .http$max_con <- max_con
+  }
+  .http$pool
+}
+
+http_pool_reset <- function() {
+  .http$pool <- NULL
+  invisible()
+}
+
+.http <- new.env(parent = emptyenv())
 
 
 #' The body of a response, or NULL if it is not what was asked for

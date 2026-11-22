@@ -138,3 +138,44 @@ test_that("HTTP errors other than not-found are errors, not absent chunks", {
   ## a whole-object 404 is absent
   expect_null(http_fetch(paste0(srv$url, "/nope"), 0, NA)[[1]])
 })
+
+test_that("connections are reused across http_fetch() calls", {
+  root <- file.path(tempdir(), "http-keepalive")
+  unlink(root, recursive = TRUE)
+  dir.create(root)
+  writeBin(as.raw(1:100), file.path(root, "f.bin"))
+  srv <- local_range_server(root, keepalive = TRUE)
+  on.exit(srv$stop(), add = TRUE)
+  u <- paste0(srv$url, "/f.bin")
+
+  ## one chunk per call, as subsetting chunk by chunk does
+  http_pool_reset()
+  new_con <- 0L
+  for (i in 0:9) {
+    got <- http_fetch(u, i * 10, 10, max_con = 1L)
+    expect_identical(got[[1]], as.raw(i * 10 + 1:10))
+    new_con <- new_con + attr(got, "stats")$connections
+  }
+  st <- srv$stats()
+  expect_equal(st$requests, 10L)
+  expect_equal(st$connections, 1L)
+  expect_lte(new_con, 1L)            # counted from curl's connect time
+
+  ## without keep-alive every call connects again
+  old <- options(zaro.http_keepalive = FALSE)
+  on.exit(options(old), add = TRUE)
+  for (i in 0:4) http_fetch(u, i * 10, 10, max_con = 1L)
+  expect_equal(srv$stats()$connections, 6L)
+})
+
+test_that("a failed fetch does not poison the shared pool", {
+  root <- file.path(tempdir(), "http-pool-reset")
+  unlink(root, recursive = TRUE)
+  dir.create(root)
+  writeBin(as.raw(1:10), file.path(root, "f.bin"))
+  srv <- local_range_server(root)
+  on.exit(srv$stop(), add = TRUE)
+  u <- paste0(srv$url, "/f.bin")
+  expect_error(http_fetch(u, 5, 100, retries = 0L), "failed")
+  expect_identical(http_fetch(u, 0, 4)[[1]], as.raw(1:4))
+})

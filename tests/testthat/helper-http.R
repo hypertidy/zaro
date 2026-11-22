@@ -1,22 +1,29 @@
 # A small local HTTP server for the fetcher tests: serves files under `dir`
 # with single byte-range support, 404 for missing files, a 503 the first
 # time any path containing "flaky" is requested, an optional delay per
-# request, and GET /_stats -> {"requests": n, "max_active": k}. Needs
-# python3; tests skip without it. ASCII only.
+# request, and GET /_stats -> {"requests": n, "max_active": k,
+# "connections": c}. With keepalive = TRUE it speaks HTTP/1.1 and keeps
+# connections open. Needs python3; tests skip without it. ASCII only.
 
 range_server_py <- '
 import http.server, json, os, re, sys, threading, time
 root, port, delay = sys.argv[1], int(sys.argv[2]), float(sys.argv[3])
+keepalive = len(sys.argv) > 4 and sys.argv[4] == "keepalive"
 lock = threading.Lock()
-st = {"requests": 0, "active": 0, "max_active": 0, "flaky": set()}
+st = {"requests": 0, "active": 0, "max_active": 0, "connections": 0, "flaky": set()}
 class H(http.server.BaseHTTPRequestHandler):
+    if keepalive: protocol_version = "HTTP/1.1"
+    counted = False
     def log_message(self, *a): pass
     def do_GET(self):
         if self.path == "/_stats":
-            b = json.dumps({"requests": st["requests"], "max_active": st["max_active"]}).encode()
+            b = json.dumps({"requests": st["requests"], "max_active": st["max_active"],
+                            "connections": st["connections"]}).encode()
             self.send_response(200); self.send_header("Content-Length", str(len(b)))
             self.end_headers(); self.wfile.write(b); return
         with lock:
+            if not self.counted:
+                self.counted = True; st["connections"] += 1
             st["requests"] += 1; st["active"] += 1
             st["max_active"] = max(st["max_active"], st["active"])
         try:
@@ -48,7 +55,7 @@ http.server.ThreadingHTTPServer(("127.0.0.1", port), H).serve_forever()
 
 #' Start the server on a free port; returns list(url, stats(), stop()).
 #' Callers stop it: on.exit(srv$stop(), add = TRUE)
-local_range_server <- function(dir, delay = 0) {
+local_range_server <- function(dir, delay = 0, keepalive = FALSE) {
   ## a background process and a socket: not on CRAN's machines
   testthat::skip_on_cran()
   py <- Sys.which("python3")
@@ -67,9 +74,10 @@ local_range_server <- function(dir, delay = 0) {
     if (ok) { port <- cand; break }
   }
   pidfile <- tempfile()
-  system2("sh", c("-c", shQuote(sprintf("%s %s %s %s %s >/dev/null 2>&1 & echo $! > %s",
+  system2("sh", c("-c", shQuote(sprintf("%s %s %s %s %s %s >/dev/null 2>&1 & echo $! > %s",
                                         py, shQuote(script), shQuote(dir), port,
-                                        delay, shQuote(pidfile)))),
+                                        delay, if (keepalive) "keepalive" else "close",
+                                        shQuote(pidfile)))),
           wait = TRUE)
   pid <- as.integer(readLines(pidfile))
   url <- sprintf("http://127.0.0.1:%d", port)
