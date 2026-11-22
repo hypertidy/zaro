@@ -2,6 +2,18 @@
 
 ## zaro (development version)
 
+- HTTP connections are kept open between fetches.
+  [`zaro_fetch()`](https://hypertidy.github.io/zaro/reference/zaro_fetch.md)
+  made a new curl pool on every call, so code that reads one chunk per
+  call (base R subsetting a
+  [`zaro_array()`](https://hypertidy.github.io/zaro/reference/zaro_array.md)
+  chunk by chunk, a loop of small reads) opened a new connection, and
+  for HTTPS a new TLS handshake, per chunk. That was slow, and a THREDDS
+  server answered it by resetting the connection after about 20
+  requests. The pool now lives for the session (per process).
+  `attr(, "stats")` gains `connections`, the number newly opened;
+  `options(zaro.http_keepalive = FALSE)` restores a pool per call.
+
 - Fixes from win-builder and R-universe’s macOS and Windows checks
   ([\#39](https://github.com/hypertidy/zaro/issues/39)):
 

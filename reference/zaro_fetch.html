@@ -27,7 +27,7 @@ zaro_array() read through this, so they get the same batching."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">zaro</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.1.9045</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.1.9046</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -124,7 +124,14 @@ at most this many bytes (the gap is fetched and discarded). Default
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A list of raw vectors (or <code>NULL</code>), one per plan row, with
-attribute <code>"stats"</code>: HTTP <code>requests</code>, <code>bytes</code> received and <code>seconds</code>.</p>
+attribute <code>"stats"</code>: HTTP <code>requests</code>, <code>bytes</code> received, new
+<code>connections</code> opened and <code>seconds</code>.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>Connections are kept open between calls, so a loop that reads a
+chunk at a time reuses them rather than opening one per chunk. Set
+<code>options(zaro.http_keepalive = FALSE)</code> for a fresh pool on every call.</p>
     </div>
 
     <div class="section level2">
@@ -146,6 +153,9 @@ attribute <code>"stats"</code>: HTTP <code>requests</code>, <code>bytes</code> r
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $bytes</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $connections</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $seconds</span>

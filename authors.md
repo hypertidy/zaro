@@ -14,13 +14,13 @@ Source:
 [`DESCRIPTION`](https://github.com/hypertidy/zaro/blob/main/DESCRIPTION)
 
 Sumner M (2026). *zaro: Read 'Zarr' Arrays from Native and Virtual
-Stores*. R package version 0.0.1.9045,
+Stores*. R package version 0.0.1.9046,
 <https://hypertidy.github.io/zaro/>.
 
     @Manual{,
       title = {zaro: Read 'Zarr' Arrays from Native and Virtual Stores},
       author = {Michael Sumner},
       year = {2026},
-      note = {R package version 0.0.1.9045},
+      note = {R package version 0.0.1.9046},
       url = {https://hypertidy.github.io/zaro/},
     }

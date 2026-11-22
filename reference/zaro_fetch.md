@@ -65,7 +65,14 @@ zaro_fetch(
 ## Value
 
 A list of raw vectors (or `NULL`), one per plan row, with attribute
-`"stats"`: HTTP `requests`, `bytes` received and `seconds`.
+`"stats"`: HTTP `requests`, `bytes` received, new `connections` opened
+and `seconds`.
+
+## Details
+
+Connections are kept open between calls, so a loop that reads a chunk at
+a time reuses them rather than opening one per chunk. Set
+`options(zaro.http_keepalive = FALSE)` for a fresh pool on every call.
 
 ## Examples
 
@@ -87,6 +94,9 @@ attr(raw, "stats")
 #> [1] 0
 #> 
 #> $bytes
+#> [1] 0
+#> 
+#> $connections
 #> [1] 0
 #> 
 #> $seconds
