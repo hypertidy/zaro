@@ -67,6 +67,24 @@ test_that("VirtualiZarr shards (nanoparquet- and arrow-written) read", {
                sort(c(inline = 1L, local = 3L)), ignore_attr = TRUE)
 })
 
+test_that("reference+parquet:// opens the same directory; record_size is used", {
+  d <- make_vz(file.path(tempdir(), "pq-refs-dir.parq"))
+  st <- zaro(paste0("reference+parquet://", d$dir, "/"), verbose = FALSE)
+  expect_true(S7::S7_inherits(st, VirtualiZarrStore))
+  expect_equal(unname(zaro_read(st, "a", verbose = FALSE)), d$x, ignore_attr = TRUE)
+
+  ## record_size wins over the first file's row count: say 2 rows a file
+  ## and leave only the second file, whose rows are chunks 2 and 3
+  zm <- file.path(d$dir, ".zmetadata")
+  writeLines(sub("\\}$", ', "record_size": 2}', paste(readLines(zm), collapse = "")), zm)
+  unlink(file.path(d$dir, "a", "refs.0.parq"))
+  st2 <- zaro(paste0("reference+parquet://", d$dir), verbose = FALSE)
+  expect_equal(vz_record_size(st2), 2)
+  p <- zaro_plan(st2, "a", verbose = FALSE)
+  expect_equal(as.vector(table(p$transport)[c("absent", "inline", "local")]),
+               c(2L, 1L, 1L))
+})
+
 ## kerchunk-style single table: key, url, offset, length, raw; metadata
 ## rows inline (text bytes), data rows by reference
 make_kc <- function(file, d) {

@@ -1,5 +1,11 @@
 # zaro (development version)
 
+* `zaro("reference+parquet://...")` opens a kerchunk Parquet reference
+  directory (`.zmetadata` and `<array>/refs.N.parq`), not only a single
+  table. It is the layout `virtualizarr://` already read, which was not
+  obvious from that name. The rows per file now come from `record_size` in
+  `.zmetadata` when it is there.
+
 * Fixes from win-builder and R-universe's macOS and Windows checks (#39):
   * Icechunk virtual chunks in local files read with `direct = TRUE` on
     Windows. tabularberg writes their locations as `file:///C:/...`, which
