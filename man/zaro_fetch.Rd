@@ -32,7 +32,8 @@ at most this many bytes (the gap is fetched and discarded). Default
 }
 \value{
 A list of raw vectors (or \code{NULL}), one per plan row, with
-attribute \code{"stats"}: HTTP \code{requests}, \code{bytes} received and \code{seconds}.
+attribute \code{"stats"}: HTTP \code{requests}, \code{bytes} received, new
+\code{connections} opened and \code{seconds}.
 }
 \description{
 Executes a \code{\link[=zaro_plan]{zaro_plan()}}: returns the raw (still encoded) bytes of every
@@ -46,6 +47,11 @@ same pool as HTTPS when their access is known: anonymous (\code{zaro(..., anonym
 from the environment. Other credentials (profiles, instance roles,
 signed GCS) are read through Arrow or GDAL one object at a time. \code{\link[=zaro_read]{zaro_read()}} and
 \code{\link[=zaro_array]{zaro_array()}} read through this, so they get the same batching.
+}
+\details{
+Connections are kept open between calls, so a loop that reads a
+chunk at a time reuses them rather than opening one per chunk. Set
+\code{options(zaro.http_keepalive = FALSE)} for a fresh pool on every call.
 }
 \examples{
 f <- system.file("extdata", "example.zarr", package = "zaro")
