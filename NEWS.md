@@ -1,5 +1,14 @@
 # zaro (development version)
 
+* Icechunk arrays with more than a million chunks have their chunk
+  references read by slab, only for the region asked for, instead of the
+  whole array's on first touch. Opening the 37.5 million chunk Bluelink
+  temperature repository and reading one profile no longer loads every
+  reference (the R process was killed for memory). Needs a tabularberg
+  with `ic_chunk_refs(chunks =)`; with an older one the whole table is
+  read as before. `options(zaro.icechunk_whole_refs = )` sets the
+  threshold.
+
 * `zaro("reference+parquet://...")` opens a kerchunk Parquet reference
   directory (`.zmetadata` and `<array>/refs.N.parq`), not only a single
   table. It is the layout `virtualizarr://` already read, which was not
@@ -9,6 +18,7 @@
 * Reading a local `virtualizarr://` store under the temporary directory no
   longer deletes its `refs.N.parq` files: the cleanup meant for downloaded
   copies matched any path under `/tmp`.
+
 * HTTP connections are kept open between fetches. `zaro_fetch()` made a new
   curl pool on every call, so code that reads one chunk per call (base R
   subsetting a `zaro_array()` chunk by chunk, a loop of small reads) opened
